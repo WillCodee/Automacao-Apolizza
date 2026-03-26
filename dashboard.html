@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Comercial</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #2c3e50;
+      min-height: 100vh;
+    }
+
+    /* ── APP LAYOUT ── */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: #1a252f;
+      color: #ecf0f1;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      z-index: 100;
+      overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar-brand .brand-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .sidebar-brand .brand-sub {
+      font-size: 0.72rem;
+      color: #7f8c8d;
+      margin-top: 3px;
+    }
+    .sidebar-section-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #7f8c8d;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 18px 20px 6px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 6px;
+      margin: 2px 10px;
+      font-size: 0.88rem;
+      color: #bdc3c7;
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .nav-item.active { background: #2980b9; color: #fff; font-weight: 600; }
+    .nav-item .nav-icon { font-size: 1rem; width: 18px; text-align: center; }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+      margin-left: 220px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-left h1 { font-size: 1.25rem; font-weight: 700; }
+    .header-left p  { font-size: 0.8rem; color: #bdc3c7; margin-top: 2px; }
+    .header-right   { display: flex; align-items: center; gap: 10px; }
+
+    .year-badge {
+      background: #3498db;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+    }
+    .btn-refresh {
+      background: #27ae60;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-refresh:hover    { background: #219a52; }
+    .btn-refresh:disabled { background: #7f8c8d; cursor: not-allowed; }
+
+    /* ── SUMMARY BAR ── */
+    .summary-bar {
+      display: flex;
+      gap: 16px;
+      padding: 16px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+    }
+    .summary-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      flex: 1;
+      min-width: 150px;
+    }
+    .summary-item .count  { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .summary-item .label  { font-size: 0.8rem; color: #555; margin-top: 2px; }
+    .summary-item .total  { font-size: 0.82rem; font-weight: 600; margin-top: 4px; color: #333; }
+    .s-atraso   { background: #fdecea; border-left: 4px solid #e74c3c; }
+    .s-atraso   .count { color: #e74c3c; }
+    .s-perda    { background: #fef3e2; border-left: 4px solid #e67e22; }
+    .s-perda    .count { color: #e67e22; }
+    .s-andamento{ background: #e8f4fd; border-left: 4px solid #2980b9; }
+    .s-andamento .count { color: #2980b9; }
+
+    /* ── NOTICE BAR ── */
+    #notice-bar {
+      background: #fff8e1;
+      color: #8a6900;
+      font-size: 0.8rem;
+      padding: 8px 24px;
+      border-bottom: 1px solid #ffe082;
+      display: none;
+    }
+
+    /* ── COLUMNS ── */
+    .columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 20px 24px;
+    }
+    @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
+
+    .column {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      display: flex;
+      flex-direction: column;
+    }
+    .column-header {
+      padding: 12px 18px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .column-header-left  { display: flex; flex-direction: column; gap: 2px; }
+    .column-header-value { font-size: 0.78rem; font-weight: 600; opacity: 0.9; }
+    .col-atraso   .column-header { background: #e74c3c; }
+    .col-perda    .column-header { background: #e67e22; }
+    .col-andamento .column-header { background: #2980b9; }
+    .column-header .badge {
+      background: rgba(255,255,255,0.3);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+    .column-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: calc(100vh - 260px);
+    }
+    .column-body::-webkit-scrollbar       { width: 4px; }
+    .column-body::-webkit-scrollbar-track { background: #f1f1f1; }
+    .column-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+    /* ── TASK CARD ── */
+    .task-card {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 12px 14px;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-1px); }
+    .task-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #2c3e50;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .task-name:hover { color: #3498db; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .meta-pill {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .pill-assignee          { background: #e8f4fd; color: #2980b9; }
+    .pill-due               { background: #f0f0f0; color: #555; }
+    .pill-due.overdue       { background: #fdecea; color: #e74c3c; font-weight: 700; }
+    .pill-status            { background: #f0f0f0; color: #555; font-style: italic; }
+    .pill-priority-urgent   { background: #fdecea; color: #c0392b; }
+    .pill-priority-high     { background: #fef3e2; color: #d35400; }
+    .pill-priority-normal   { background: #eafaf1; color: #27ae60; }
+    .pill-priority-low      { background: #f0f0f0; color: #7f8c8d; }
+
+    /* ── SEM VALOR ── */
+    .sem-valor-sep {
+      background: #fff8e1;
+      color: #7a5c00;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border-left: 3px solid #f59e0b;
+      margin: 8px 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sem-valor-sep .sv-count {
+      background: #f59e0b;
+      color: #fff;
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 0.72rem;
+    }
+    .task-card.sem-valor {
+      opacity: 0.75;
+      border-left: 3px solid #f59e0b;
+    }
+
+    /* ── EMPTY / LOADING ── */
+    .empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 0.9rem; }
+    .empty-state span { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.5);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #error-msg {
+      background: #fdecea;
+      color: #c0392b;
+      padding: 10px 24px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    /* ── RENOVAÇÃO VIEW ── */
+    #view-renovacao {
+      display: none;
+      flex-direction: column;
+    }
+    .renov-header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .renov-header h1 { font-size: 1.25rem; font-weight: 700; }
+    .renov-header p  { font-size: 0.8rem; color: #bdc3c7; margin-top: 2px; }
+    .renov-summary {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .renov-summary .count-badge {
+      background: #27ae60;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+    .renov-summary .status-text {
+      font-size: 0.82rem;
+      color: #666;
+    }
+    #notice-bar-renov {
+      background: #fff8e1;
+      color: #8a6900;
+      font-size: 0.8rem;
+      padding: 8px 24px;
+      border-bottom: 1px solid #ffe082;
+      display: none;
+    }
+    .renov-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      padding: 20px 24px;
+    }
+    .renov-card {
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid #e9ecef;
+      padding: 14px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .renov-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
+    .renov-card-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #2c3e50;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .renov-card-name:hover { color: #27ae60; }
+    .renov-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .pill-situacao { background: #eafaf1; color: #1e8449; font-weight: 700; }
+    .renov-loading { text-align: center; padding: 60px 24px; color: #999; font-size: 0.95rem; }
+    .renov-spinner {
+      display: inline-block;
+      width: 28px; height: 28px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #27ae60;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    .renov-error {
+      background: #fdecea;
+      color: #c0392b;
+      padding: 10px 24px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    /* ── GRÁFICOS VIEW ── */
+    #view-graficos {
+      display: none;
+      flex-direction: column;
+    }
+    .charts-header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .charts-header h1 { font-size: 1.25rem; font-weight: 700; }
+    .charts-header p  { font-size: 0.8rem; color: #bdc3c7; margin-top: 2px; }
+    .charts-header .header-right { display: flex; align-items: center; gap: 10px; }
+    .charts-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #f0f2f5;
+      flex: 1;
+    }
+    .charts-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 20px;
+    }
+    .chart-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .chart-card.chart-wide {
+      grid-column: 1 / -1;
+    }
+    .chart-card h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2c3e50;
+      border-bottom: 2px solid #f0f2f5;
+      padding-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-height: 320px;
+    }
+    .chart-canvas-wrap.pie-wrap {
+      max-height: 280px;
+      display: flex;
+      justify-content: center;
+    }
+    .charts-stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .charts-stat-box {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-left: 4px solid #3498db;
+    }
+    .charts-stat-box .stat-value { font-size: 1.8rem; font-weight: 700; color: #2c3e50; }
+    .charts-stat-box .stat-label { font-size: 0.78rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }
+    .charts-stat-box.s-red   { border-color: #e74c3c; }
+    .charts-stat-box.s-red   .stat-value { color: #e74c3c; }
+    .charts-stat-box.s-orange{ border-color: #e67e22; }
+    .charts-stat-box.s-orange .stat-value { color: #e67e22; }
+    .charts-stat-box.s-blue  { border-color: #2980b9; }
+    .charts-stat-box.s-blue  .stat-value { color: #2980b9; }
+    .charts-stat-box.s-green { border-color: #27ae60; }
+    .charts-stat-box.s-green .stat-value { color: #27ae60; }
+    @media (max-width: 700px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
+
+    /* ── OUTROS STATUS ── */
+    .outros-section {
+      padding: 0 24px 20px;
+      display: none;
+    }
+    .outros-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #7f8c8d;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 10px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .outros-section-title::before,
+    .outros-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e0e0e0;
+    }
+    .outros-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .col-outros .column-header {
+      background: var(--outros-color, #7f8c8d);
+    }
+
+    /* ── BARRA DE FILTROS GLOBAL ── */
+    .filter-bar {
+      background: #fff;
+      border-bottom: 2px solid #e8ecef;
+      padding: 10px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-right: 2px;
+      white-space: nowrap;
+    }
+    .filter-btn {
+      font-size: 0.78rem;
+      padding: 4px 11px;
+      border-radius: 20px;
+      border: 1.5px solid #dde1e7;
+      background: #f4f6f8;
+      color: #555;
+      cursor: pointer;
+      transition: all 0.15s;
+      line-height: 1.4;
+    }
+    .filter-btn:hover  { background: #e8f4fd; border-color: #3498db; color: #2980b9; }
+    .filter-btn.active { background: #2980b9; border-color: #2980b9; color: #fff; font-weight: 700; }
+    .filter-divider {
+      width: 1px;
+      height: 24px;
+      background: #e0e0e0;
+      margin: 0 4px;
+    }
+    .filter-summary {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: #7f8c8d;
+      background: #f4f6f8;
+      border-radius: 20px;
+      padding: 4px 12px;
+      border: 1px solid #e0e0e0;
+    }
+    .filter-summary strong { color: #2980b9; }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-title">Comercial</div>
+      <div class="brand-sub">Dashboard interno</div>
+    </div>
+
+    <div class="sidebar-section-label">Menu</div>
+
+    <div class="nav-item active" id="nav-cotacoes" onclick="showView('cotacoes')">
+      <span class="nav-icon">📋</span>
+      Cotações
+    </div>
+
+    <div class="nav-item" id="nav-renovacao" onclick="showView('renovacao')">
+      <span class="nav-icon">🔄</span>
+      Renovação
+    </div>
+
+    <div class="nav-item" id="nav-graficos" onclick="showView('graficos')">
+      <span class="nav-icon">📊</span>
+      Gráficos
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div class="main-content">
+
+    <!-- ════════ BARRA DE FILTROS GLOBAL ════════ -->
+    <div class="filter-bar" id="global-filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">📅 Ano:</span>
+        <button class="filter-btn" data-year="all"  onclick="setFilterYear('all')">Todos</button>
+        <button class="filter-btn" data-year="2024" onclick="setFilterYear(2024)">2024</button>
+        <button class="filter-btn" data-year="2025" onclick="setFilterYear(2025)">2025</button>
+        <button class="filter-btn active" data-year="2026" onclick="setFilterYear(2026)">2026</button>
+        <button class="filter-btn" data-year="2027" onclick="setFilterYear(2027)">2027</button>
+      </div>
+      <div class="filter-divider"></div>
+      <div class="filter-group">
+        <span class="filter-label">📆 Mês:</span>
+        <button class="filter-btn active" data-month="all" onclick="setFilterMonth('all')">Todos</button>
+        <button class="filter-btn" data-month="0"  onclick="setFilterMonth(0)">Jan</button>
+        <button class="filter-btn" data-month="1"  onclick="setFilterMonth(1)">Fev</button>
+        <button class="filter-btn" data-month="2"  onclick="setFilterMonth(2)">Mar</button>
+        <button class="filter-btn" data-month="3"  onclick="setFilterMonth(3)">Abr</button>
+        <button class="filter-btn" data-month="4"  onclick="setFilterMonth(4)">Mai</button>
+        <button class="filter-btn" data-month="5"  onclick="setFilterMonth(5)">Jun</button>
+        <button class="filter-btn" data-month="6"  onclick="setFilterMonth(6)">Jul</button>
+        <button class="filter-btn" data-month="7"  onclick="setFilterMonth(7)">Ago</button>
+        <button class="filter-btn" data-month="8"  onclick="setFilterMonth(8)">Set</button>
+        <button class="filter-btn" data-month="9"  onclick="setFilterMonth(9)">Out</button>
+        <button class="filter-btn" data-month="10" onclick="setFilterMonth(10)">Nov</button>
+        <button class="filter-btn" data-month="11" onclick="setFilterMonth(11)">Dez</button>
+      </div>
+      <div class="filter-summary" id="filter-summary">Ano: <strong>2026</strong> | Mês: <strong>Todos</strong></div>
+    </div>
+
+    <!-- ════════ COTAÇÕES VIEW ════════ -->
+    <div id="view-cotacoes">
+      <header>
+        <div class="header-left">
+          <h1>Dashboard Comercial — Cotações</h1>
+          <p id="last-update">Carregando dados...</p>
+        </div>
+        <div class="header-right">
+          <span class="year-badge">2026</span>
+          <button class="btn-refresh" id="btn-refresh" onclick="loadData()">
+            &#8635; Atualizar
+          </button>
+        </div>
+      </header>
+
+      <div id="notice-bar"></div>
+      <div id="error-msg"></div>
+
+      <div class="summary-bar">
+        <div class="summary-item s-atraso">
+          <div>
+            <div class="count" id="cnt-atraso">—</div>
+            <div class="label">Em Atraso</div>
+            <div class="total" id="total-atraso">—</div>
+          </div>
+        </div>
+        <div class="summary-item s-perda">
+          <div>
+            <div class="count" id="cnt-perda">—</div>
+            <div class="label">Em Perda</div>
+            <div class="total" id="total-perda">—</div>
+          </div>
+        </div>
+        <div class="summary-item s-andamento">
+          <div>
+            <div class="count" id="cnt-andamento">—</div>
+            <div class="label">Em Andamento</div>
+            <div class="total" id="total-andamento">—</div>
+          </div>
+        </div>
+        <div class="summary-item" style="background:linear-gradient(135deg,#27ae60,#1e8449);">
+          <div>
+            <div class="count" id="cnt-fechado">—</div>
+            <div class="label">Fechado</div>
+            <div class="total" id="total-fechado">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="columns" id="main-columns">
+        <div class="column col-atraso">
+          <div class="column-header">
+            <div class="column-header-left">
+              <span>🔴 Em Atraso</span>
+              <span class="column-header-value" id="hval-atraso"></span>
+            </div>
+            <span class="badge" id="badge-atraso">0</span>
+          </div>
+          <div class="column-body" id="col-atraso"></div>
+        </div>
+        <div class="column col-perda">
+          <div class="column-header">
+            <div class="column-header-left">
+              <span>🟠 Em Perda</span>
+              <span class="column-header-value" id="hval-perda"></span>
+            </div>
+            <span class="badge" id="badge-perda">0</span>
+          </div>
+          <div class="column-body" id="col-perda"></div>
+        </div>
+        <div class="column col-andamento">
+          <div class="column-header">
+            <div class="column-header-left">
+              <span>🔵 Em Andamento</span>
+              <span class="column-header-value" id="hval-andamento"></span>
+            </div>
+            <span class="badge" id="badge-andamento">0</span>
+          </div>
+          <div class="column-body" id="col-andamento"></div>
+        </div>
+        <div class="column col-fechado" style="--col-color:#27ae60;">
+          <div class="column-header" style="background:#27ae60;">
+            <div class="column-header-left">
+              <span>✅ Fechado</span>
+              <span class="column-header-value" id="hval-fechado"></span>
+            </div>
+            <span class="badge" id="badge-fechado">0</span>
+          </div>
+          <div class="column-body" id="col-fechado"></div>
+        </div>
+      </div>
+
+      <!-- Seção dinâmica: outros status -->
+      <div class="outros-section" id="outros-section">
+        <div class="outros-section-title">Outros Status</div>
+        <div class="outros-columns" id="outros-columns"></div>
+      </div>
+
+    </div>
+    <!-- ════════ / COTAÇÕES VIEW ════════ -->
+
+    <!-- ════════ RENOVAÇÃO VIEW ════════ -->
+    <div id="view-renovacao">
+      <div class="renov-header">
+        <div>
+          <h1>Renovação — COTAR</h1>
+          <p id="renov-last-update">Carregando leads...</p>
+        </div>
+        <div class="header-right">
+          <button class="btn-refresh" id="btn-refresh-renov" onclick="loadRenovacao()">
+            &#8635; Atualizar
+          </button>
+        </div>
+      </div>
+
+      <div id="notice-bar-renov"></div>
+      <div class="renov-error" id="renov-error"></div>
+
+      <div class="renov-summary">
+        <span class="count-badge" id="renov-count">—</span>
+        <span class="status-text">leads com situação <strong>COTAR</strong></span>
+      </div>
+
+      <div id="renov-body">
+        <div class="renov-loading">
+          <div class="renov-spinner"></div><br>
+          Buscando dados de renovação...
+        </div>
+      </div>
+    </div>
+    <!-- ════════ / RENOVAÇÃO VIEW ════════ -->
+
+    <!-- ════════ GRÁFICOS VIEW ════════ -->
+    <div id="view-graficos">
+
+      <div class="charts-header">
+        <div>
+          <h1>📊 Gráficos — Análise Comercial</h1>
+          <p id="charts-last-update">Dados do dashboard atual</p>
+        </div>
+        <div class="header-right">
+          <span class="year-badge">2026</span>
+        </div>
+      </div>
+
+      <!-- KPIs resumidos -->
+      <div class="charts-body">
+
+        <div class="charts-stat-row">
+          <div class="charts-stat-box s-red">
+            <span class="stat-value" id="gc-atraso">—</span>
+            <span class="stat-label">Em Atraso</span>
+          </div>
+          <div class="charts-stat-box s-orange">
+            <span class="stat-value" id="gc-perda">—</span>
+            <span class="stat-label">Em Perda</span>
+          </div>
+          <div class="charts-stat-box s-blue">
+            <span class="stat-value" id="gc-andamento">—</span>
+            <span class="stat-label">Em Andamento</span>
+          </div>
+          <div class="charts-stat-box s-green">
+            <span class="stat-value" id="gc-total">—</span>
+            <span class="stat-label">Total de Tarefas</span>
+          </div>
+        </div>
+
+        <!-- Row 1: Dois pizzas -->
+        <div class="charts-row">
+          <div class="chart-card">
+            <h3>🟠 Distribuição por Status</h3>
+            <div class="chart-canvas-wrap pie-wrap" style="height:280px;position:relative;">
+              <canvas id="chart-pie-status"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>⚡ Distribuição por Prioridade</h3>
+            <div class="chart-canvas-wrap pie-wrap" style="height:280px;position:relative;">
+              <canvas id="chart-pie-priority"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Barras por mês -->
+        <div class="charts-row">
+          <div class="chart-card chart-wide">
+            <h3>📅 Cotações por Mês — 2026</h3>
+            <div class="chart-canvas-wrap" style="height:260px;position:relative;">
+              <canvas id="chart-bar-month"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Barras por ano -->
+        <div class="charts-row">
+          <div class="chart-card chart-wide">
+            <h3>📆 Cotações por Ano (data de vencimento)</h3>
+            <div class="chart-canvas-wrap" style="height:220px;position:relative;">
+              <canvas id="chart-bar-year"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 4: Barras por responsável -->
+        <div class="charts-row">
+          <div class="chart-card chart-wide">
+            <h3>👤 Cotações por Responsável</h3>
+            <div class="chart-canvas-wrap" style="height:260px;position:relative;">
+              <canvas id="chart-bar-assignee"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- ════════ / GRÁFICOS VIEW ════════ -->
+
+  </div><!-- /.main-content -->
+</div><!-- /.app-layout -->
+
+<script>
+  /* ── Config ────────────────────────────────────────────── */
+  const LIST_ID           = '900701916229';
+  const API_BASE          = 'https://api.clickup.com/api/v2';
+  const TOKEN             = 'pk_61006622_9IIQ18GMO2C22ER8C8UP2D214GDBHITO';
+  const FILTER_YEAR       = 2026;
+  const REFRESH_MS        = 5 * 60 * 1000;
+  const FIELD_VALOR_PERDA = '7d482fab-02e0-4e61-9563-b07a5565cf8f';
+  const FIELD_A_RECEBER   = 'cecaeb66-e057-4032-a296-27232581f4d7';
+  const FIELD_ANO         = 'abd866e7-15da-4b11-be2a-4d20491032d5';
+  const ANO_2026_VALUE    = 3;
+
+  // Renovação
+  const RENOV_SPACE_ID    = '90070369721';
+  const RENOV_TEAM_ID     = '9007156248';
+  const FIELD_SITUACAO    = '787d9f83-2373-4adb-b709-8ca0da833af1';
+  const SITUACAO_COTAR_IDX = 2;
+
+  /* ── Dados pré-carregados ── */
+  const ANO26_CF = [{ id: FIELD_ANO, value: 3 }];
+
+  const PRELOADED = {
+    ts: '23/03/2026 — pré-carregado',
+    atraso: [
+      { id:'86b8rwvbm', name:'SAUDE PF - MANUELA PORTO BARBOSA',            url:'https://app.clickup.com/t/86b8rwvbm', due_date:'1773126000000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'},  status:{status:'não iniciado'}, custom_fields: ANO26_CF },
+      { id:'86b8q0w2n', name:'IGH - 5 ADT AOCT 003-2021 - APOLICE 926405',  url:'https://app.clickup.com/t/86b8q0w2n', due_date:'1772694000000', assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'normal'},  status:{status:'pendencia'},   custom_fields: ANO26_CF }
+    ],
+    perda: [
+      { id:'86b8ry9fe', name:'HIGH EMPREENDIMENTO - PE 129-2025 - MANAUS',   url:'https://app.clickup.com/t/86b8ry9fe', due_date:null,             assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'perda'}, custom_fields: ANO26_CF },
+      { id:'86b8rnaq4', name:'MARCELO OLIV. REZENDE -JAIRO- VC 20/03',       url:'https://app.clickup.com/t/86b8rnaq4', due_date:'1773903600000',  assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'normal'}, status:{status:'perda'}, custom_fields: ANO26_CF },
+      { id:'86b8rj8b6', name:'PAULO HENRIQUE SANTOS',                         url:'https://app.clickup.com/t/86b8rj8b6', due_date:'1772694000000',  assignees:[{username:'RAMOS ELEMENTARES'}], priority:null,               status:{status:'perda'}, custom_fields: ANO26_CF },
+      { id:'86b8rj3yy', name:'LUCAS RIBEIRO OLIVEIRA',                        url:'https://app.clickup.com/t/86b8rj3yy', due_date:'1772780400000',  assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'normal'}, status:{status:'perda'}, custom_fields: ANO26_CF },
+      { id:'86b8r7d3g', name:'ALEX OLIVEIRA DA SILVA',                        url:'https://app.clickup.com/t/86b8r7d3g', due_date:'1772694000000',  assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'high'},   status:{status:'perda'}, custom_fields: ANO26_CF },
+      { id:'86b8qhq9e', name:'IVONE DOS ANJOS - SAUDE PF (PRISCILA CDC)',     url:'https://app.clickup.com/t/86b8qhq9e', due_date:null,             assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'perda'}, custom_fields: ANO26_CF },
+      { id:'86b8q3bcz', name:'FLAVIO PIRES OLIVEIRA - AUTO',                  url:'https://app.clickup.com/t/86b8q3bcz', due_date:'1773817200000',  assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'normal'}, status:{status:'perda'}, custom_fields: ANO26_CF }
+    ],
+    andamento: [
+      { id:'86b90rq0m', name:'LARISSA ALVES DE OLIVEIRA ABREU - VC 24/03',          url:'https://app.clickup.com/t/86b90rq0m', due_date:'1774249200000', assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'urgent'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8zbeat', name:'COND. LE PARC - 18 TORRES - VC 30/3 E 31/3',          url:'https://app.clickup.com/t/86b8zbeat', due_date:'1774249200000', assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8z9pam', name:'Débora - Dental PF',                                   url:'https://app.clickup.com/t/86b8z9pam', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8y7htb', name:'JF PRADO - CT 458725',                                 url:'https://app.clickup.com/t/86b8y7htb', due_date:null,            assignees:[{username:'SAUDEEODONTO'}],    priority:null,               status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8xy475', name:'EDVAN PALMEIRA (INDIC ANDRA) - SEGURO VIDA PF',        url:'https://app.clickup.com/t/86b8xy475', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8xu77a', name:'MULTH ENGENHARIA - CT N° 50093096_5',                  url:'https://app.clickup.com/t/86b8xu77a', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8xnh3p', name:'FOCUS TECNOLOGIA - SAUDE PME - 17 VIDAS',              url:'https://app.clickup.com/t/86b8xnh3p', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'urgent'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8xmuk0', name:'ASSOCIAÇÃO ALPHAVILLE - SAUDE - VC 02/06 - 18 VIDAS',  url:'https://app.clickup.com/t/86b8xmuk0', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8xmmkv', name:'ASSOCIAÇÃO ALPHAVILLE - ODONTO - 18 VIDAS',            url:'https://app.clickup.com/t/86b8xmmkv', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8v6b86', name:'RPM - ODONTO PME - 62 VIDAS',                          url:'https://app.clickup.com/t/86b8v6b86', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'high'},   status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8v68fa', name:'RPM - SAUDE PME - 62 VIDAS',                           url:'https://app.clickup.com/t/86b8v68fa', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'high'},   status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8umjgk', name:'CONTERP ENDOSSO - VEÍCULO RUL8C64',                   url:'https://app.clickup.com/t/86b8umjgk', due_date:'1774249200000', assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'urgent'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8uk1ve', name:'ASSOCIAÇÃO ALPHAVILLE - VIDA PME VC 30/04 - 18 VIDAS', url:'https://app.clickup.com/t/86b8uk1ve', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8uj6jc', name:'OMNI MEDIC LTDA - LORENA',                             url:'https://app.clickup.com/t/86b8uj6jc', due_date:'1774249200000', assignees:[{username:'RAMOS ELEMENTARES'}], priority:{priority:'urgent'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8u50k0', name:'MAURICIO - CLINICA OBESIDADE (FABIO E JAQUELINE)',      url:'https://app.clickup.com/t/86b8u50k0', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF },
+      { id:'86b8rk5jz', name:'YALUG (RRVC IMOBILIÁRIA LTDA) - PME 11 VIDAS',        url:'https://app.clickup.com/t/86b8rk5jz', due_date:'1774249200000', assignees:[{username:'SAUDEEODONTO'}],    priority:{priority:'normal'}, status:{status:'em andamento'}, custom_fields: ANO26_CF }
+    ]
+  };
+
+  /* ── Constantes ── */
+  // Todos os status agora são exibidos — CLOSED_SET não é mais usado para filtrar
+  const PRIORITY_MAP = {
+    urgent: ['Urgente', 'pill-priority-urgent'],
+    high:   ['Alta',    'pill-priority-high'],
+    normal: ['Normal',  'pill-priority-normal'],
+    low:    ['Baixa',   'pill-priority-low'],
+  };
+
+  let refreshTimer = null;
+  let renovLoaded  = false;
+
+  /* ── Filtros globais ── */
+  const ANO_YEAR_MAP = { 1: 2024, 2: 2025, 3: 2026, 4: 2027, 5: 2028 };
+  let filterYear  = 2026;   // padrão: 2026
+  let filterMonth = 'all';  // padrão: todos os meses
+
+  /* Armazena todas as tarefas carregadas para re-filtrar sem nova chamada API */
+  let allFetchedTasks = [];
+  let renovAllTasks   = [];
+
+  function matchesYearFilter(task) {
+    if (filterYear === 'all') return true;
+    const yr = Number(filterYear);
+    // 1. Tenta campo ANO (custom field)
+    const anoF = task.custom_fields?.find(cf => cf.id === FIELD_ANO);
+    if (anoF && anoF.value !== null && anoF.value !== undefined) {
+      const mapped = ANO_YEAR_MAP[Number(anoF.value)];
+      if (mapped !== undefined) return mapped === yr;
+      if (Number(anoF.value) === yr || String(anoF.value) === String(yr)) return true;
+    }
+    // 2. Fallback: ano pela due_date
+    if (task.due_date) return new Date(parseInt(task.due_date)).getFullYear() === yr;
+    return false;
+  }
+
+  function matchesMonthFilter(task) {
+    if (filterMonth === 'all') return true;
+    if (!task.due_date) return false;
+    return new Date(parseInt(task.due_date)).getMonth() === Number(filterMonth);
+  }
+
+  function setFilterYear(year) {
+    filterYear = year === 'all' ? 'all' : Number(year);
+    document.querySelectorAll('[data-year]').forEach(b =>
+      b.classList.toggle('active', String(b.dataset.year) === String(year))
+    );
+    updateFilterSummary();
+    applyFilters();
+  }
+
+  function setFilterMonth(month) {
+    filterMonth = month === 'all' ? 'all' : Number(month);
+    document.querySelectorAll('[data-month]').forEach(b =>
+      b.classList.toggle('active', String(b.dataset.month) === String(month))
+    );
+    updateFilterSummary();
+    applyFilters();
+  }
+
+  function updateFilterSummary() {
+    const MONTH_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const yrLabel  = filterYear === 'all' ? 'Todos' : filterYear;
+    const mLabel   = filterMonth === 'all' ? 'Todos' : MONTH_PT[filterMonth];
+    const el = document.getElementById('filter-summary');
+    if (el) el.innerHTML = `Ano: <strong>${yrLabel}</strong> | Mês: <strong>${mLabel}</strong>`;
+  }
+
+  function getCurrentView() {
+    if (document.getElementById('view-cotacoes')?.style.display !== 'none') return 'cotacoes';
+    if (document.getElementById('view-renovacao')?.style.display !== 'none') return 'renovacao';
+    if (document.getElementById('view-graficos')?.style.display  !== 'none') return 'graficos';
+    return 'cotacoes';
+  }
+
+  function applyFilters() {
+    const view = getCurrentView();
+    if (view === 'cotacoes') {
+      const src = allFetchedTasks.length
+        ? allFetchedTasks
+        : [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+      const result = classifyTasks(src);
+      renderAll(result.atraso, result.perda, result.andamento, result.fechado, result.outros);
+    } else if (view === 'renovacao' && renovAllTasks.length) {
+      renderRenovFiltered(renovAllTasks);
+    } else if (view === 'graficos') {
+      const src = allFetchedTasks.length
+        ? allFetchedTasks
+        : [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+      const result = classifyTasks(src);
+      storeChartTasks(result.atraso, result.perda, result.andamento, result.fechado);
+      requestAnimationFrame(() => setTimeout(renderCharts, 80));
+    }
+  }
+
+  /* ── Navigation ── */
+  function showView(view) {
+    document.getElementById('view-cotacoes').style.display  = view === 'cotacoes'  ? 'block' : 'none';
+    document.getElementById('view-renovacao').style.display = view === 'renovacao' ? 'flex'  : 'none';
+    document.getElementById('view-graficos').style.display  = view === 'graficos'  ? 'flex'  : 'none';
+    document.getElementById('nav-cotacoes').classList.toggle('active',  view === 'cotacoes');
+    document.getElementById('nav-renovacao').classList.toggle('active', view === 'renovacao');
+    document.getElementById('nav-graficos').classList.toggle('active',  view === 'graficos');
+
+    if (view === 'renovacao' && !renovLoaded) { loadRenovacao(); }
+    if (view === 'graficos')  { requestAnimationFrame(() => setTimeout(renderCharts, 80)); }
+  }
+
+  /* ── Armazenamento global para gráficos ── */
+  let chartTasksAll = [];
+
+  function storeChartTasks(atraso, perda, andamento, fechado = []) {
+    chartTasksAll = [
+      ...atraso.map(t => ({...t, _cat: 'Em Atraso'})),
+      ...perda.map(t => ({...t, _cat: 'Em Perda'})),
+      ...andamento.map(t => ({...t, _cat: 'Em Andamento'})),
+      ...fechado.map(t => ({...t, _cat: 'Fechado'}))
+    ];
+    // Atualiza KPIs da aba Gráficos
+    document.getElementById('gc-atraso').textContent    = atraso.length;
+    document.getElementById('gc-perda').textContent     = perda.length;
+    document.getElementById('gc-andamento').textContent = andamento.length;
+    document.getElementById('gc-total').textContent     = atraso.length + perda.length + andamento.length + fechado.length;
+    document.getElementById('charts-last-update').textContent =
+      'Baseado nos dados carregados — ' + new Date().toLocaleString('pt-BR');
+    // Refaz os gráficos se a aba estiver aberta
+    const vg = document.getElementById('view-graficos');
+    if (vg && vg.style.display !== 'none') requestAnimationFrame(() => setTimeout(renderCharts, 80));
+  }
+
+  /* ── Init ── */
+  (function init() {
+    // Popula allFetchedTasks com dados pré-carregados para permitir re-filtrar sem API
+    allFetchedTasks = [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+    const result = classifyTasks(allFetchedTasks);
+    renderAll(result.atraso, result.perda, result.andamento, result.fechado, result.outros);
+    document.getElementById('last-update').textContent =
+      'Última atualização: ' + PRELOADED.ts + ' (atualize para dados em tempo real)';
+
+    loadData();
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(loadData, REFRESH_MS);
+  })();
+
+  /* ── Helpers de valor ── */
+  function getFieldValue(task, fieldId) {
+    if (!task.custom_fields) return 0;
+    const f = task.custom_fields.find(cf => cf.id === fieldId);
+    if (!f || f.value === null || f.value === undefined || f.value === '') return 0;
+    return parseFloat(f.value) || 0;
+  }
+
+  function sumField(tasks, fieldId) {
+    return tasks.reduce((acc, t) => acc + getFieldValue(t, fieldId), 0);
+  }
+
+  function fmtBRL(value) {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatDate(ts) {
+    if (!ts) return null;
+    return new Date(parseInt(ts)).toLocaleDateString('pt-BR');
+  }
+
+  /* ── Cotações: fetch ── */
+  async function fetchAllTasks() {
+    let all = [], page = 0;
+    while (true) {
+      const url = `${API_BASE}/list/${LIST_ID}/task?include_closed=true&subtasks=false&page=${page}`;
+      const res = await fetch(url, { headers: { Authorization: TOKEN } });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.err || `HTTP ${res.status}`);
+      }
+      const data  = await res.json();
+      const tasks = data.tasks || [];
+      all = all.concat(tasks);
+      if (!tasks.length) break;
+      page++;
+    }
+    return all;
+  }
+
+  /* ── isYear2026 mantido para compatibilidade com dados pré-carregados ── */
+  function isYear2026(task) {
+    return matchesYearFilter(task);
+  }
+
+  /* ── Mapa de cores por status ── */
+  const STATUS_COLOR_MAP = {
+    'não iniciado':  { header: '#95a5a6', icon: '⚪' },
+    'nao iniciado':  { header: '#95a5a6', icon: '⚪' },
+    'pendencia':     { header: '#f39c12', icon: '🟡' },
+    'pendência':     { header: '#f39c12', icon: '🟡' },
+    'fechado':       { header: '#27ae60', icon: '✅' },
+    'implantando':   { header: '#16a085', icon: '🔧' },
+    'venda parada':  { header: '#8e44ad', icon: '⏸️' },
+    'aguardando':    { header: '#3498db', icon: '⏳' },
+    'aprovado':      { header: '#1abc9c', icon: '👍' },
+    'cancelado':     { header: '#c0392b', icon: '❌' },
+    'em análise':    { header: '#d35400', icon: '🔍' },
+    'em analise':    { header: '#d35400', icon: '🔍' },
+  };
+  const OUTROS_PALETTE = ['#8e44ad','#16a085','#f39c12','#2c3e50','#1abc9c','#d35400','#7f8c8d','#c0392b','#34495e','#2980b9'];
+  let _paletteIdx = 0;
+
+  function getStatusStyle(statusLow) {
+    if (STATUS_COLOR_MAP[statusLow]) return STATUS_COLOR_MAP[statusLow];
+    const color = OUTROS_PALETTE[_paletteIdx++ % OUTROS_PALETTE.length];
+    return { header: color, icon: '📌' };
+  }
+
+  /* ── Classificação ── */
+  function classifyTasks(tasks) {
+    const now = Date.now();
+    const atraso = [], perda = [], andamento = [], fechado = [];
+    const outros = {}; // { 'Label do status': tasks[] }
+
+    for (const t of tasks) {
+      if (!matchesYearFilter(t) || !matchesMonthFilter(t)) continue;
+
+      const statusRaw = (t.status?.status || '').trim();
+      const status    = statusRaw.toLowerCase();
+      const due       = t.due_date ? parseInt(t.due_date) : null;
+
+      if (status === 'perda')        { perda.push(t);     continue; }
+      if (status === 'em andamento') { andamento.push(t); continue; }
+      if (status === 'fechado')      { fechado.push(t);   continue; } // antes do check de due_date
+      if (due && due < now)          { atraso.push(t);    continue; }
+
+      // Todos os outros status (não iniciado, pendência, implantando, etc.)
+      const key = statusRaw || 'Sem Status';
+      if (!outros[key]) outros[key] = [];
+      outros[key].push(t);
+    }
+
+    atraso.sort((a, b) => parseInt(a.due_date||0) - parseInt(b.due_date||0));
+    perda.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    andamento.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    fechado.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    for (const key of Object.keys(outros)) {
+      outros[key].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    return { atraso, perda, andamento, fechado, outros };
+  }
+
+  /* ── Render card (Cotações) ── */
+  function renderCard(task, isSemValor = false) {
+    const now      = Date.now();
+    const due      = task.due_date ? parseInt(task.due_date) : null;
+    const overdue  = due && due < now;
+    const dateStr  = formatDate(task.due_date);
+    const assignee = task.assignees?.[0]?.username || null;
+    const prio     = task.priority?.priority || task.priority || null;
+    const [prioLabel, prioClass] = PRIORITY_MAP[prio] || [];
+    const statusTxt = (task.status?.status || '').trim();
+
+    let meta = '';
+    if (assignee) meta += `<span class="meta-pill pill-assignee">👤 ${esc(assignee)}</span>`;
+    if (dateStr)  meta += `<span class="meta-pill pill-due${overdue?' overdue':''}">📅 ${esc(dateStr)}${overdue?' ⚠':''}</span>`;
+    if (prioLabel)meta += `<span class="meta-pill ${prioClass}">${esc(prioLabel)}</span>`;
+    if (statusTxt && statusTxt !== 'em andamento' && statusTxt !== 'perda')
+                  meta += `<span class="meta-pill pill-status">${esc(statusTxt)}</span>`;
+
+    return `
+      <div class="task-card${isSemValor ? ' sem-valor' : ''}">
+        <a class="task-name" href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a>
+        <div class="task-meta">${meta}</div>
+      </div>`;
+  }
+
+  function renderColumn(bodyId, badgeId, cntId, totalId, hvalId, tasks, valueFieldId) {
+    document.getElementById(badgeId).textContent = tasks.length;
+    document.getElementById(cntId).textContent   = tasks.length;
+
+    const total = sumField(tasks, valueFieldId);
+    const fmted = fmtBRL(total);
+    if (document.getElementById(totalId)) document.getElementById(totalId).textContent = fmted;
+    if (document.getElementById(hvalId))  document.getElementById(hvalId).textContent  = fmted;
+
+    const col = document.getElementById(bodyId);
+
+    if (!tasks.length) {
+      col.innerHTML = '<div class="empty-state"><span>✅</span>Nenhuma tarefa</div>';
+      return;
+    }
+
+    const comValor = tasks.filter(t => getFieldValue(t, FIELD_A_RECEBER) > 0);
+    const semValor = tasks.filter(t => getFieldValue(t, FIELD_A_RECEBER) <= 0);
+
+    let html = comValor.map(renderCard).join('');
+
+    if (semValor.length > 0) {
+      html += `
+        <div class="sem-valor-sep">
+          ⚠ Sem "A Receber" preenchido
+          <span class="sv-count">${semValor.length}</span>
+        </div>
+        ${semValor.map(t => renderCard(t, true)).join('')}`;
+    }
+
+    col.innerHTML = html;
+  }
+
+  /* ── Render colunas dinâmicas de outros status ── */
+  function renderOutrosColumns(outros) {
+    const section = document.getElementById('outros-section');
+    const grid    = document.getElementById('outros-columns');
+    const entries = Object.entries(outros).filter(([, tasks]) => tasks.length > 0);
+
+    if (!entries.length) {
+      section.style.display = 'none';
+      return;
+    }
+
+    _paletteIdx = 0;
+    section.style.display = 'block';
+
+    grid.innerHTML = entries.map(([label, tasks]) => {
+      const style = getStatusStyle(label.toLowerCase());
+      const cards = tasks.map(t => renderCard(t, false)).join('');
+      const total = sumField(tasks, FIELD_A_RECEBER);
+      const totalStr = total > 0 ? fmtBRL(total) : '';
+
+      return `
+        <div class="column col-outros" style="--outros-color:${style.header}">
+          <div class="column-header" style="background:${style.header}">
+            <div class="column-header-left">
+              <span>${style.icon} ${esc(label)}</span>
+              ${totalStr ? `<span class="column-header-value">${esc(totalStr)}</span>` : ''}
+            </div>
+            <span class="badge">${tasks.length}</span>
+          </div>
+          <div class="column-body">${cards || '<div class="empty-state"><span>✅</span>Nenhuma tarefa</div>'}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderAll(atraso, perda, andamento, fechado = [], outros = {}) {
+    renderColumn('col-atraso',   'badge-atraso',   'cnt-atraso',   'total-atraso',   'hval-atraso',   atraso,    FIELD_A_RECEBER);
+    renderColumn('col-perda',    'badge-perda',    'cnt-perda',    'total-perda',    'hval-perda',    perda,     FIELD_VALOR_PERDA);
+    renderColumn('col-andamento','badge-andamento','cnt-andamento','total-andamento','hval-andamento', andamento, FIELD_A_RECEBER);
+    renderColumn('col-fechado',  'badge-fechado',  'cnt-fechado',  'total-fechado',  'hval-fechado',  fechado,   FIELD_A_RECEBER);
+    renderOutrosColumns(outros);
+    storeChartTasks(atraso, perda, andamento, fechado);
+  }
+
+  /* ── Cotações: load ── */
+  async function loadData() {
+    const btn    = document.getElementById('btn-refresh');
+    const errEl  = document.getElementById('error-msg');
+    const notice = document.getElementById('notice-bar');
+    errEl.style.display    = 'none';
+    notice.style.display   = 'none';
+    btn.disabled           = true;
+    btn.innerHTML          = '<span class="spinner"></span> Atualizando...';
+
+    try {
+      const tasks  = await fetchAllTasks();
+      allFetchedTasks = tasks; // armazena para re-filtrar
+      const result = classifyTasks(tasks);
+      renderAll(result.atraso, result.perda, result.andamento, result.fechado, result.outros);
+      const yrLabel = filterYear === 'all' ? 'Todos os anos' : 'Ano ' + filterYear;
+      document.getElementById('last-update').textContent =
+        'Última atualização: ' + new Date().toLocaleString('pt-BR') + ' — ' + yrLabel;
+    } catch (e) {
+      if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        notice.textContent   = '⚠ Rodando via arquivo local — exibindo dados pré-carregados de 23/03/2026. Para dados em tempo real, abra via servidor HTTP.';
+        notice.style.display = 'block';
+      } else {
+        errEl.textContent    = 'Erro ao atualizar: ' + e.message;
+        errEl.style.display  = 'block';
+      }
+    } finally {
+      btn.disabled  = false;
+      btn.innerHTML = '&#8635; Atualizar';
+    }
+  }
+
+  /* ── Renovação: fetch ── */
+  async function fetchRenovacaoTasks() {
+    let all = [], page = 0;
+    while (true) {
+      const url = `${API_BASE}/team/${RENOV_TEAM_ID}/task?space_ids[]=${RENOV_SPACE_ID}&include_closed=true&subtasks=false&page=${page}`;
+      const res = await fetch(url, { headers: { Authorization: TOKEN } });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.err || `HTTP ${res.status}`);
+      }
+      const data  = await res.json();
+      const tasks = data.tasks || [];
+      all = all.concat(tasks);
+      if (!tasks.length) break;
+      page++;
+    }
+    return all;
+  }
+
+  function isSituacaoCotar(task) {
+    if (!task.custom_fields) return false;
+    const f = task.custom_fields.find(cf => cf.id === FIELD_SITUACAO);
+    if (!f || f.value === null || f.value === undefined) return false;
+    return Number(f.value) === SITUACAO_COTAR_IDX;
+  }
+
+  function renderRenovCard(task) {
+    const dateStr  = formatDate(task.due_date);
+    const now      = Date.now();
+    const due      = task.due_date ? parseInt(task.due_date) : null;
+    const overdue  = due && due < now;
+    const assignee = task.assignees?.[0]?.username || null;
+    const prio     = task.priority?.priority || task.priority || null;
+    const [prioLabel, prioClass] = PRIORITY_MAP[prio] || [];
+
+    let meta = '';
+    meta += `<span class="meta-pill pill-situacao">🔄 COTAR</span>`;
+    if (assignee) meta += `<span class="meta-pill pill-assignee">👤 ${esc(assignee)}</span>`;
+    if (dateStr)  meta += `<span class="meta-pill pill-due${overdue?' overdue':''}">📅 ${esc(dateStr)}${overdue?' ⚠':''}</span>`;
+    if (prioLabel)meta += `<span class="meta-pill ${prioClass}">${esc(prioLabel)}</span>`;
+
+    const href = task.url ? `href="${esc(task.url)}" target="_blank" rel="noopener"` : '';
+    return `
+      <div class="renov-card">
+        <a class="renov-card-name" ${href}>${esc(task.name)}</a>
+        <div class="renov-meta">${meta}</div>
+      </div>`;
+  }
+
+  /* ══════════════════════════════════════
+     GRÁFICOS — Chart.js
+  ══════════════════════════════════════ */
+  const CHART_INSTANCES = {};
+
+  const CAT_COLORS = {
+    'Em Atraso':    { bg: 'rgba(231,76,60,0.85)',   border: '#e74c3c' },
+    'Em Perda':     { bg: 'rgba(230,126,34,0.85)',  border: '#e67e22' },
+    'Em Andamento': { bg: 'rgba(41,128,185,0.85)',  border: '#2980b9' },
+    'Fechado':      { bg: 'rgba(39,174,96,0.85)',   border: '#27ae60' },
+  };
+
+  const PRIO_COLORS = {
+    'Urgente': { bg: 'rgba(192,57,43,0.85)',   border: '#c0392b' },
+    'Alta':    { bg: 'rgba(211,84,0,0.85)',    border: '#d35400' },
+    'Normal':  { bg: 'rgba(39,174,96,0.85)',   border: '#27ae60' },
+    'Baixa':   { bg: 'rgba(127,140,141,0.85)', border: '#7f8c8d' },
+    'Sem prioridade': { bg: 'rgba(189,195,199,0.85)', border: '#bdc3c7' },
+  };
+
+  const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  function destroyChart(id) {
+    if (CHART_INSTANCES[id]) { CHART_INSTANCES[id].destroy(); delete CHART_INSTANCES[id]; }
+  }
+
+  function makeChart(id, config) {
+    destroyChart(id);
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if (!ctx) return;
+    CHART_INSTANCES[id] = new Chart(ctx, config);
+  }
+
+  /* ── Pie: Status ── */
+  function renderPieStatus(tasks) {
+    const counts = {};
+    for (const t of tasks) {
+      const c = t._cat || 'Outros';
+      counts[c] = (counts[c] || 0) + 1;
+    }
+    const labels = Object.keys(counts);
+    const data   = labels.map(l => counts[l]);
+    const bgs    = labels.map(l => CAT_COLORS[l]?.bg    || 'rgba(149,165,166,0.85)');
+    const bords  = labels.map(l => CAT_COLORS[l]?.border || '#95a5a6');
+
+    makeChart('chart-pie-status', {
+      type: 'pie',
+      data: { labels, datasets: [{ data, backgroundColor: bgs, borderColor: bords, borderWidth: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.parsed} tarefa${ctx.parsed !== 1 ? 's' : ''} (${((ctx.parsed / tasks.length) * 100).toFixed(1)}%)`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* ── Pie: Prioridade ── */
+  function renderPiePriority(tasks) {
+    const MAP = { urgent:'Urgente', high:'Alta', normal:'Normal', low:'Baixa' };
+    const counts = {};
+    for (const t of tasks) {
+      const raw = t.priority?.priority || t.priority || null;
+      const label = MAP[raw] || 'Sem prioridade';
+      counts[label] = (counts[label] || 0) + 1;
+    }
+    const order  = ['Urgente','Alta','Normal','Baixa','Sem prioridade'];
+    const labels = order.filter(l => counts[l]);
+    const data   = labels.map(l => counts[l]);
+    const bgs    = labels.map(l => PRIO_COLORS[l]?.bg    || 'rgba(149,165,166,0.85)');
+    const bords  = labels.map(l => PRIO_COLORS[l]?.border || '#95a5a6');
+    const total  = tasks.length;
+
+    makeChart('chart-pie-priority', {
+      type: 'pie',
+      data: { labels, datasets: [{ data, backgroundColor: bgs, borderColor: bords, borderWidth: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.parsed} (${((ctx.parsed / total) * 100).toFixed(1)}%)`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* ── Bar: por Mês ── */
+  function renderBarMonth(tasks) {
+    // Conta por mês e categoria, usando due_date
+    const cats = ['Em Atraso', 'Em Perda', 'Em Andamento'];
+    const monthData = {};
+    cats.forEach(c => { monthData[c] = new Array(12).fill(0); });
+
+    for (const t of tasks) {
+      if (!t.due_date) continue;
+      const month = new Date(parseInt(t.due_date)).getMonth();
+      const cat   = t._cat || 'Em Andamento';
+      if (monthData[cat]) monthData[cat][month]++;
+    }
+
+    // Descobre quais meses têm dados
+    const activeMths = MONTH_NAMES.map((name, i) => ({
+      name, i,
+      total: cats.reduce((s, c) => s + monthData[c][i], 0)
+    })).filter(m => m.total > 0);
+
+    const labels   = activeMths.length ? activeMths.map(m => m.name) : MONTH_NAMES;
+    const idxs     = activeMths.length ? activeMths.map(m => m.i)   : [...Array(12).keys()];
+
+    const datasets = cats.map(cat => ({
+      label: cat,
+      data: idxs.map(i => monthData[cat][i]),
+      backgroundColor: CAT_COLORS[cat].bg,
+      borderColor:     CAT_COLORS[cat].border,
+      borderWidth: 1,
+      borderRadius: 4,
+    }));
+
+    makeChart('chart-bar-month', {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } },
+          tooltip: { mode: 'index', intersect: false }
+        }
+      }
+    });
+  }
+
+  /* ── Bar: por Ano ── */
+  function renderBarYear(tasks) {
+    const cats = ['Em Atraso', 'Em Perda', 'Em Andamento'];
+    const yearMap = {};
+
+    for (const t of tasks) {
+      let year = null;
+      // Tenta pegar pelo due_date
+      if (t.due_date) year = new Date(parseInt(t.due_date)).getFullYear();
+      // Fallback: olha campo ANO
+      if (!year) {
+        const anoField = t.custom_fields?.find(cf => cf.id === FIELD_ANO);
+        if (anoField?.value !== null && anoField?.value !== undefined) {
+          const ov = Number(anoField.value);
+          if (ov === 3) year = 2026;
+          else if (ov === 2) year = 2025;
+          else if (ov === 1) year = 2024;
+          else year = String(anoField.value);
+        }
+      }
+      if (!year) year = 'Sem data';
+
+      if (!yearMap[year]) {
+        yearMap[year] = {};
+        cats.forEach(c => yearMap[year][c] = 0);
+      }
+      const cat = t._cat || 'Em Andamento';
+      if (yearMap[year][cat] !== undefined) yearMap[year][cat]++;
+    }
+
+    const labels   = Object.keys(yearMap).sort();
+    const datasets = cats.map(cat => ({
+      label: cat,
+      data: labels.map(y => yearMap[y][cat]),
+      backgroundColor: CAT_COLORS[cat].bg,
+      borderColor:     CAT_COLORS[cat].border,
+      borderWidth: 1,
+      borderRadius: 4,
+    }));
+
+    makeChart('chart-bar-year', {
+      type: 'bar',
+      data: { labels: labels.map(String), datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } },
+          tooltip: { mode: 'index', intersect: false }
+        }
+      }
+    });
+  }
+
+  /* ── Bar: por Responsável ── */
+  function renderBarAssignee(tasks) {
+    const cats = ['Em Atraso', 'Em Perda', 'Em Andamento'];
+    const assigneeMap = {};
+
+    for (const t of tasks) {
+      const name = t.assignees?.[0]?.username || t.assignees?.[0]?.email || 'Sem responsável';
+      if (!assigneeMap[name]) { assigneeMap[name] = {}; cats.forEach(c => assigneeMap[name][c] = 0); }
+      const cat = t._cat || 'Em Andamento';
+      if (assigneeMap[name][cat] !== undefined) assigneeMap[name][cat]++;
+    }
+
+    // Ordena por total decrescente
+    const labels = Object.keys(assigneeMap).sort((a, b) => {
+      const ta = cats.reduce((s, c) => s + assigneeMap[a][c], 0);
+      const tb = cats.reduce((s, c) => s + assigneeMap[b][c], 0);
+      return tb - ta;
+    });
+
+    const datasets = cats.map(cat => ({
+      label: cat,
+      data: labels.map(name => assigneeMap[name][cat]),
+      backgroundColor: CAT_COLORS[cat].bg,
+      borderColor:     CAT_COLORS[cat].border,
+      borderWidth: 1,
+      borderRadius: 4,
+    }));
+
+    makeChart('chart-bar-assignee', {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',   // barras horizontais
+        scales: {
+          x: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, precision: 0 } },
+          y: { stacked: true, grid: { display: false } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } },
+          tooltip: { mode: 'index', intersect: false }
+        }
+      }
+    });
+  }
+
+  /* ── Render todos os gráficos ── */
+  function renderCharts() {
+    if (!chartTasksAll.length) return;
+    renderPieStatus(chartTasksAll);
+    renderPiePriority(chartTasksAll);
+    renderBarMonth(chartTasksAll);
+    renderBarYear(chartTasksAll);
+    renderBarAssignee(chartTasksAll);
+  }
+
+  /* ── Renovação: renderiza com filtros aplicados ── */
+  function renderRenovFiltered(allTasks) {
+    const body    = document.getElementById('renov-body');
+    const countEl = document.getElementById('renov-count');
+    if (!body) return;
+
+    let cotar = allTasks.filter(isSituacaoCotar);
+
+    // Aplica filtro de ano (via due_date, pois Renovação pode não ter campo ANO)
+    if (filterYear !== 'all') {
+      const yr = Number(filterYear);
+      cotar = cotar.filter(t => {
+        if (!t.due_date) return false;
+        return new Date(parseInt(t.due_date)).getFullYear() === yr;
+      });
+    }
+    // Aplica filtro de mês
+    if (filterMonth !== 'all') {
+      const mo = Number(filterMonth);
+      cotar = cotar.filter(t => {
+        if (!t.due_date) return false;
+        return new Date(parseInt(t.due_date)).getMonth() === mo;
+      });
+    }
+
+    cotar.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    countEl.textContent = cotar.length;
+
+    if (!cotar.length) {
+      body.innerHTML = '<div class="renov-loading">Nenhum lead com situação COTAR encontrado para o filtro selecionado.</div>';
+    } else {
+      body.innerHTML = `<div class="renov-grid">${cotar.map(renderRenovCard).join('')}</div>`;
+    }
+  }
+
+  async function loadRenovacao() {
+    const btn    = document.getElementById('btn-refresh-renov');
+    const errEl  = document.getElementById('renov-error');
+    const notice = document.getElementById('notice-bar-renov');
+    const body   = document.getElementById('renov-body');
+
+    errEl.style.display   = 'none';
+    notice.style.display  = 'none';
+    btn.disabled          = true;
+    btn.innerHTML         = '<span class="spinner"></span> Atualizando...';
+    body.innerHTML        = '<div class="renov-loading"><div class="renov-spinner"></div><br>Buscando dados...</div>';
+
+    try {
+      const tasks  = await fetchRenovacaoTasks();
+      renovAllTasks = tasks; // armazena para re-filtrar
+      document.getElementById('renov-last-update').textContent =
+        'Última atualização: ' + new Date().toLocaleString('pt-BR');
+      renderRenovFiltered(renovAllTasks);
+      renovLoaded = true;
+    } catch (e) {
+      if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        notice.textContent   = '⚠ Rodando via arquivo local — não foi possível buscar dados de renovação. Abra via servidor HTTP para ver em tempo real.';
+        notice.style.display = 'block';
+        body.innerHTML = '<div class="renov-loading">Sem dados pré-carregados para Renovação.<br>Abra o arquivo via servidor HTTP para carregar em tempo real.</div>';
+      } else {
+        errEl.textContent   = 'Erro ao carregar renovação: ' + e.message;
+        errEl.style.display = 'block';
+        body.innerHTML      = '';
+      }
+    } finally {
+      btn.disabled  = false;
+      btn.innerHTML = '&#8635; Atualizar';
+    }
+  }
+</script>
+</body>
+</html>
