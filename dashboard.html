@@ -153,6 +153,111 @@
     .s-andamento{ background: #e8f4fd; border-left: 4px solid #2980b9; }
     .s-andamento .count { color: #2980b9; }
 
+    /* ── KPI STRIP ── */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      padding: 16px 24px;
+      background: #f0f2f5;
+    }
+    .kpi-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .kpi-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); transform: translateY(-1px); }
+    .kpi-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .kpi-icon.kpi-receber   { background: #e8f8f0; color: #27ae60; }
+    .kpi-icon.kpi-perda     { background: #fef3e2; color: #e67e22; }
+    .kpi-icon.kpi-total     { background: #e8f4fd; color: #2980b9; }
+    .kpi-icon.kpi-conversao { background: #f3e8fd; color: #8e44ad; }
+    .kpi-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .kpi-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #2c3e50;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kpi-value.kpi-val-receber   { color: #27ae60; }
+    .kpi-value.kpi-val-perda     { color: #e67e22; }
+    .kpi-value.kpi-val-total     { color: #2980b9; }
+    .kpi-value.kpi-val-conversao { color: #8e44ad; }
+    .kpi-label {
+      font-size: 0.75rem;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .kpi-sub {
+      font-size: 0.72rem;
+      color: #95a5a6;
+      margin-top: 1px;
+    }
+    @media (max-width: 1200px) {
+      .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .kpi-strip { grid-template-columns: 1fr; }
+    }
+
+    /* ── STATUS BREAKDOWN ── */
+    .status-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      align-items: center;
+    }
+    .status-breakdown-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 4px;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1.5px solid transparent;
+      transition: transform 0.15s;
+    }
+    .status-pill:hover { transform: scale(1.05); }
+    .status-pill .sp-count {
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+    .status-pill .sp-pct {
+      font-size: 0.68rem;
+      opacity: 0.8;
+    }
+
     /* ── NOTICE BAR ── */
     #notice-bar {
       background: #fff8e1;
@@ -274,6 +379,9 @@
     .task-card.sem-valor {
       opacity: 0.75;
       border-left: 3px solid #f59e0b;
+    }
+    .task-card.task-incomplete {
+      border-left: 3px solid #e67e22;
     }
 
     /* ── EMPTY / LOADING ── */
@@ -480,6 +588,350 @@
       .charts-row { grid-template-columns: 1fr; }
     }
 
+    /* ── ALERTAS VIEW ── */
+    #view-alertas {
+      display: none;
+      flex-direction: column;
+    }
+    .alertas-header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .alertas-header h1 { font-size: 1.25rem; font-weight: 700; }
+    .alertas-header p  { font-size: 0.8rem; color: #bdc3c7; margin-top: 2px; }
+    .alertas-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #f0f2f5;
+      flex: 1;
+    }
+    .alerta-section {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .alerta-section-header {
+      padding: 12px 18px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .alerta-section-header .alerta-badge {
+      background: rgba(255,255,255,0.3);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+    .as-atrasados .alerta-section-header  { background: #e74c3c; }
+    .as-hoje .alerta-section-header       { background: #f39c12; }
+    .as-proximos .alerta-section-header   { background: #3498db; }
+    .alerta-section-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .alerta-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      background: #f8f9fa;
+      transition: box-shadow 0.15s;
+    }
+    .alerta-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .alerta-days {
+      font-size: 1.1rem;
+      font-weight: 800;
+      min-width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .alerta-days.ad-atrasado  { background: #fdecea; color: #e74c3c; }
+    .alerta-days.ad-hoje      { background: #fef9e7; color: #f39c12; }
+    .alerta-days.ad-proximo   { background: #e8f4fd; color: #3498db; }
+    .alerta-card-info { flex: 1; min-width: 0; }
+    .alerta-card-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #2c3e50;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .alerta-card-name:hover { color: #3498db; }
+    .alerta-card-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    /* ── METAS VIEW ── */
+    #view-metas {
+      display: none;
+      flex-direction: column;
+    }
+    .metas-header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .metas-header h1 { font-size: 1.25rem; font-weight: 700; }
+    .metas-header p  { font-size: 0.8rem; color: #bdc3c7; margin-top: 2px; }
+    .metas-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #f0f2f5;
+      flex: 1;
+    }
+    .metas-config {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .metas-config h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .metas-form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .meta-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .meta-input-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .meta-input-group input, .meta-input-group select {
+      padding: 8px 12px;
+      border: 1.5px solid #dde1e7;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      color: #2c3e50;
+      transition: border-color 0.15s;
+    }
+    .meta-input-group input:focus, .meta-input-group select:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    .btn-save-meta {
+      background: #27ae60;
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-save-meta:hover { background: #219a52; }
+    .metas-progress-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) { .metas-progress-grid { grid-template-columns: 1fr; } }
+    .meta-progress-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .meta-progress-card h4 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .meta-bar-wrap {
+      background: #f0f2f5;
+      border-radius: 8px;
+      height: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+    .meta-bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 0.5s ease;
+      min-width: 0;
+    }
+    .meta-bar-fill.bar-green  { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+    .meta-bar-fill.bar-yellow { background: linear-gradient(135deg, #f39c12, #f1c40f); }
+    .meta-bar-fill.bar-red    { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .meta-values {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #7f8c8d;
+    }
+    .meta-values .mv-current { font-weight: 700; color: #2c3e50; font-size: 1rem; }
+    .meta-values .mv-pct { font-weight: 800; font-size: 1.1rem; }
+    .meta-values .mv-pct.pct-green  { color: #27ae60; }
+    .meta-values .mv-pct.pct-yellow { color: #f39c12; }
+    .meta-values .mv-pct.pct-red    { color: #e74c3c; }
+
+    /* ── COTADOR CARDS (Story 4.2) ── */
+    .cotador-section { margin-top: 4px; }
+    .cotador-section h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cotador-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .cotador-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .cotador-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); transform: translateY(-1px); }
+    .cotador-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .cotador-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: #3498db;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cotador-name { font-weight: 700; font-size: 0.95rem; color: #2c3e50; }
+    .cotador-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .cotador-stat {
+      text-align: center;
+      padding: 6px 4px;
+      border-radius: 6px;
+      background: #f8f9fa;
+    }
+    .cotador-stat .cs-value { font-size: 1.1rem; font-weight: 800; }
+    .cotador-stat .cs-label { font-size: 0.65rem; color: #7f8c8d; text-transform: uppercase; }
+    .cotador-stat.cs-total .cs-value     { color: #2980b9; }
+    .cotador-stat.cs-fechadas .cs-value  { color: #27ae60; }
+    .cotador-stat.cs-perda .cs-value     { color: #e67e22; }
+    .cotador-stat.cs-outros .cs-value    { color: #7f8c8d; }
+    .cotador-meta-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .cotador-meta-input {
+      width: 90px;
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      text-align: right;
+    }
+    .cotador-meta-input:focus { border-color: #3498db; outline: none; }
+    .cotador-meta-label { font-size: 0.7rem; color: #7f8c8d; }
+    .cotador-progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #ecf0f1;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .cotador-progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+    .cotador-progress-text {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: right;
+    }
+    .cotador-edit-btn {
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      color: #7f8c8d;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .cotador-edit-btn:hover { background: #f0f2f5; color: #2c3e50; }
+
+    .sidebar-badge {
+      background: #e74c3c;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-left: auto;
+    }
+
     /* ── OUTROS STATUS ── */
     .outros-section {
       padding: 0 24px 20px;
@@ -599,6 +1051,19 @@
       <span class="nav-icon">📊</span>
       Gráficos
     </div>
+
+    <div class="sidebar-section-label">Controle</div>
+
+    <div class="nav-item" id="nav-alertas" onclick="showView('alertas')">
+      <span class="nav-icon">🔔</span>
+      Alertas
+      <span class="sidebar-badge" id="alertas-sidebar-badge" style="display:none;">0</span>
+    </div>
+
+    <div class="nav-item" id="nav-metas" onclick="showView('metas')">
+      <span class="nav-icon">🎯</span>
+      Metas
+    </div>
   </nav>
 
   <!-- ── MAIN CONTENT ── -->
@@ -651,6 +1116,56 @@
 
       <div id="notice-bar"></div>
       <div id="error-msg"></div>
+
+      <!-- KPI Strip — Story 1.1 -->
+      <div class="kpi-strip" id="kpi-strip">
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-receber">💰</div>
+          <div class="kpi-info">
+            <span class="kpi-value kpi-val-receber" id="kpi-a-receber">R$ —</span>
+            <span class="kpi-label">A Receber</span>
+            <span class="kpi-sub" id="kpi-a-receber-sub">Soma das cotações fechadas</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-perda">📉</div>
+          <div class="kpi-info">
+            <span class="kpi-value kpi-val-perda" id="kpi-valor-perda">R$ —</span>
+            <span class="kpi-label">Valor em Perda</span>
+            <span class="kpi-sub" id="kpi-valor-perda-sub">Soma das cotações em perda</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-total">📋</div>
+          <div class="kpi-info">
+            <span class="kpi-value kpi-val-total" id="kpi-total-cotacoes">—</span>
+            <span class="kpi-label">Total Cotações</span>
+            <span class="kpi-sub" id="kpi-total-sub">No período selecionado</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-conversao">🎯</div>
+          <div class="kpi-info">
+            <span class="kpi-value kpi-val-conversao" id="kpi-conversao">— %</span>
+            <span class="kpi-label">Taxa de Conversão</span>
+            <span class="kpi-sub" id="kpi-conversao-sub">Fechadas / Total</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:#fef3e2;color:#e67e22;">⚠️</div>
+          <div class="kpi-info">
+            <span class="kpi-value" style="color:#e67e22;" id="kpi-incompletos">—</span>
+            <span class="kpi-label">Campos Incompletos</span>
+            <span class="kpi-sub" id="kpi-incompletos-sub">campos obrigatórios faltando</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Breakdown — Story 1.2 -->
+      <div class="status-breakdown" id="status-breakdown">
+        <span class="status-breakdown-label">Pipeline:</span>
+        <!-- Populado dinamicamente por calcStatusBreakdown() -->
+      </div>
 
       <div class="summary-bar">
         <div class="summary-item s-atraso">
@@ -851,6 +1366,124 @@
     </div>
     <!-- ════════ / GRÁFICOS VIEW ════════ -->
 
+    <!-- ════════ METAS VIEW ════════ -->
+    <div id="view-metas">
+      <div class="metas-header">
+        <div>
+          <h1>🎯 Metas — Desempenho Comercial</h1>
+          <p id="metas-last-update">Dados calculados automaticamente</p>
+        </div>
+        <div class="header-right">
+          <select id="metas-month-select" onchange="renderMetas()" style="padding:6px 12px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:0.85rem;">
+            <option value="all">Todos os meses</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+            <option value="2">Março</option><option value="3">Abril</option>
+            <option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option>
+            <option value="8">Setembro</option><option value="9">Outubro</option>
+            <option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+      </div>
+      <div class="metas-body">
+        <!-- Config metas -->
+        <div class="metas-config">
+          <h3>⚙️ Definir Metas da Corretora</h3>
+          <div class="metas-form-row">
+            <div class="meta-input-group">
+              <label>Meta Faturamento (R$)</label>
+              <input type="number" id="meta-valor" placeholder="Ex: 50000" min="0" step="1000">
+            </div>
+            <div class="meta-input-group">
+              <label>Meta Qtd Cotações</label>
+              <input type="number" id="meta-qtd" placeholder="Ex: 100" min="0" step="1">
+            </div>
+            <div class="meta-input-group">
+              <label>Meta Renovações</label>
+              <input type="number" id="meta-renov" placeholder="Ex: 30" min="0" step="1">
+            </div>
+          </div>
+          <button class="btn-save-meta" onclick="saveMetas()">💾 Salvar Metas</button>
+          <button class="btn-save-meta" style="background:#3498db;margin-left:8px;" onclick="exportMetas()">📋 Exportar Resumo</button>
+        </div>
+
+        <!-- Progresso -->
+        <div class="metas-progress-grid" id="metas-progress-grid">
+          <div class="meta-progress-card">
+            <h4>💰 Faturamento</h4>
+            <div class="meta-values">
+              <span class="mv-current" id="mp-valor-atual">R$ 0</span>
+              <span class="mv-pct" id="mp-valor-pct">0%</span>
+            </div>
+            <div class="meta-bar-wrap"><div class="meta-bar-fill bar-red" id="mp-valor-bar" style="width:0%"></div></div>
+            <div class="meta-values"><span>Meta: <span id="mp-valor-meta">R$ 0</span></span></div>
+          </div>
+          <div class="meta-progress-card">
+            <h4>📋 Cotações Fechadas</h4>
+            <div class="meta-values">
+              <span class="mv-current" id="mp-qtd-atual">0</span>
+              <span class="mv-pct" id="mp-qtd-pct">0%</span>
+            </div>
+            <div class="meta-bar-wrap"><div class="meta-bar-fill bar-red" id="mp-qtd-bar" style="width:0%"></div></div>
+            <div class="meta-values"><span>Meta: <span id="mp-qtd-meta">0</span></span></div>
+          </div>
+          <div class="meta-progress-card">
+            <h4>🔄 Renovações</h4>
+            <div class="meta-values">
+              <span class="mv-current" id="mp-renov-atual">0</span>
+              <span class="mv-pct" id="mp-renov-pct">0%</span>
+            </div>
+            <div class="meta-bar-wrap"><div class="meta-bar-fill bar-red" id="mp-renov-bar" style="width:0%"></div></div>
+            <div class="meta-values"><span>Meta: <span id="mp-renov-meta">0</span></span></div>
+          </div>
+        </div>
+
+        <!-- Desempenho por cotador (Story 4.2) -->
+        <div class="cotador-section">
+          <h3>👤 Desempenho por Cotador</h3>
+          <div class="cotador-grid" id="cotador-grid"></div>
+        </div>
+      </div>
+    </div>
+    <!-- ════════ / METAS VIEW ════════ -->
+
+    <!-- ════════ ALERTAS VIEW ════════ -->
+    <div id="view-alertas">
+      <div class="alertas-header">
+        <div>
+          <h1>🔔 Alertas — Painel de Urgências</h1>
+          <p id="alertas-last-update">Baseado nos dados carregados</p>
+        </div>
+      </div>
+      <div class="alertas-body">
+        <div class="alerta-section as-atrasados">
+          <div class="alerta-section-header">
+            🔴 Atrasados <span class="alerta-badge" id="alert-cnt-atrasados">0</span>
+          </div>
+          <div class="alerta-section-body" id="alert-body-atrasados">
+            <div class="empty-state"><span>✅</span>Nenhuma tarefa atrasada</div>
+          </div>
+        </div>
+        <div class="alerta-section as-hoje">
+          <div class="alerta-section-header">
+            🟡 Vencendo Hoje <span class="alerta-badge" id="alert-cnt-hoje">0</span>
+          </div>
+          <div class="alerta-section-body" id="alert-body-hoje">
+            <div class="empty-state"><span>✅</span>Nenhuma tarefa vencendo hoje</div>
+          </div>
+        </div>
+        <div class="alerta-section as-proximos">
+          <div class="alerta-section-header">
+            🔵 Próximos 7 Dias <span class="alerta-badge" id="alert-cnt-proximos">0</span>
+          </div>
+          <div class="alerta-section-body" id="alert-body-proximos">
+            <div class="empty-state"><span>✅</span>Nenhuma tarefa nos próximos 7 dias</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ════════ / ALERTAS VIEW ════════ -->
+
   </div><!-- /.main-content -->
 </div><!-- /.app-layout -->
 
@@ -982,6 +1615,8 @@
     if (document.getElementById('view-cotacoes')?.style.display !== 'none') return 'cotacoes';
     if (document.getElementById('view-renovacao')?.style.display !== 'none') return 'renovacao';
     if (document.getElementById('view-graficos')?.style.display  !== 'none') return 'graficos';
+    if (document.getElementById('view-alertas')?.style.display   !== 'none') return 'alertas';
+    if (document.getElementById('view-metas')?.style.display     !== 'none') return 'metas';
     return 'cotacoes';
   }
 
@@ -1010,12 +1645,18 @@
     document.getElementById('view-cotacoes').style.display  = view === 'cotacoes'  ? 'block' : 'none';
     document.getElementById('view-renovacao').style.display = view === 'renovacao' ? 'flex'  : 'none';
     document.getElementById('view-graficos').style.display  = view === 'graficos'  ? 'flex'  : 'none';
+    document.getElementById('view-alertas').style.display   = view === 'alertas'   ? 'flex'  : 'none';
+    document.getElementById('view-metas').style.display     = view === 'metas'     ? 'flex'  : 'none';
     document.getElementById('nav-cotacoes').classList.toggle('active',  view === 'cotacoes');
     document.getElementById('nav-renovacao').classList.toggle('active', view === 'renovacao');
     document.getElementById('nav-graficos').classList.toggle('active',  view === 'graficos');
+    document.getElementById('nav-alertas').classList.toggle('active',   view === 'alertas');
+    document.getElementById('nav-metas').classList.toggle('active',     view === 'metas');
 
     if (view === 'renovacao' && !renovLoaded) { loadRenovacao(); }
     if (view === 'graficos')  { requestAnimationFrame(() => setTimeout(renderCharts, 80)); }
+    if (view === 'alertas')   { renderAlerts(); }
+    if (view === 'metas')     { renderMetas(); }
   }
 
   /* ── Armazenamento global para gráficos ── */
@@ -1068,6 +1709,165 @@
 
   function fmtBRL(value) {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  /* ── Campos Obrigatórios por Status (Story 1.3) ── */
+  const FIELD_TIPO_CLIENTE      = '003939fb-a195-4b62-8239-921442041174';
+  const FIELD_PRIMEIRO_PAGAMENTO = '22697a67-9b28-4da0-b5d7-4143632c7a0c';
+  const FIELD_FIM_VIGENCIA      = '640d44b3-818e-4957-ac1b-2426d2e59e5d';
+  const FIELD_PARCELADO_EM      = '6e0de4a6-6562-40f0-892a-86d6419c6af1';
+  const FIELD_SEGURADORA        = '7692b42a-860b-4c74-a975-68547d3fe039';
+  const FIELD_PREMIO_SEM_IOF    = '7765251e-5e44-4567-a7c8-621584228853';
+  const FIELD_INICIO_VIGENCIA   = 'adefa135-416a-4024-8bce-f55fbf5cceab';
+  const FIELD_INDICACAO         = 'ca2fe9e7-831f-461f-aa32-c6477a0b81c5';
+  const FIELD_COMISSAO          = 'cbab3bed-f4f7-44d1-a11e-374a57352f75';
+  const FIELD_PRODUTO           = 'cf31d2a2-9746-460a-8396-f42b195f6f48';
+  const FIELD_PROXIMA_TRATATIVA = 'f3e53744-f27d-4e6e-acae-ee69b25daed8';
+
+  const REQUIRED_BY_STATUS = {
+    'não iniciado': [
+      { id: FIELD_FIM_VIGENCIA,    label: 'Fim Vigência' },
+      { id: FIELD_INICIO_VIGENCIA, label: 'Início Vigência' },
+      { id: FIELD_INDICACAO,       label: 'Indicação' },
+      { id: FIELD_PRODUTO,         label: 'Produto' },
+      { id: FIELD_SEGURADORA,      label: 'Seguradora' },
+      { id: FIELD_SITUACAO,        label: 'Situação' },
+      { id: FIELD_TIPO_CLIENTE,    label: 'Tipo de Cliente' },
+    ],
+    'nao iniciado': null, // alias — resolvido em runtime
+    'fechado': [
+      { id: FIELD_COMISSAO,           label: 'Comissão' },
+      { id: FIELD_PRIMEIRO_PAGAMENTO, label: 'Primeiro Pagamento' },
+      { id: FIELD_A_RECEBER,          label: 'A Receber' },
+      { id: FIELD_PARCELADO_EM,       label: 'Parcelado Em' },
+      { id: FIELD_PREMIO_SEM_IOF,     label: 'Prêmio Sem IOF' },
+    ],
+    'perda': [
+      { id: FIELD_VALOR_PERDA, label: 'Valor em Perda' },
+    ],
+  };
+  REQUIRED_BY_STATUS['nao iniciado'] = REQUIRED_BY_STATUS['não iniciado'];
+
+  function checkRequiredFields(task) {
+    const status = (task.status?.status || '').trim().toLowerCase();
+    const rules = REQUIRED_BY_STATUS[status];
+    if (!rules) return [];
+    const missing = [];
+    for (const rule of rules) {
+      const cf = task.custom_fields?.find(f => f.id === rule.id);
+      const isEmpty = !cf || cf.value === null || cf.value === undefined || cf.value === '';
+      if (isEmpty) missing.push(rule.label);
+    }
+    return missing;
+  }
+
+  let globalIncompleteCount = 0;
+
+  function updateIncompleteCounter(allTasks) {
+    globalIncompleteCount = 0;
+    for (const t of allTasks) {
+      if (checkRequiredFields(t).length > 0) globalIncompleteCount++;
+    }
+    const el = document.getElementById('kpi-incompletos');
+    if (el) {
+      el.textContent = globalIncompleteCount;
+      const sub = document.getElementById('kpi-incompletos-sub');
+      if (sub) sub.textContent = 'campos obrigatórios faltando';
+    }
+  }
+
+  /* ── Status Breakdown (Story 1.2) ── */
+  const STATUS_BREAKDOWN_MAP = {
+    'fechado':       { label: 'Fechado',       bg: '#e8f8f0', color: '#27ae60', border: '#27ae60', icon: '✅' },
+    'em andamento':  { label: 'Em Andamento',  bg: '#e8f4fd', color: '#2980b9', border: '#2980b9', icon: '🔵' },
+    'perda':         { label: 'Perda',         bg: '#fef3e2', color: '#e67e22', border: '#e67e22', icon: '🟠' },
+    'não iniciado':  { label: 'Não Iniciado',  bg: '#f0f0f0', color: '#7f8c8d', border: '#95a5a6', icon: '⚪' },
+    'nao iniciado':  { label: 'Não Iniciado',  bg: '#f0f0f0', color: '#7f8c8d', border: '#95a5a6', icon: '⚪' },
+    'pendencia':     { label: 'Pendência',     bg: '#fef9e7', color: '#d4ac0d', border: '#f1c40f', icon: '🟡' },
+    'pendência':     { label: 'Pendência',     bg: '#fef9e7', color: '#d4ac0d', border: '#f1c40f', icon: '🟡' },
+    'atrasado':      { label: 'Atrasado',      bg: '#fdecea', color: '#e74c3c', border: '#e74c3c', icon: '🔴' },
+    'implantando':   { label: 'Implantando',   bg: '#e8f6f3', color: '#16a085', border: '#1abc9c', icon: '🔧' },
+    'venda parada':  { label: 'Venda Parada',  bg: '#f4ecf7', color: '#8e44ad', border: '#9b59b6', icon: '⏸️' },
+    'aguardando':    { label: 'Aguardando',    bg: '#e8f4fd', color: '#3498db', border: '#3498db', icon: '⏳' },
+    'aprovado':      { label: 'Aprovado',      bg: '#e8f6f3', color: '#1abc9c', border: '#1abc9c', icon: '👍' },
+    'cancelado':     { label: 'Cancelado',     bg: '#fdecea', color: '#c0392b', border: '#e74c3c', icon: '❌' },
+    'em análise':    { label: 'Em Análise',    bg: '#fef3e2', color: '#d35400', border: '#e67e22', icon: '🔍' },
+    'em analise':    { label: 'Em Análise',    bg: '#fef3e2', color: '#d35400', border: '#e67e22', icon: '🔍' },
+  };
+
+  function calcStatusBreakdown(atraso, perda, andamento, fechado, outros) {
+    const counts = {};
+    const addTasks = (tasks, overrideStatus) => {
+      for (const t of tasks) {
+        const status = overrideStatus || (t.status?.status || '').trim().toLowerCase() || 'sem status';
+        counts[status] = (counts[status] || 0) + 1;
+      }
+    };
+    addTasks(atraso, 'atrasado');
+    addTasks(perda);
+    addTasks(andamento);
+    addTasks(fechado);
+    for (const [, tasks] of Object.entries(outros || {})) addTasks(tasks);
+
+    const total = Object.values(counts).reduce((s, c) => s + c, 0);
+    const el = document.getElementById('status-breakdown');
+    if (!el || total === 0) { if (el) el.innerHTML = '<span class="status-breakdown-label">Pipeline:</span><span style="font-size:0.8rem;color:#aaa;">Sem dados</span>'; return; }
+
+    const order = ['fechado','em andamento','perda','atrasado','pendencia','pendência','não iniciado','nao iniciado','implantando','venda parada','aguardando','aprovado','cancelado','em análise','em analise'];
+    const seen = new Set();
+    const sorted = [];
+    for (const s of order) {
+      if (counts[s] && !seen.has(s)) {
+        sorted.push([s, counts[s]]);
+        seen.add(s);
+        // Merge duplicados (nao iniciado / não iniciado)
+        const alt = STATUS_BREAKDOWN_MAP[s]?.label;
+        if (alt) {
+          for (const [k, v] of Object.entries(counts)) {
+            if (k !== s && STATUS_BREAKDOWN_MAP[k]?.label === alt && !seen.has(k)) {
+              sorted[sorted.length - 1][1] += v;
+              seen.add(k);
+            }
+          }
+        }
+      }
+    }
+    for (const [s, c] of Object.entries(counts)) {
+      if (!seen.has(s)) { sorted.push([s, c]); seen.add(s); }
+    }
+
+    let html = '<span class="status-breakdown-label">Pipeline:</span>';
+    for (const [status, count] of sorted) {
+      const m = STATUS_BREAKDOWN_MAP[status] || { label: status, bg: '#f0f0f0', color: '#555', border: '#ccc', icon: '📌' };
+      const pct = ((count / total) * 100).toFixed(1);
+      html += `<span class="status-pill" style="background:${m.bg};color:${m.color};border-color:${m.border};">
+        ${m.icon} ${m.label} <span class="sp-count">${count}</span> <span class="sp-pct">(${pct}%)</span>
+      </span>`;
+    }
+    el.innerHTML = html;
+  }
+
+  /* ── KPIs Financeiros (Story 1.1) ── */
+  function calcKPIs(atraso, perda, andamento, fechado, outros) {
+    const allFiltered = [
+      ...atraso, ...perda, ...andamento, ...fechado,
+      ...Object.values(outros || {}).flat()
+    ];
+    const totalCotacoes = allFiltered.length;
+    const totalFechadas = fechado.length;
+    const aReceber      = sumField(fechado, FIELD_A_RECEBER);
+    const valorPerda    = sumField(perda, FIELD_VALOR_PERDA);
+    const conversao     = totalCotacoes > 0 ? (totalFechadas / totalCotacoes * 100) : 0;
+
+    document.getElementById('kpi-a-receber').textContent     = fmtBRL(aReceber);
+    document.getElementById('kpi-valor-perda').textContent    = fmtBRL(valorPerda);
+    document.getElementById('kpi-total-cotacoes').textContent = totalCotacoes;
+    document.getElementById('kpi-conversao').textContent      = conversao.toFixed(1) + '%';
+
+    document.getElementById('kpi-a-receber-sub').textContent   = totalFechadas + ' cotação(ões) fechada(s)';
+    document.getElementById('kpi-valor-perda-sub').textContent = perda.length + ' cotação(ões) em perda';
+    document.getElementById('kpi-total-sub').textContent       = 'No período selecionado';
+    document.getElementById('kpi-conversao-sub').textContent   = totalFechadas + ' de ' + totalCotacoes + ' cotações';
   }
 
   function esc(str) {
@@ -1174,8 +1974,13 @@
     const prio     = task.priority?.priority || task.priority || null;
     const [prioLabel, prioClass] = PRIORITY_MAP[prio] || [];
     const statusTxt = (task.status?.status || '').trim();
+    const missing  = checkRequiredFields(task);
 
     let meta = '';
+    if (missing.length > 0) {
+      const tip = esc(missing.join(', '));
+      meta += `<span class="meta-pill" style="background:#fef3e2;color:#e67e22;font-weight:700;cursor:help;" title="Campos faltando: ${tip}">⚠️ ${missing.length} campo${missing.length > 1 ? 's' : ''}</span>`;
+    }
     if (assignee) meta += `<span class="meta-pill pill-assignee">👤 ${esc(assignee)}</span>`;
     if (dateStr)  meta += `<span class="meta-pill pill-due${overdue?' overdue':''}">📅 ${esc(dateStr)}${overdue?' ⚠':''}</span>`;
     if (prioLabel)meta += `<span class="meta-pill ${prioClass}">${esc(prioLabel)}</span>`;
@@ -1183,7 +1988,7 @@
                   meta += `<span class="meta-pill pill-status">${esc(statusTxt)}</span>`;
 
     return `
-      <div class="task-card${isSemValor ? ' sem-valor' : ''}">
+      <div class="task-card${isSemValor ? ' sem-valor' : ''}${missing.length ? ' task-incomplete' : ''}">
         <a class="task-name" href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a>
         <div class="task-meta">${meta}</div>
       </div>`;
@@ -1262,6 +2067,10 @@
     renderColumn('col-andamento','badge-andamento','cnt-andamento','total-andamento','hval-andamento', andamento, FIELD_A_RECEBER);
     renderColumn('col-fechado',  'badge-fechado',  'cnt-fechado',  'total-fechado',  'hval-fechado',  fechado,   FIELD_A_RECEBER);
     renderOutrosColumns(outros);
+    calcKPIs(atraso, perda, andamento, fechado, outros);
+    calcStatusBreakdown(atraso, perda, andamento, fechado, outros);
+    updateIncompleteCounter([...atraso, ...perda, ...andamento, ...fechado, ...Object.values(outros).flat()]);
+    updateAlertsBadge();
     storeChartTasks(atraso, perda, andamento, fechado);
   }
 
@@ -1344,6 +2153,379 @@
         <a class="renov-card-name" ${href}>${esc(task.name)}</a>
         <div class="renov-meta">${meta}</div>
       </div>`;
+  }
+
+  /* ══════════════════════════════════════
+     METAS & DESEMPENHO — Stories 4.1 & 4.2
+  ══════════════════════════════════════ */
+  function getMetasKey() {
+    const yr = filterYear === 'all' ? 'all' : filterYear;
+    const mo = document.getElementById('metas-month-select')?.value || 'all';
+    return `apolizza_metas_${yr}_${mo}`;
+  }
+
+  function loadSavedMetas() {
+    try {
+      const data = localStorage.getItem(getMetasKey());
+      if (data) {
+        const parsed = JSON.parse(data);
+        document.getElementById('meta-valor').value = parsed.valorMeta || '';
+        document.getElementById('meta-qtd').value   = parsed.qtdMeta || '';
+        document.getElementById('meta-renov').value  = parsed.renovMeta || '';
+        return parsed;
+      }
+    } catch(e) {}
+    document.getElementById('meta-valor').value = '';
+    document.getElementById('meta-qtd').value   = '';
+    document.getElementById('meta-renov').value  = '';
+    return { valorMeta: 0, qtdMeta: 0, renovMeta: 0 };
+  }
+
+  function exportMetas() {
+    const saved = loadSavedMetas();
+    const metaMonth = document.getElementById('metas-month-select')?.value || 'all';
+    const MONTH_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const periodo = metaMonth === 'all' ? 'Todos os meses' : MONTH_PT[Number(metaMonth)];
+    const yr = filterYear === 'all' ? 'Todos os anos' : filterYear;
+
+    const valorAtual = document.getElementById('mp-valor-atual')?.textContent || 'R$ 0';
+    const qtdAtual   = document.getElementById('mp-qtd-atual')?.textContent || '0';
+    const renovAtual = document.getElementById('mp-renov-atual')?.textContent || '0';
+    const valorPct   = document.getElementById('mp-valor-pct')?.textContent || '0%';
+    const qtdPct     = document.getElementById('mp-qtd-pct')?.textContent || '0%';
+    const renovPct   = document.getElementById('mp-renov-pct')?.textContent || '0%';
+
+    const text = `📊 RESUMO DE METAS — APOLIZZA
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 Período: ${periodo} | Ano: ${yr}
+📆 Gerado em: ${new Date().toLocaleString('pt-BR')}
+
+💰 FATURAMENTO
+   Meta: ${fmtBRL(saved.valorMeta)} | Realizado: ${valorAtual}
+   Atingimento: ${valorPct}
+
+📋 COTAÇÕES FECHADAS
+   Meta: ${saved.qtdMeta} | Realizado: ${qtdAtual}
+   Atingimento: ${qtdPct}
+
+🔄 RENOVAÇÕES
+   Meta: ${saved.renovMeta} | Realizado: ${renovAtual}
+   Atingimento: ${renovPct}
+━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = event.target;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✅ Copiado!';
+      setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+  }
+
+  function saveMetas() {
+    const data = {
+      valorMeta: parseFloat(document.getElementById('meta-valor').value) || 0,
+      qtdMeta:   parseInt(document.getElementById('meta-qtd').value) || 0,
+      renovMeta: parseInt(document.getElementById('meta-renov').value) || 0,
+    };
+    localStorage.setItem(getMetasKey(), JSON.stringify(data));
+    renderMetas();
+  }
+
+  function updateProgressBar(barId, pctId, value, meta) {
+    const pct = meta > 0 ? Math.min((value / meta) * 100, 100) : 0;
+    const bar = document.getElementById(barId);
+    const pctEl = document.getElementById(pctId);
+    bar.style.width = pct + '%';
+    bar.className = 'meta-bar-fill ' + (pct >= 80 ? 'bar-green' : pct >= 50 ? 'bar-yellow' : 'bar-red');
+    const pctValue = meta > 0 ? (value / meta * 100).toFixed(1) : '0.0';
+    pctEl.textContent = pctValue + '%';
+    pctEl.className = 'mv-pct ' + (pct >= 80 ? 'pct-green' : pct >= 50 ? 'pct-yellow' : 'pct-red');
+  }
+
+  function renderMetas() {
+    const saved = loadSavedMetas();
+    const metaMonth = document.getElementById('metas-month-select')?.value || 'all';
+
+    // Filtrar tasks pelo ano global + mês selecionado na view metas
+    const tasks = allFetchedTasks.length
+      ? allFetchedTasks
+      : [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+
+    const filtered = tasks.filter(t => {
+      if (!matchesYearFilter(t)) return false;
+      if (metaMonth !== 'all' && t.due_date) {
+        return new Date(parseInt(t.due_date)).getMonth() === Number(metaMonth);
+      }
+      return metaMonth === 'all';
+    });
+
+    const fechadas = filtered.filter(t => (t.status?.status || '').toLowerCase() === 'fechado');
+    const aReceber = sumField(fechadas, FIELD_A_RECEBER);
+
+    // Progresso faturamento
+    document.getElementById('mp-valor-atual').textContent = fmtBRL(aReceber);
+    document.getElementById('mp-valor-meta').textContent  = fmtBRL(saved.valorMeta);
+    updateProgressBar('mp-valor-bar', 'mp-valor-pct', aReceber, saved.valorMeta);
+
+    // Progresso cotações
+    document.getElementById('mp-qtd-atual').textContent = fechadas.length;
+    document.getElementById('mp-qtd-meta').textContent  = saved.qtdMeta;
+    updateProgressBar('mp-qtd-bar', 'mp-qtd-pct', fechadas.length, saved.qtdMeta);
+
+    // Progresso renovações (placeholder — usa contagem de renovação se disponível)
+    const renovCount = renovAllTasks.filter(t => (t.status?.status || '').toLowerCase() === 'fechado').length;
+    document.getElementById('mp-renov-atual').textContent = renovCount;
+    document.getElementById('mp-renov-meta').textContent  = saved.renovMeta;
+    updateProgressBar('mp-renov-bar', 'mp-renov-pct', renovCount, saved.renovMeta);
+
+    document.getElementById('metas-last-update').textContent =
+      'Atualizado em ' + new Date().toLocaleString('pt-BR');
+
+    // Render cotador cards (Story 4.2)
+    renderCotadorCards(filtered);
+  }
+
+  function loadCotadorProfiles() {
+    try { return JSON.parse(localStorage.getItem('apolizza_cotadores') || '{}'); } catch { return {}; }
+  }
+  function saveCotadorProfiles(profiles) {
+    localStorage.setItem('apolizza_cotadores', JSON.stringify(profiles));
+  }
+  function saveCotadorMeta(username, metaQtd) {
+    const profiles = loadCotadorProfiles();
+    if (!profiles[username]) profiles[username] = {};
+    profiles[username].metaQtd = parseInt(metaQtd) || 0;
+    saveCotadorProfiles(profiles);
+  }
+  function saveCotadorProfile(username, field, value) {
+    const profiles = loadCotadorProfiles();
+    if (!profiles[username]) profiles[username] = {};
+    profiles[username][field] = value;
+    saveCotadorProfiles(profiles);
+  }
+
+  function renderCotadorCards(tasks) {
+    const cotadores = {};
+    for (const t of tasks) {
+      const name = t.assignees?.[0]?.username || 'Sem responsável';
+      if (!cotadores[name]) cotadores[name] = { total: 0, fechadas: 0, perda: 0, outros: 0, photo: t.assignees?.[0]?.profilePicture || null };
+      cotadores[name].total++;
+      const status = (t.status?.status || '').toLowerCase();
+      if (status === 'fechado') cotadores[name].fechadas++;
+      else if (status === 'perda') cotadores[name].perda++;
+      else cotadores[name].outros++;
+    }
+
+    const profiles = loadCotadorProfiles();
+    const sorted = Object.entries(cotadores).sort((a, b) => {
+      const profA = profiles[a[0]] || {};
+      const profB = profiles[b[0]] || {};
+      const metaA = profA.metaQtd || 0;
+      const metaB = profB.metaQtd || 0;
+      const pctA = metaA > 0 ? (a[1].fechadas / metaA) * 100 : 0;
+      const pctB = metaB > 0 ? (b[1].fechadas / metaB) * 100 : 0;
+      return pctB - pctA || b[1].fechadas - a[1].fechadas;
+    });
+
+    const grid = document.getElementById('cotador-grid');
+    if (!sorted.length) {
+      grid.innerHTML = '<div class="empty-state"><span>👤</span>Nenhum dado de cotador disponível</div>';
+      return;
+    }
+
+    grid.innerHTML = sorted.map(([name, data]) => {
+      const prof = profiles[name] || {};
+      const displayName = prof.displayName || name;
+      const initials = displayName.split(/[\s_]+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+      const photoUrl = prof.photoUrl || data.photo;
+      const avatarBg = photoUrl
+        ? `background-image:url('${esc(photoUrl)}');background-size:cover;background-position:center;color:transparent;`
+        : '';
+      const pct = data.total > 0 ? ((data.fechadas / data.total) * 100).toFixed(1) : '0.0';
+      const metaQtd = prof.metaQtd || 0;
+      const metaPct = metaQtd > 0 ? Math.min((data.fechadas / metaQtd) * 100, 100).toFixed(0) : 0;
+      const metaColor = metaPct >= 80 ? '#27ae60' : metaPct >= 50 ? '#f39c12' : '#e74c3c';
+      const progressBar = metaQtd > 0
+        ? `<div class="cotador-progress-bar"><div class="cotador-progress-fill" style="width:${metaPct}%;background:${metaColor}"></div></div>
+           <div class="cotador-progress-text" style="color:${metaColor}">${metaPct}% da meta (${data.fechadas}/${metaQtd})</div>`
+        : `<div style="font-size:0.7rem;color:#bdc3c7;text-align:center;">Meta não definida</div>`;
+
+      return `<div class="cotador-card" data-username="${esc(name)}">
+        <div class="cotador-card-header">
+          <div class="cotador-avatar" style="${avatarBg}">${initials}</div>
+          <div style="flex:1">
+            <div class="cotador-name">${esc(displayName)}</div>
+            <div style="font-size:0.75rem;color:#7f8c8d;">Conversão: ${pct}%</div>
+          </div>
+          <button class="cotador-edit-btn" onclick="openCotadorEdit('${esc(name)}')">Editar</button>
+        </div>
+        <div class="cotador-stats">
+          <div class="cotador-stat cs-total"><div class="cs-value">${data.total}</div><div class="cs-label">Total</div></div>
+          <div class="cotador-stat cs-fechadas"><div class="cs-value">${data.fechadas}</div><div class="cs-label">Fechadas</div></div>
+          <div class="cotador-stat cs-perda"><div class="cs-value">${data.perda}</div><div class="cs-label">Perda</div></div>
+          <div class="cotador-stat cs-outros"><div class="cs-value">${data.outros}</div><div class="cs-label">Outros</div></div>
+        </div>
+        ${progressBar}
+      </div>`;
+    }).join('');
+  }
+
+  function openCotadorEdit(username) {
+    const profiles = loadCotadorProfiles();
+    const prof = profiles[username] || {};
+    const displayName = prof.displayName || username;
+    const photoUrl = prof.photoUrl || '';
+    const metaQtd = prof.metaQtd || '';
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:360px;max-width:90vw;">
+      <h3 style="margin:0 0 16px;font-size:1.1rem;color:#2c3e50;">Editar Cotador</h3>
+      <label style="font-size:0.8rem;color:#7f8c8d;display:block;margin-bottom:4px;">Nome de exibição</label>
+      <input id="edit-cot-name" value="${esc(displayName)}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px;box-sizing:border-box;">
+      <label style="font-size:0.8rem;color:#7f8c8d;display:block;margin-bottom:4px;">URL da foto</label>
+      <input id="edit-cot-photo" value="${esc(photoUrl)}" placeholder="https://..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px;box-sizing:border-box;">
+      <label style="font-size:0.8rem;color:#7f8c8d;display:block;margin-bottom:4px;">Meta de cotações (quantidade)</label>
+      <input id="edit-cot-meta" type="number" value="${esc(String(metaQtd))}" placeholder="Ex: 30" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:16px;box-sizing:border-box;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;">Cancelar</button>
+        <button id="edit-cot-save" style="padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;font-weight:600;">Salvar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('edit-cot-save').addEventListener('click', () => {
+      const newName = document.getElementById('edit-cot-name').value.trim();
+      const newPhoto = document.getElementById('edit-cot-photo').value.trim();
+      const newMeta = document.getElementById('edit-cot-meta').value;
+      if (newName) saveCotadorProfile(username, 'displayName', newName);
+      saveCotadorProfile(username, 'photoUrl', newPhoto);
+      saveCotadorMeta(username, newMeta);
+      overlay.remove();
+      renderMetas();
+    });
+  }
+
+  /* ══════════════════════════════════════
+     ALERTAS — Story 3.1
+  ══════════════════════════════════════ */
+  function renderAlertCard(task, daysLabel, daysClass) {
+    const assignee = task.assignees?.[0]?.username || 'Sem responsável';
+    const dateStr  = formatDate(task.due_date);
+    const prio     = task.priority?.priority || task.priority || null;
+    const [prioLabel, prioClass] = PRIORITY_MAP[prio] || [];
+    const statusTxt = (task.status?.status || '').trim();
+
+    let meta = '';
+    meta += `<span class="meta-pill pill-assignee">👤 ${esc(assignee)}</span>`;
+    if (dateStr) meta += `<span class="meta-pill pill-due">📅 ${esc(dateStr)}</span>`;
+    if (prioLabel) meta += `<span class="meta-pill ${prioClass}">${esc(prioLabel)}</span>`;
+    if (statusTxt) meta += `<span class="meta-pill pill-status">${esc(statusTxt)}</span>`;
+
+    return `<div class="alerta-card">
+      <div class="alerta-days ${daysClass}">${daysLabel}</div>
+      <div class="alerta-card-info">
+        <a class="alerta-card-name" href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a>
+        <div class="alerta-card-meta">${meta}</div>
+      </div>
+    </div>`;
+  }
+
+  function updateAlertsBadge() {
+    const tasks = allFetchedTasks.length
+      ? allFetchedTasks
+      : [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+    const now = Date.now();
+    const todayStr = new Date(now).toISOString().slice(0, 10);
+    let count = 0;
+    for (const t of tasks) {
+      if (!t.due_date || !matchesYearFilter(t)) continue;
+      const status = (t.status?.status || '').trim().toLowerCase();
+      if (status === 'fechado') continue;
+      const dueMs = parseInt(t.due_date);
+      const dueDateStr = new Date(dueMs).toISOString().slice(0, 10);
+      if (dueMs < now || dueDateStr === todayStr) count++;
+    }
+    const badge = document.getElementById('alertas-sidebar-badge');
+    if (count > 0) { badge.textContent = count; badge.style.display = 'inline'; }
+    else { badge.style.display = 'none'; }
+    // Se view alertas está aberta, re-renderizar
+    if (getCurrentView() === 'alertas') renderAlerts();
+  }
+
+  function renderAlerts() {
+    const tasks = allFetchedTasks.length
+      ? allFetchedTasks
+      : [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+
+    const now      = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const DAY_MS   = 86400000;
+
+    const atrasados = [];
+    const hoje      = [];
+    const proximos  = [];
+
+    for (const t of tasks) {
+      if (!t.due_date) continue;
+      const status = (t.status?.status || '').trim().toLowerCase();
+      if (status === 'fechado') continue;
+
+      // Filtro de ano (se não "all")
+      if (!matchesYearFilter(t)) continue;
+
+      const dueMs  = parseInt(t.due_date);
+      const dueDate = new Date(dueMs);
+      const dueDateStr = dueDate.toISOString().slice(0, 10);
+      const diffDays = Math.floor((dueMs - now.getTime()) / DAY_MS);
+
+      if (dueDateStr === todayStr) {
+        hoje.push({ task: t, days: 0 });
+      } else if (dueMs < now.getTime()) {
+        const daysLate = Math.floor((now.getTime() - dueMs) / DAY_MS);
+        atrasados.push({ task: t, days: daysLate });
+      } else if (diffDays <= 7) {
+        proximos.push({ task: t, days: diffDays });
+      }
+    }
+
+    atrasados.sort((a, b) => b.days - a.days);
+    hoje.sort((a, b) => (a.task.name || '').localeCompare(b.task.name || ''));
+    proximos.sort((a, b) => a.days - b.days);
+
+    // Render atrasados
+    const bodyAtrasados = document.getElementById('alert-body-atrasados');
+    document.getElementById('alert-cnt-atrasados').textContent = atrasados.length;
+    bodyAtrasados.innerHTML = atrasados.length
+      ? atrasados.map(a => renderAlertCard(a.task, `-${a.days}d`, 'ad-atrasado')).join('')
+      : '<div class="empty-state"><span>✅</span>Nenhuma tarefa atrasada</div>';
+
+    // Render hoje
+    const bodyHoje = document.getElementById('alert-body-hoje');
+    document.getElementById('alert-cnt-hoje').textContent = hoje.length;
+    bodyHoje.innerHTML = hoje.length
+      ? hoje.map(a => renderAlertCard(a.task, 'HOJE', 'ad-hoje')).join('')
+      : '<div class="empty-state"><span>✅</span>Nenhuma tarefa vencendo hoje</div>';
+
+    // Render próximos
+    const bodyProximos = document.getElementById('alert-body-proximos');
+    document.getElementById('alert-cnt-proximos').textContent = proximos.length;
+    bodyProximos.innerHTML = proximos.length
+      ? proximos.map(a => renderAlertCard(a.task, `${a.days}d`, 'ad-proximo')).join('')
+      : '<div class="empty-state"><span>✅</span>Nenhuma tarefa nos próximos 7 dias</div>';
+
+    // Badge na sidebar
+    const totalAlerts = atrasados.length + hoje.length;
+    const badge = document.getElementById('alertas-sidebar-badge');
+    if (totalAlerts > 0) {
+      badge.textContent = totalAlerts;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    document.getElementById('alertas-last-update').textContent =
+      'Baseado nos dados carregados — ' + new Date().toLocaleString('pt-BR');
   }
 
   /* ══════════════════════════════════════
