@@ -1022,14 +1022,94 @@
       border: 1px solid #e0e0e0;
     }
     .filter-summary strong { color: #2980b9; }
+
+    /* ── MOBILE SIDEBAR ── */
+    .sidebar-toggle {
+      display: none;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 200;
+      background: #1a252f;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      font-size: 1.3rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      align-items: center;
+      justify-content: center;
+    }
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 99;
+    }
+    @media (max-width: 768px) {
+      .sidebar-toggle { display: flex; }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.active { display: block; }
+      .main-content { margin-left: 0; }
+      .filter-bar { padding: 10px 12px; }
+      .filter-btn { padding: 4px 8px; font-size: 0.7rem; }
+      header { padding: 12px 16px; padding-left: 56px; }
+    }
+
+    /* ── AUTO-REFRESH TIMER ── */
+    .refresh-timer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #95a5a6;
+    }
+    .refresh-timer-bar {
+      width: 60px;
+      height: 4px;
+      background: #ecf0f1;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .refresh-timer-fill {
+      height: 100%;
+      background: #3498db;
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+
+    /* ── METAS CHART ── */
+    .metas-chart-section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      margin-top: 20px;
+    }
+    .metas-chart-section h3 {
+      font-size: 1rem;
+      color: #2c3e50;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
 
 <div class="app-layout">
 
+  <!-- ── MOBILE TOGGLE ── -->
+  <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
   <!-- ── SIDEBAR ── -->
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="brand-title">Comercial</div>
       <div class="brand-sub">Dashboard interno</div>
@@ -1107,6 +1187,10 @@
           <p id="last-update">Carregando dados...</p>
         </div>
         <div class="header-right">
+          <div class="refresh-timer" id="refresh-timer">
+            <span id="refresh-countdown">5:00</span>
+            <div class="refresh-timer-bar"><div class="refresh-timer-fill" id="refresh-timer-fill" style="width:100%"></div></div>
+          </div>
           <span class="year-badge">2026</span>
           <button class="btn-refresh" id="btn-refresh" onclick="loadData()">
             &#8635; Atualizar
@@ -1435,6 +1519,14 @@
             </div>
             <div class="meta-bar-wrap"><div class="meta-bar-fill bar-red" id="mp-renov-bar" style="width:0%"></div></div>
             <div class="meta-values"><span>Meta: <span id="mp-renov-meta">0</span></span></div>
+          </div>
+        </div>
+
+        <!-- Gráfico de evolução mensal -->
+        <div class="metas-chart-section">
+          <h3>📈 Evolução Mensal — Faturamento vs Meta</h3>
+          <div style="height:280px;position:relative;">
+            <canvas id="chart-metas-evolucao"></canvas>
           </div>
         </div>
 
@@ -2854,6 +2946,145 @@
       btn.innerHTML = '&#8635; Atualizar';
     }
   }
+
+  /* ══════════════════════════════════════
+     SIDEBAR MOBILE
+  ══════════════════════════════════════ */
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+  }
+
+  /* ══════════════════════════════════════
+     AUTO-REFRESH TIMER VISUAL
+  ══════════════════════════════════════ */
+  let refreshCountdown = REFRESH_MS / 1000;
+  function updateRefreshTimer() {
+    const el = document.getElementById('refresh-countdown');
+    const fill = document.getElementById('refresh-timer-fill');
+    if (!el || !fill) return;
+    refreshCountdown--;
+    if (refreshCountdown < 0) refreshCountdown = REFRESH_MS / 1000;
+    const mins = Math.floor(refreshCountdown / 60);
+    const secs = refreshCountdown % 60;
+    el.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+    const pct = (refreshCountdown / (REFRESH_MS / 1000)) * 100;
+    fill.style.width = pct + '%';
+  }
+  setInterval(updateRefreshTimer, 1000);
+
+  // Reset timer on manual refresh
+  const origLoadData = loadData;
+  loadData = async function() {
+    refreshCountdown = REFRESH_MS / 1000;
+    return origLoadData();
+  };
+
+  /* ══════════════════════════════════════
+     GRÁFICO EVOLUÇÃO MENSAL — Metas View
+  ══════════════════════════════════════ */
+  function renderMetasChart() {
+    const canvasId = 'chart-metas-evolucao';
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
+
+    if (CHART_INSTANCES[canvasId]) { CHART_INSTANCES[canvasId].destroy(); delete CHART_INSTANCES[canvasId]; }
+
+    const tasks = allFetchedTasks.length
+      ? allFetchedTasks
+      : [...PRELOADED.atraso, ...PRELOADED.perda, ...PRELOADED.andamento];
+
+    const yr = filterYear === 'all' ? new Date().getFullYear() : Number(filterYear);
+
+    // Agrupar faturamento por mês (tasks fechadas com A Receber)
+    const monthlyFat = new Array(12).fill(0);
+    const monthlyQtd = new Array(12).fill(0);
+    for (const t of tasks) {
+      if (!matchesYearFilter(t)) continue;
+      const status = (t.status?.status || '').toLowerCase();
+      if (status !== 'fechado') continue;
+      const month = t.due_date ? new Date(parseInt(t.due_date)).getMonth() : null;
+      if (month === null) continue;
+      monthlyFat[month] += getFieldValue(t, FIELD_A_RECEBER);
+      monthlyQtd[month]++;
+    }
+
+    // Carregar metas por mês
+    const monthlyMeta = new Array(12).fill(0);
+    for (let m = 0; m < 12; m++) {
+      const key = `apolizza_metas_${yr}_${m}`;
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || '{}');
+        monthlyMeta[m] = saved.valorMeta || 0;
+      } catch {}
+    }
+
+    const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+    CHART_INSTANCES[canvasId] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: MONTH_SHORT,
+        datasets: [
+          {
+            label: 'Faturamento (R$)',
+            data: monthlyFat,
+            backgroundColor: 'rgba(39,174,96,0.7)',
+            borderColor: '#27ae60',
+            borderWidth: 1,
+            borderRadius: 4,
+            order: 2
+          },
+          {
+            label: 'Meta (R$)',
+            data: monthlyMeta,
+            type: 'line',
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231,76,60,0.1)',
+            borderWidth: 2,
+            borderDash: [6, 3],
+            pointBackgroundColor: '#e74c3c',
+            pointRadius: 4,
+            fill: false,
+            tension: 0.3,
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return ctx.dataset.label + ': R$ ' + ctx.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: v => 'R$ ' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v)
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Integrar renderMetasChart no renderMetas existente
+  const origRenderMetas = renderMetas;
+  renderMetas = function() {
+    origRenderMetas();
+    renderMetasChart();
+  };
 </script>
 </body>
 </html>
