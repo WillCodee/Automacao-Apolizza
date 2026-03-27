@@ -1023,6 +1023,20 @@
     }
     .filter-summary strong { color: #2980b9; }
 
+    /* ── PRINT STYLES ── */
+    @media print {
+      .sidebar, .sidebar-toggle, .sidebar-overlay, .btn-refresh,
+      .refresh-timer, .filter-bar, #search-tasks, .cotador-edit-btn,
+      .btn-save-meta { display: none !important; }
+      .main-content { margin-left: 0 !important; }
+      .app-layout { display: block; }
+      .kpi-strip { grid-template-columns: repeat(5, 1fr) !important; }
+      .task-card { break-inside: avoid; }
+      .columns { grid-template-columns: repeat(2, 1fr) !important; }
+      body { font-size: 11px; }
+      header { background: #2c3e50 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
     /* ── MOBILE SIDEBAR ── */
     .sidebar-toggle {
       display: none;
@@ -1249,6 +1263,13 @@
       <div class="status-breakdown" id="status-breakdown">
         <span class="status-breakdown-label">Pipeline:</span>
         <!-- Populado dinamicamente por calcStatusBreakdown() -->
+      </div>
+
+      <!-- Busca rápida -->
+      <div style="padding:8px 24px;background:#fff;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:0.85rem;color:#7f8c8d;">🔍</span>
+        <input type="text" id="search-tasks" placeholder="Buscar cotação por nome, responsável..." oninput="filterTasksBySearch()" style="flex:1;padding:8px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:0.85rem;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='#3498db'" onblur="this.style.borderColor='#e0e0e0'">
+        <span id="search-result-count" style="font-size:0.75rem;color:#95a5a6;"></span>
       </div>
 
       <div class="summary-bar">
@@ -2944,6 +2965,30 @@
     } finally {
       btn.disabled  = false;
       btn.innerHTML = '&#8635; Atualizar';
+    }
+  }
+
+  /* ══════════════════════════════════════
+     BUSCA RÁPIDA — Cotações
+  ══════════════════════════════════════ */
+  function filterTasksBySearch() {
+    const query = (document.getElementById('search-tasks')?.value || '').toLowerCase().trim();
+    const cards = document.querySelectorAll('.task-card');
+    let visible = 0;
+    cards.forEach(card => {
+      if (!query) {
+        card.style.display = '';
+        visible++;
+        return;
+      }
+      const text = card.textContent.toLowerCase();
+      const match = text.includes(query);
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    const countEl = document.getElementById('search-result-count');
+    if (countEl) {
+      countEl.textContent = query ? `${visible} resultado(s)` : '';
     }
   }
 
