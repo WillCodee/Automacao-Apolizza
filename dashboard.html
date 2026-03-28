@@ -1603,7 +1603,9 @@
 <script>
   /* ── Config ────────────────────────────────────────────── */
   const LIST_ID           = '900701916229';
-  const API_BASE          = 'https://api.clickup.com/api/v2';
+  // Usa proxy local se rodando via server.py, senão API direta
+  const IS_LOCAL          = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const API_BASE          = IS_LOCAL ? '/api/v2' : 'https://api.clickup.com/api/v2';
   const TOKEN             = 'pk_61006622_9IIQ18GMO2C22ER8C8UP2D214GDBHITO';
   const FILTER_YEAR       = 2026;
   const REFRESH_MS        = 5 * 60 * 1000;
