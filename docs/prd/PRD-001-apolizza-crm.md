@@ -7,8 +7,9 @@
 | **PRD ID** | PRD-001 |
 | **Titulo** | Apolizza CRM — Sistema Proprio de Gestao de Cotacoes e Renovacoes |
 | **Autor** | @pm (Morgan) |
-| **Status** | Em Desenvolvimento |
+| **Status** | Producao (v1.0) |
 | **Criado em** | 2026-03-27 |
+| **Deploy** | https://apolizza-crm.vercel.app |
 | **Prioridade** | Alta |
 | **Tipo** | Brownfield (evolucao de sistema existente) |
 
@@ -77,24 +78,25 @@ Criar um **CRM especializado para corretora de seguros** que substitua o ClickUp
 
 ## 3. Solucao Proposta (To-Be)
 
-### 3.1 Arquitetura Alvo
+### 3.1 Arquitetura Implementada
 
 ```
 ┌──────────────────────────────────────────────┐
 │              FRONTEND + API                   │
-│          Next.js 14 (App Router)              │
-│     React 18 │ Server Components │ RSC        │
-│         Deploy: Vercel (Free Tier)            │
+│        Next.js 16.2.1 (App Router)            │
+│    React 19 │ Server Components │ Turbopack   │
+│         Deploy: Vercel (Production)           │
+│   9 paginas │ 21 API routes │ 21 componentes  │
 ├──────────────────────────────────────────────┤
 │               AUTH LAYER                      │
-│        Auth.js v5 + Credentials               │
-│    Drizzle Adapter │ JWT Sessions             │
-│   Middleware: protecao de rotas server-side   │
+│     Auth.js v5 + Credentials Provider         │
+│   JWT Sessions │ Login por username OU email   │
+│   proxy.ts: protecao de rotas server-side     │
 ├──────────────────────────────────────────────┤
 │              DATABASE                         │
-│        Neon (PostgreSQL Serverless)            │
-│   ORM: Drizzle │ Driver: @neondatabase/serverless │
-│   Connection: WebSocket (otimizado serverless)│
+│     Neon PostgreSQL (sa-east-1 Serverless)    │
+│   ORM: Drizzle │ Driver: neon-http            │
+│   7 tabelas │ 4 SQL Views │ Zod v4 validacao  │
 ├──────────────────────────────────────────────┤
 │              STORAGE                          │
 │           Vercel Blob (256MB free)             │
@@ -102,49 +104,103 @@ Criar um **CRM especializado para corretora de seguros** que substitua o ClickUp
 ├──────────────────────────────────────────────┤
 │            AUTOMACOES                         │
 │     N8N Cloud (5 workflows existentes)        │
-│   Adaptados: ClickUp API → Neon SQL direto    │
+│   CRON interno: /api/cron/atrasados           │
 ├──────────────────────────────────────────────┤
-│           NOTIFICACOES                        │
-│    In-App (badges/toasts) + Email (Resend)    │
-│          3.000 emails/mes gratis              │
+│           SEGURANCA (Epic 1)                  │
+│  Try-catch todas routes │ Zod enum validation  │
+│  SQL injection fix │ DB transactions           │
+│  Security headers │ Promise.all parallelism    │
 └──────────────────────────────────────────────┘
 ```
 
-### 3.1.1 Estrutura de Diretorios
+### 3.1.1 Estrutura de Diretorios (Implementada)
 
 ```
 apolizza-crm/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx              # Root layout com auth check
-│   │   ├── page.tsx                # Redirect → /dashboard
-│   │   ├── login/page.tsx          # Tela de login
-│   │   ├── dashboard/page.tsx      # Dashboard principal
+│   │   ├── layout.tsx                    # Root layout (Poppins font, globals)
+│   │   ├── page.tsx                      # Redirect → /dashboard
+│   │   ├── login/page.tsx                # Tela de login (dark gradient)
+│   │   ├── dashboard/page.tsx            # Dashboard com KPIs
 │   │   ├── cotacoes/
-│   │   │   ├── page.tsx            # Lista de cotacoes
-│   │   │   ├── new/page.tsx        # Criar cotacao
-│   │   │   └── [id]/page.tsx       # Editar cotacao
-│   │   ├── metas/page.tsx          # Metas e desempenho
-│   │   ├── alertas/page.tsx        # View de alertas
-│   │   ├── admin/
-│   │   │   └── users/page.tsx      # Gestao de usuarios (admin only)
+│   │   │   ├── page.tsx                  # Lista/Kanban toggle
+│   │   │   ├── new/page.tsx              # Criar cotacao
+│   │   │   ├── [id]/page.tsx             # Detalhe cotacao
+│   │   │   ├── [id]/edit/page.tsx        # Editar cotacao
+│   │   │   └── print/page.tsx            # PDF/impressao
+│   │   ├── renovacoes/page.tsx           # View renovacoes c/ alertas
+│   │   ├── calendario/page.tsx           # Calendario mensal
+│   │   ├── relatorios/page.tsx           # Relatorio gerencial (admin)
+│   │   ├── usuarios/page.tsx             # Gestao usuarios (admin)
+│   │   ├── status-config/page.tsx        # Config status (admin)
 │   │   └── api/
 │   │       ├── auth/[...nextauth]/route.ts
-│   │       ├── cotacoes/route.ts
-│   │       ├── cotacoes/[id]/route.ts
-│   │       ├── kpis/route.ts
-│   │       └── metas/route.ts
+│   │       ├── cotacoes/route.ts         # CRUD list + create
+│   │       ├── cotacoes/[id]/route.ts    # GET/PUT/DELETE
+│   │       ├── cotacoes/[id]/docs/route.ts    # Upload docs
+│   │       ├── cotacoes/[id]/history/route.ts # Audit trail
+│   │       ├── cotacoes/bulk/route.ts    # Bulk operations
+│   │       ├── cotacoes/export/route.ts  # CSV export
+│   │       ├── cotacoes/import/route.ts  # CSV import
+│   │       ├── cotacoes/seguradoras/route.ts  # Distinct values
+│   │       ├── dashboard/route.ts        # KPIs + views SQL
+│   │       ├── calendario/route.ts       # Eventos do mes
+│   │       ├── relatorios/route.ts       # Relatorio gerencial
+│   │       ├── renovacoes/route.ts       # Renovacoes c/ alertas
+│   │       ├── comissao-tabela/route.ts  # Tabela % comissao
+│   │       ├── kpis/route.ts             # KPIs simplificado
+│   │       ├── metas/route.ts            # CRUD metas
+│   │       ├── status-config/route.ts    # GET all status
+│   │       ├── status-config/[id]/route.ts # PUT status config
+│   │       ├── users/route.ts            # CRUD users
+│   │       ├── users/[id]/route.ts       # GET/PUT user
+│   │       └── cron/atrasados/route.ts   # Auto-status atrasado
+│   ├── components/
+│   │   ├── app-header.tsx                # Header c/ nav + hamburger
+│   │   ├── cotacao-form.tsx              # Form 19 campos + auto-comissao
+│   │   ├── cotacao-history.tsx           # Timeline audit trail
+│   │   ├── cotacoes-list.tsx             # Tabela + mobile cards + bulk
+│   │   ├── cotacoes-view.tsx             # Toggle lista/kanban
+│   │   ├── kanban-board.tsx              # Kanban drag & drop
+│   │   ├── renovacoes-list.tsx           # Tabela + mobile cards
+│   │   ├── users-list.tsx                # Tabela + mobile cards
+│   │   ├── status-config-list.tsx        # Config status inline
+│   │   ├── relatorio-mensal.tsx          # Relatorio c/ Chart.js
+│   │   ├── calendario-mensal.tsx         # Grid mensal + mobile
+│   │   ├── csv-import-modal.tsx          # Import CSV modal
+│   │   ├── docs-upload.tsx               # Upload documentos
+│   │   ├── sign-out-button.tsx           # Logout
+│   │   └── dashboard/
+│   │       ├── dashboard-content.tsx     # Layout dashboard
+│   │       ├── kpi-cards.tsx             # 8 KPIs responsivos
+│   │       ├── cotadores-table.tsx       # Cards c/ foto + metricas
+│   │       ├── metas-card.tsx            # Metas c/ progress bars
+│   │       ├── monthly-chart.tsx         # Grafico tendencia
+│   │       ├── recent-cotacoes.tsx       # Ultimas cotacoes
+│   │       └── status-breakdown.tsx      # Breakdown por status
 │   ├── lib/
-│   │   ├── db.ts                   # Drizzle + Neon connection
-│   │   ├── schema.ts               # Drizzle schema (todas as tabelas)
-│   │   └── auth.ts                 # Auth.js config
-│   └── components/                 # Componentes React reutilizaveis
-├── drizzle/
-│   └── migrations/                 # SQL migrations versionadas
-├── public/
-│   └── dashboard-legacy.html       # Dashboard atual (fase transicao)
+│   │   ├── db.ts                         # Drizzle + neon-http
+│   │   ├── schema.ts                     # 7 tabelas + relations
+│   │   ├── auth.ts                       # Auth.js v5 config
+│   │   ├── auth-helpers.ts               # getCurrentUser()
+│   │   ├── api-helpers.ts                # apiSuccess/apiError + validators
+│   │   ├── validations.ts               # Zod schemas (create/update)
+│   │   ├── status-validation.ts          # Campos obrigatorios por status
+│   │   └── constants.ts                  # Enums, options, listas
+│   ├── proxy.ts                          # Auth middleware (protecao rotas)
+│   └── types/next-auth.d.ts              # Type augmentation
+├── scripts/
+│   ├── create-views.ts                   # 4 SQL views
+│   ├── seed-admin-users.ts               # 3 admins
+│   ├── seed-demo.ts                      # 10 cotacoes demo
+│   ├── seed-status-config.ts             # 12 status
+│   ├── migrate-clickup.ts               # Migracao ClickUp → Neon
+│   └── verify-migration.ts              # Validacao migracao
+├── drizzle/migrations/                   # SQL migrations versionadas
+├── data/                                 # Backup migracao
 ├── drizzle.config.ts
-├── next.config.ts
+├── next.config.ts                        # Security headers
 └── package.json
 ```
 
@@ -155,7 +211,7 @@ apolizza-crm/
 | **Database** | Neon (PostgreSQL Serverless) | Escolha do cliente. Scale-to-zero, branching para dev, PostgreSQL nativo |
 | **ORM** | Drizzle ORM + `@neondatabase/serverless` | Type-safe, leve, migrations nativas, WebSocket driver otimizado para serverless |
 | **Auth** | Auth.js v5 + Drizzle Adapter + Credentials Provider | Integra nativamente com Next.js App Router, middleware server-side, JWT sessions |
-| **Frontend** | Next.js 14+ (App Router) | API Routes integradas, middleware auth, Server Components, deploy unificado Vercel |
+| **Frontend** | Next.js 16.2.1 (App Router, Turbopack) | API Routes integradas, proxy.ts auth, Server Components, deploy unificado Vercel |
 | **API** | Next.js API Routes (Route Handlers) | Zero infra separada, substitui server.py, serverless nativo |
 | **Storage** | Vercel Blob (256MB free tier) | SDK nativo Next.js, CDN automatico, zero config. Fallback: Cloudflare R2 se crescer |
 | **Deploy** | Vercel (frontend + API unificados) + Neon (DB) | Free tier generoso, deploy = git push, preview deploys por PR |
@@ -283,45 +339,29 @@ FASE 4:   ClickUp desligado, Neon e a unica fonte
 | required_fields | JSONB | Array de campos obrigatorios |
 | is_terminal | BOOLEAN DEFAULT false | Status terminal (fechado, perda) |
 
-### 4.2 Views SQL (para KPIs)
+#### `comissao_tabela` — Tabela de percentuais de comissao por seguradora
 
-```sql
--- View: KPIs financeiros do mes atual
-CREATE VIEW vw_kpis_mensal AS
-SELECT
-  DATE_TRUNC('month', due_date) AS mes,
-  COUNT(*) FILTER (WHERE status = 'fechado') AS qtd_fechadas,
-  COUNT(*) FILTER (WHERE status = 'perda') AS qtd_perda,
-  COUNT(*) AS total_cotacoes,
-  SUM(a_receber) FILTER (WHERE status = 'fechado') AS total_a_receber,
-  SUM(valor_perda) FILTER (WHERE status = 'perda') AS total_valor_perda,
-  ROUND(
-    COUNT(*) FILTER (WHERE status = 'fechado')::DECIMAL /
-    NULLIF(COUNT(*), 0) * 100, 1
-  ) AS taxa_conversao
-FROM cotacoes
-GROUP BY DATE_TRUNC('month', due_date);
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | UUID (PK) | Identificador unico |
+| seguradora | VARCHAR(255) | Nome da seguradora |
+| produto | VARCHAR(255) NULL | Produto especifico (null = todos) |
+| percentual | DECIMAL(5,2) | Percentual de comissao |
+| created_at | TIMESTAMPTZ | Data de criacao |
+| updated_at | TIMESTAMPTZ | Ultima atualizacao |
 
--- View: Desempenho por cotador
-CREATE VIEW vw_desempenho_cotador AS
-SELECT
-  u.id AS user_id,
-  u.name,
-  u.username,
-  u.photo_url,
-  COUNT(c.id) AS total_cotacoes,
-  COUNT(c.id) FILTER (WHERE c.status = 'fechado') AS fechadas,
-  COUNT(c.id) FILTER (WHERE c.status = 'perda') AS perdas,
-  SUM(c.a_receber) FILTER (WHERE c.status = 'fechado') AS faturamento,
-  ROUND(
-    COUNT(c.id) FILTER (WHERE c.status = 'fechado')::DECIMAL /
-    NULLIF(COUNT(c.id), 0) * 100, 1
-  ) AS taxa_conversao
-FROM users u
-LEFT JOIN cotacoes c ON c.assignee_id = u.id
-WHERE u.role = 'cotador'
-GROUP BY u.id, u.name, u.username, u.photo_url;
-```
+### 4.2 Views SQL (implementadas em `scripts/create-views.ts`)
+
+4 views otimizadas para o dashboard, agrupadas por ano/mes/assignee:
+
+| View | Descricao | Usada em |
+|------|-----------|----------|
+| `vw_kpis` | KPIs globais (total, fechadas, perdas, em_andamento, financeiros, taxa_conversao) | `/api/dashboard` |
+| `vw_status_breakdown` | Breakdown por status com contagem e total financeiro | `/api/dashboard` |
+| `vw_cotadores` | Desempenho individual (total, fechadas, faturamento, taxa) com photo_url | `/api/dashboard` |
+| `vw_monthly_trend` | Tendencia mensal (fechadas, perdas, total, a_receber) | `/api/dashboard` |
+
+Todas suportam filtros `WHERE ano = X AND mes = Y AND assignee_id = Z`.
 
 ### 4.3 RLS (Row Level Security)
 
@@ -568,12 +608,13 @@ ClickUp task.date_created → cotacoes.created_at
 
 ## 11. Fora de Escopo (v1)
 
-- App mobile nativo (web responsivo e suficiente)
+- App mobile nativo (web responsivo implementado em todas as telas)
 - Integracao com seguradoras (cotacao automatica)
 - Chat interno / comentarios em cotacoes
-- Relatorios PDF automaticos
 - Multi-corretora (SaaS)
 - Integracao contabil/fiscal
+- Notificacoes email (Resend) — planejado para v1.1
+- Recuperacao de senha por email — planejado para v1.1
 
 ---
 
@@ -629,14 +670,14 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 
 ---
 
-## 14. Status de Implementacao (atualizado 2026-03-28)
+## 14. Status de Implementacao (atualizado 2026-03-29)
 
 ### Fase 0 — Fundacao: CONCLUIDA
 
 | Story | Descricao | Status |
 |-------|-----------|--------|
-| 5.1 | Setup Neon + Drizzle ORM + schema (6 tabelas) | DONE |
-| 5.2 | Auth.js v5 + login + roles (admin/cotador) + proxy middleware | DONE |
+| 5.1 | Setup Neon + Drizzle ORM + schema (7 tabelas) | DONE |
+| 5.2 | Auth.js v5 + login + roles (admin/cotador) + proxy.ts middleware | DONE |
 | 5.3 | API REST cotacoes (CRUD completo + paginacao + filtros) | DONE |
 | 5.4 | Tela de login frontend (dark gradient, Poppins, Apolizza brand) | DONE |
 
@@ -676,42 +717,93 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 9.2 | Remover codigo ClickUp do dashboard | PENDENTE |
 | 9.3 | Documentacao final do sistema | PENDENTE |
 
+### Epic 1 — Hardening & Seguranca: CONCLUIDA (Stories 10.x)
+
+| Story | Descricao | Status |
+|-------|-----------|--------|
+| 10.1 | Try-catch em todas as 21 API routes + error handling padronizado | DONE |
+| 10.2 | Fix SQL injection — validacao de params mes, ano, status, assignee | DONE |
+| 10.3 | Validacao Zod completa com enums (status, priority, tipoCliente, produto, situacao) | DONE |
+| 10.4 | Transacoes DB (update + history atomico), fix CRON_SECRET, sanitizacao upload, headers seguranca | DONE |
+| 10.5 | Promise.all no dashboard — 4 queries paralelas | DONE |
+| 10.6 | Migration inicial gerada com drizzle-kit generate | DONE |
+
+### Epic 2 — CRM Upgrade Completo: 10/11 DONE (Stories 11.x)
+
+| Story | Descricao | Status | Detalhes |
+|-------|-----------|--------|----------|
+| 11.1 | Export CSV/PDF de cotacoes | DONE | CSV download + pagina de impressao PDF com KPIs, logo, filtros |
+| 11.2 | Notificacoes email (Resend) | DRAFT | Requer API key Resend — planejado para v1.1 |
+| 11.3 | View renovacoes com alertas 60/30/15 dias | DONE | Pagina /renovacoes com urgencia colorida |
+| 11.4 | Relatorio mensal gerencial | DONE | KPIs com comparacao periodo anterior, ranking cotadores, pipeline, evolucao 12 meses |
+| 11.5 | Busca full-text e filtros avancados | DONE | 8 filtros (status, produto, seguradora, prioridade, renovacao, date range) + URL sync |
+| 11.6 | Calculadora automatica de comissao | DONE | Auto-calculo reativo + tabela % por seguradora (comissao_tabela) |
+| 11.7 | Kanban board de cotacoes | DONE | Drag & drop entre status com API update |
+| 11.8 | Mobile responsive cards | DONE | Card views em todas as tabelas (cotacoes, usuarios, renovacoes) |
+| 11.9 | Calendario de vencimentos e tratativas | DONE | Grid mensal (desktop) + lista (mobile), 3 tipos de evento |
+| 11.10 | Bulk operations e import CSV | DONE | Selecao multipla, update status/delete em lote, import CSV com validacao Zod |
+
 ### Extras Realizados (fora do PRD original)
 
 | Item | Descricao | Status |
 |------|-----------|--------|
-| UX Overhaul | Identidade visual Apolizza aplicada em todos os componentes (Poppins, #03a4ed, #ff695f, gradients, dark header) | DONE |
-| Seed Demo | 10 cotacoes realistas para apresentacao a diretoria | DONE |
+| UX Overhaul | Identidade visual Apolizza em todos os componentes (Poppins, #03a4ed, #ff695f, gradients, dark header) | DONE |
+| Seed Scripts | 3 admins + 10 cotacoes demo + 12 status config | DONE |
 | Login flexivel | Login aceita username OU email | DONE |
+| Status Config Admin | UI para admin editar campos obrigatorios por status, cor, icone, terminal | DONE |
+| Cards Cotadores | Cards com foto/iniciais, metricas individuais, progress bar conversao | DONE |
+| Auto-sugestao comissao | Ao selecionar seguradora, sugere % da tabela comissao_tabela | DONE |
 
-### O que falta fazer (proxima sessao)
+### O que falta fazer
 
 1. **Story 6.4 + 6.5 — Migracao ClickUp → Neon** (3.279 cotacoes)
-   - Script que puxa dados da API ClickUp, transforma e insere no Neon
+   - Script existe (`scripts/migrate-clickup.ts`) mas precisa ser executado
    - Validacao de contagem e somas financeiras
-   - Mapeamento de assignees para users existentes
 
 2. **Story 8.1 — Adaptar N8N workflows**
-   - Os 5 workflows existentes no N8N Cloud precisam trocar de ClickUp API para queries SQL diretas no Neon
-   - Workflows: alerta prazo, alerta vigencia, alerta tratativa, status atrasado, resumo diario
+   - 5 workflows N8N Cloud: trocar ClickUp API para queries SQL no Neon
 
-3. **Story 9.1 — Operacao paralela**
-   - Periodo de 1-2 semanas onde ambos (ClickUp e Neon) rodam juntos
-   - Validacao cruzada de dados
+3. **Story 9.1-9.3 — Fase de transicao**
+   - Operacao paralela, remover codigo ClickUp, documentacao final
 
-4. **Story 9.2 — Remover codigo ClickUp**
-   - Limpar server.py, dashboard.html legacy, referencias a API ClickUp
-   - Manter apenas o CRM proprio
+4. **Story 11.2 — Notificacoes email (Resend)**
+   - Requer configuracao de conta Resend + API key
+   - Templates: cotacao atrasada, vencimento proximo, resumo diario
 
-5. **Story 9.3 — Documentacao**
-   - Documentar o sistema final, credenciais, como fazer deploy, etc.
+---
 
-6. **Melhorias visuais pendentes (nice to have):**
-   - Kanban board na lista de cotacoes
-   - Notificacoes in-app (badges)
-   - Exportar resumo de metas (PDF/Excel)
-   - Recuperacao de senha por email (Resend)
-   - View separada de renovacoes
+---
+
+## 15. Numeros do Projeto
+
+| Metrica | Valor |
+|---------|-------|
+| Linhas de codigo | 26.749 |
+| Arquivos no commit | 136 |
+| Paginas (frontend) | 9 |
+| API Routes | 21 |
+| Componentes React | 21 |
+| Tabelas no banco | 7 |
+| SQL Views | 4 |
+| Scripts utilitarios | 6 |
+| Rotas no build | 34 |
+| Erros TypeScript | 0 |
+
+### Stack Final
+
+| Tecnologia | Versao | Uso |
+|-----------|--------|-----|
+| Next.js | 16.2.1 | Framework fullstack (Turbopack) |
+| React | 19 | UI library |
+| TypeScript | 5.x | Type safety |
+| Drizzle ORM | latest | ORM + migrations |
+| Neon | PostgreSQL 16 | Database serverless (sa-east-1) |
+| Auth.js | v5 | Autenticacao (Credentials, JWT) |
+| Zod | v4 | Validacao de schemas |
+| Chart.js | 4.x | Graficos (react-chartjs-2) |
+| Vercel Blob | latest | Storage de documentos |
+| Tailwind CSS | 4.x | Styling (utility-first) |
+| Vercel | Production | Deploy + CDN |
 
 ---
 
@@ -722,7 +814,10 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 2026-03-27 | 0.1 | PRD Draft — estrutura completa | @pm (Morgan) |
 | 2026-03-27 | 0.2 | Decisoes tecnicas resolvidas (D1-D5) — Next.js, Auth.js, Vercel Blob, Resend, Vercel | @architect (Aria) |
 | 2026-03-28 | 0.3 | Implementacao Fases 0-3 (parcial), UX overhaul com identidade Apolizza | @dev (Dex) |
+| 2026-03-28 | 0.4 | Epic 1 Hardening completo (6/6 stories) — seguranca, validacao, transacoes, headers | @dev (Dex) |
+| 2026-03-28 | 0.5 | Epic 2 CRM Upgrade (10/11 stories) — kanban, calendario, relatorios, bulk ops, import CSV, mobile, filtros, comissao | @dev (Dex) |
+| 2026-03-29 | 1.0 | Deploy producao Vercel — https://apolizza-crm.vercel.app | @dev (Dex) |
 
 ---
 
-*— Morgan, planejando o futuro*
+*Apolizza CRM v1.0 — Sistema proprio de gestao de cotacoes de seguros*
