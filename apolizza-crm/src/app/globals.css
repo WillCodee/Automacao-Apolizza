@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #1e1e1e;
+  --apolizza-blue: #03a4ed;
+  --apolizza-blue-dark: #0288d1;
+  --apolizza-coral: #ff695f;
+  --apolizza-coral-dark: #e55a50;
+  --apolizza-gray-light: #f7f7f7;
+  --apolizza-gray: #7a7a7a;
+  --apolizza-dark: #2a2a2a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-apolizza-blue: var(--apolizza-blue);
+  --color-apolizza-blue-dark: var(--apolizza-blue-dark);
+  --color-apolizza-coral: var(--apolizza-coral);
+  --color-apolizza-coral-dark: var(--apolizza-coral-dark);
+  --font-sans: var(--font-poppins);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-poppins), 'Poppins', sans-serif;
+}
+
+/* Gradient utilities */
+.bg-apolizza-gradient {
+  background: linear-gradient(105deg, rgba(255,104,95,1) 0%, rgba(255,144,104,1) 100%);
+}
+
+.bg-apolizza-blue-gradient {
+  background: linear-gradient(135deg, #03a4ed 0%, #0288d1 100%);
+}
+
+.bg-apolizza-header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
