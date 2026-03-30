@@ -3,8 +3,12 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
-// POST /api/cron/atrasados
-// Protected by CRON_SECRET header
+// POST/GET /api/cron/atrasados
+// Protected by CRON_SECRET header (Vercel Cron chama GET)
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const cronSecret = process.env.CRON_SECRET;
