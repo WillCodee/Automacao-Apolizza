@@ -97,3 +97,18 @@ export const tarefaUpdateSchema = z.object({
 
 export type TarefaCreateInput = z.infer<typeof tarefaCreateSchema>;
 export type TarefaUpdateInput = z.infer<typeof tarefaUpdateSchema>;
+
+// Story 13.2: Status Update + Briefings
+export const updateStatusSchema = z.object({
+  status: z.enum(TAREFA_STATUS_OPTIONS),
+});
+
+export const createBriefingSchema = z.object({
+  briefing: z
+    .string()
+    .min(1, "Briefing não pode estar vazio")
+    .max(2000, "Briefing deve ter no máximo 2000 caracteres"),
+});
+
+export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
+export type CreateBriefingInput = z.infer<typeof createBriefingSchema>;

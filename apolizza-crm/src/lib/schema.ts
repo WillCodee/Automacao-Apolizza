@@ -266,6 +266,31 @@ export const tarefas = pgTable(
 );
 
 // ============================================================
+// TAREFAS_BRIEFINGS (EPIC-003: Story 13.2)
+// ============================================================
+
+export const tarefasBriefings = pgTable(
+  "tarefas_briefings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tarefaId: uuid("tarefa_id")
+      .notNull()
+      .references(() => tarefas.id, { onDelete: "cascade" }),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => users.id),
+    briefing: text("briefing").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("tarefas_briefings_tarefa_idx").on(table.tarefaId),
+    index("tarefas_briefings_created_idx").on(table.createdAt),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 
@@ -274,6 +299,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   metas: many(metas),
   tarefasCotador: many(tarefas, { relationName: "tarefasCotador" }),
   tarefasCriador: many(tarefas, { relationName: "tarefasCriador" }),
+  briefings: many(tarefasBriefings),
 }));
 
 export const cotacoesRelations = relations(cotacoes, ({ one, many }) => ({
@@ -317,7 +343,7 @@ export const cotacaoHistoryRelations = relations(
   })
 );
 
-export const tarefasRelations = relations(tarefas, ({ one }) => ({
+export const tarefasRelations = relations(tarefas, ({ one, many }) => ({
   cotador: one(users, {
     fields: [tarefas.cotadorId],
     references: [users.id],
@@ -327,5 +353,17 @@ export const tarefasRelations = relations(tarefas, ({ one }) => ({
     fields: [tarefas.criadorId],
     references: [users.id],
     relationName: "tarefasCriador",
+  }),
+  briefings: many(tarefasBriefings),
+}));
+
+export const tarefasBriefingsRelations = relations(tarefasBriefings, ({ one }) => ({
+  tarefa: one(tarefas, {
+    fields: [tarefasBriefings.tarefaId],
+    references: [tarefas.id],
+  }),
+  usuario: one(users, {
+    fields: [tarefasBriefings.usuarioId],
+    references: [users.id],
   }),
 }));

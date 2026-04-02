@@ -30,7 +30,7 @@ interface TarefasListProps {
   userId: string;
 }
 
-export function TarefasList({ userRole }: TarefasListProps) {
+export function TarefasList({ userRole, userId }: TarefasListProps) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -157,6 +157,7 @@ export function TarefasList({ userRole }: TarefasListProps) {
               key={tarefa.id}
               tarefa={tarefa}
               isAdmin={isAdmin}
+              userId={userId}
               onAtualizada={handleTarefaAtualizada}
               onDeletada={handleTarefaDeletada}
             />

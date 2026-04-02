@@ -226,7 +226,7 @@ async function main() {
         proximaTratativa: proximaTratativa ? proximaTratativa.toISOString().split("T")[0] : null,
         parceladoEm: parceladoEm ? parseInt(parceladoEm) : null,
         premioSemIof: premioSemIof ? String(premioSemIof) : null,
-        comissao: comissao ? String(comissao).replace("%", "").replace(",", ".") : null,
+        comissao: comissao ? String(comissao) : null, // Agora é text, não precisa processar
         aReceber: aReceber ? String(aReceber) : null,
         valorPerda: valorPerda ? String(valorPerda) : null,
         mesReferencia: mesReferencia || null,
@@ -244,13 +244,21 @@ async function main() {
       }
     } catch (err: any) {
       errors++;
+      // Capturar DETALHES completos do erro
       const errorMsg = err.message || String(err);
+      const errorCode = err.code || "";
+      const errorDetail = err.detail || "";
+
       errorLog.push({
         index: i + 1,
         name: task["Task Name"] || "(sem nome)",
-        error: errorMsg
+        error: `${errorMsg} ${errorCode ? `[${errorCode}]` : ""} ${errorDetail || ""}`
       });
-      console.error(`    ${progress} ✗ ERRO: ${task["Task Name"]} - ${errorMsg}`);
+
+      console.error(`    ${progress} ✗ ERRO: ${task["Task Name"]}`);
+      console.error(`      └─ ${errorMsg}`);
+      if (errorCode) console.error(`      └─ Code: ${errorCode}`);
+      if (errorDetail) console.error(`      └─ Detail: ${errorDetail}`);
     }
   }
 
