@@ -5,6 +5,7 @@ import { tarefas, tarefasAnexos } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "@/lib/validations";
+import { logAtividade } from "@/lib/audit-log";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -122,6 +123,18 @@ export async function POST(request: Request, { params }: RouteContext) {
         mimeType: file.type,
       })
       .returning();
+
+    // Registrar atividade
+    await logAtividade({
+      tarefaId,
+      usuarioId: user.id,
+      tipoAcao: "ANEXO_ADICIONADO",
+      detalhes: {
+        nomeArquivo: file.name,
+        tamanho: file.size,
+        mimeType: file.type,
+      },
+    });
 
     // Buscar anexo com informações do usuário
     const anexoComUsuario = await db.query.tarefasAnexos.findFirst({

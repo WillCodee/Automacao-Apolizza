@@ -5,6 +5,7 @@ import { tarefas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { updateStatusSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { logAtividade } from "@/lib/audit-log";
 
 // PATCH /api/tarefas/[id]/status - Atualizar status da tarefa
 export async function PATCH(
@@ -39,11 +40,23 @@ export async function PATCH(
     const validated = updateStatusSchema.parse(body);
 
     // Atualizar status
+    const statusAnterior = tarefa.status;
     const [tarefaAtualizada] = await db
       .update(tarefas)
       .set({ status: validated.status })
       .where(eq(tarefas.id, id))
       .returning();
+
+    // Registrar atividade
+    await logAtividade({
+      tarefaId: id,
+      usuarioId: user.id,
+      tipoAcao: "STATUS_ALTERADO",
+      detalhes: {
+        valorAnterior: statusAnterior,
+        valorNovo: validated.status,
+      },
+    });
 
     return apiSuccess(tarefaAtualizada);
   } catch (error) {

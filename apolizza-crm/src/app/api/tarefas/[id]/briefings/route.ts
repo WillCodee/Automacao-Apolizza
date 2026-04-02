@@ -5,6 +5,7 @@ import { tarefas, tarefasBriefings } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { createBriefingSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { logAtividade } from "@/lib/audit-log";
 
 // GET /api/tarefas/[id]/briefings - Listar briefings da tarefa
 export async function GET(
@@ -97,6 +98,16 @@ export async function POST(
         briefing: validated.briefing,
       })
       .returning();
+
+    // Registrar atividade
+    await logAtividade({
+      tarefaId: id,
+      usuarioId: user.id,
+      tipoAcao: "BRIEFING_ADICIONADO",
+      detalhes: {
+        briefing: validated.briefing,
+      },
+    });
 
     // Buscar briefing com relations
     const briefingCompleto = await db.query.tarefasBriefings.findFirst({

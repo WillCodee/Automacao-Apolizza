@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { tarefasAnexos } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
+import { logAtividade } from "@/lib/audit-log";
 
 interface RouteContext {
   params: Promise<{ id: string; anexoId: string }>;
@@ -48,6 +49,18 @@ export async function DELETE(request: Request, { params }: RouteContext) {
       console.warn("Erro ao deletar do Vercel Blob:", blobError);
       // Continua mesmo se falhar no Blob (pode já ter sido deletado)
     }
+
+    // Registrar atividade antes de remover
+    await logAtividade({
+      tarefaId,
+      usuarioId: user.id,
+      tipoAcao: "ANEXO_REMOVIDO",
+      detalhes: {
+        nomeArquivo: anexo.nomeArquivo,
+        tamanho: anexo.tamanho,
+        mimeType: anexo.mimeType,
+      },
+    });
 
     // Remover do banco
     await db.delete(tarefasAnexos).where(eq(tarefasAnexos.id, anexoId));

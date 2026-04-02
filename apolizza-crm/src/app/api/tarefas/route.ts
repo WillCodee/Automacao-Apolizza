@@ -5,6 +5,7 @@ import { tarefas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaCreateSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
+import { logAtividade } from "@/lib/audit-log";
 
 // GET /api/tarefas - Listar tarefas
 export async function GET(req: NextRequest) {
@@ -101,6 +102,18 @@ export async function POST(req: NextRequest) {
         criadorId: user.id,
       })
       .returning();
+
+    // Registrar atividade
+    await logAtividade({
+      tarefaId: novaTarefa.id,
+      usuarioId: user.id,
+      tipoAcao: "CRIADA",
+      detalhes: {
+        titulo: novaTarefa.titulo,
+        cotadorId: novaTarefa.cotadorId,
+        status: novaTarefa.status,
+      },
+    });
 
     return apiSuccess(novaTarefa, 201);
   } catch (error) {

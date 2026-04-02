@@ -5,6 +5,7 @@ import { BriefingsList } from "./briefings-list";
 import { BriefingForm } from "./briefing-form";
 import { UploadAnexos } from "./upload-anexos";
 import { AnexosList } from "./anexos-list";
+import { AtividadesTimeline } from "./atividades-timeline";
 
 interface Tarefa {
   id: string;
@@ -73,10 +74,14 @@ export function TarefaCard({
   const [showBriefingForm, setShowBriefingForm] = useState(false);
   const [loadingBriefings, setLoadingBriefings] = useState(false);
   const [anexosRefresh, setAnexosRefresh] = useState(0);
+  const [atividadesRefresh, setAtividadesRefresh] = useState(0);
 
   const isCotador = tarefa.cotador.id === userId;
   const canUpdateStatus = isAdmin || isCotador;
   const userRole = isAdmin ? "admin" : "cotador";
+
+  // Atualizar timeline de atividades quando houver mudanças
+  const refreshAtividades = () => setAtividadesRefresh((prev) => prev + 1);
 
   // Carregar briefings quando expandir
   useEffect(() => {
@@ -116,6 +121,7 @@ export function TarefaCard({
       const data = await res.json();
       if (data.success) {
         onAtualizada();
+        refreshAtividades();
       } else {
         alert(data.error || "Erro ao atualizar status");
       }
@@ -286,6 +292,7 @@ export function TarefaCard({
                   onSuccess={() => {
                     setShowBriefingForm(false);
                     loadBriefings();
+                    refreshAtividades();
                   }}
                   onCancel={() => setShowBriefingForm(false)}
                 />
@@ -309,7 +316,10 @@ export function TarefaCard({
               {canUpdateStatus && (
                 <UploadAnexos
                   tarefaId={tarefa.id}
-                  onUploadSuccess={() => setAnexosRefresh((prev) => prev + 1)}
+                  onUploadSuccess={() => {
+                    setAnexosRefresh((prev) => prev + 1);
+                    refreshAtividades();
+                  }}
                 />
               )}
 
@@ -319,6 +329,15 @@ export function TarefaCard({
                 refresh={anexosRefresh}
                 currentUserId={userId}
                 currentUserRole={userRole}
+              />
+            </div>
+
+            {/* SEÇÃO 3: Histórico de Atividades */}
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <h4 className="text-sm font-semibold text-slate-900">📝 Histórico de Atividades</h4>
+              <AtividadesTimeline
+                tarefaId={tarefa.id}
+                refresh={atividadesRefresh}
               />
             </div>
           </div>

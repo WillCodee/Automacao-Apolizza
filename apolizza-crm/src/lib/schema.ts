@@ -28,6 +28,15 @@ export const tarefaStatusEnum = pgEnum("tarefa_status", [
   "Cancelada",
 ]);
 
+export const atividadeTipoEnum = pgEnum("atividade_tipo", [
+  "CRIADA",
+  "EDITADA",
+  "STATUS_ALTERADO",
+  "BRIEFING_ADICIONADO",
+  "ANEXO_ADICIONADO",
+  "ANEXO_REMOVIDO",
+]);
+
 // ============================================================
 // USERS
 // ============================================================
@@ -320,6 +329,33 @@ export const tarefasAnexos = pgTable(
 );
 
 // ============================================================
+// TAREFAS_ATIVIDADES (EPIC-003: Story 13.5)
+// ============================================================
+
+export const tarefasAtividades = pgTable(
+  "tarefas_atividades",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tarefaId: uuid("tarefa_id")
+      .notNull()
+      .references(() => tarefas.id, { onDelete: "cascade" }),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => users.id),
+    tipoAcao: atividadeTipoEnum("tipo_acao").notNull(),
+    detalhes: jsonb("detalhes"), // {campo?: string, valorAnterior?: any, valorNovo?: any, ...}
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("tarefas_atividades_tarefa_idx").on(table.tarefaId, table.createdAt),
+    index("tarefas_atividades_usuario_idx").on(table.usuarioId),
+    index("tarefas_atividades_tipo_idx").on(table.tipoAcao),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 
@@ -330,6 +366,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   tarefasCriador: many(tarefas, { relationName: "tarefasCriador" }),
   briefings: many(tarefasBriefings),
   anexos: many(tarefasAnexos),
+  atividades: many(tarefasAtividades),
 }));
 
 export const cotacoesRelations = relations(cotacoes, ({ one, many }) => ({
@@ -386,6 +423,7 @@ export const tarefasRelations = relations(tarefas, ({ one, many }) => ({
   }),
   briefings: many(tarefasBriefings),
   anexos: many(tarefasAnexos),
+  atividades: many(tarefasAtividades),
 }));
 
 export const tarefasBriefingsRelations = relations(tarefasBriefings, ({ one }) => ({
@@ -406,6 +444,17 @@ export const tarefasAnexosRelations = relations(tarefasAnexos, ({ one }) => ({
   }),
   usuario: one(users, {
     fields: [tarefasAnexos.usuarioId],
+    references: [users.id],
+  }),
+}));
+
+export const tarefasAtividadesRelations = relations(tarefasAtividades, ({ one }) => ({
+  tarefa: one(tarefas, {
+    fields: [tarefasAtividades.tarefaId],
+    references: [tarefas.id],
+  }),
+  usuario: one(users, {
+    fields: [tarefasAtividades.usuarioId],
     references: [users.id],
   }),
 }));
