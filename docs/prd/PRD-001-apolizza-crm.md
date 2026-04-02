@@ -47,7 +47,7 @@ Criar um **CRM especializado para corretora de seguros** que substitua o ClickUp
 | Frontend | `dashboard.html` (3.137 linhas, vanilla JS + Chart.js) | Dashboard SPA monolitico |
 | Backend | `server.py` (Python proxy) | Resolve CORS com ClickUp API |
 | Database | ClickUp API v2 | Armazenamento de todas as cotacoes |
-| Automacoes | N8N Cloud (5 workflows) | Alertas e status automatico |
+| Automacoes | ~~N8N Cloud~~ → Vercel Cron + Resend | Alertas e status automatico (N8N eliminado) |
 | Persistencia local | localStorage | Metas e perfis de cotadores |
 
 ### 2.2 Dados Existentes
@@ -103,8 +103,10 @@ Criar um **CRM especializado para corretora de seguros** que substitua o ClickUp
 │        CDN automatico │ SDK nativo            │
 ├──────────────────────────────────────────────┤
 │            AUTOMACOES                         │
-│     N8N Cloud (5 workflows existentes)        │
-│   CRON interno: /api/cron/atrasados           │
+│     Vercel Cron Jobs (2 jobs nativos)         │
+│   /api/cron/atrasados (a cada 6h)            │
+│   /api/cron/alertas (diario 9h BRT)          │
+│   Email: Resend SDK (3k/mes free)            │
 ├──────────────────────────────────────────────┤
 │           SEGURANCA (Epic 1)                  │
 │  Try-catch todas routes │ Zod enum validation  │
@@ -155,7 +157,8 @@ apolizza-crm/
 │   │       ├── status-config/[id]/route.ts # PUT status config
 │   │       ├── users/route.ts            # CRUD users
 │   │       ├── users/[id]/route.ts       # GET/PUT user
-│   │       └── cron/atrasados/route.ts   # Auto-status atrasado
+│   │       ├── cron/atrasados/route.ts   # Auto-status atrasado
+│   │       └── cron/alertas/route.ts    # Alertas consolidado (vigencia+tratativa+prazo+resumo)
 │   ├── components/
 │   │   ├── app-header.tsx                # Header c/ nav + hamburger
 │   │   ├── cotacao-form.tsx              # Form 19 campos + auto-comissao
@@ -215,8 +218,8 @@ apolizza-crm/
 | **API** | Next.js API Routes (Route Handlers) | Zero infra separada, substitui server.py, serverless nativo |
 | **Storage** | Vercel Blob (256MB free tier) | SDK nativo Next.js, CDN automatico, zero config. Fallback: Cloudflare R2 se crescer |
 | **Deploy** | Vercel (frontend + API unificados) + Neon (DB) | Free tier generoso, deploy = git push, preview deploys por PR |
-| **Automacoes** | N8N (manter 5 workflows) + cron interno | N8N ja configurado, adaptar de ClickUp API para Neon SQL direto |
-| **Notificacoes** | In-App (badges/toasts) + Email (Resend, 3k/mes free) | In-app como MUST fase 1, email como SHOULD fase 2 |
+| **Automacoes** | Vercel Cron Jobs + cron interno | N8N eliminado — 2 cron jobs nativos (atrasados + alertas consolidado) |
+| **Notificacoes** | In-App (badges/toasts) + Email (Resend, 3k/mes free) | In-app MUST fase 1, email implementado via Resend SDK |
 
 ### 3.3 Estrategia de Migracao
 
@@ -613,7 +616,6 @@ ClickUp task.date_created → cotacoes.created_at
 - Chat interno / comentarios em cotacoes
 - Multi-corretora (SaaS)
 - Integracao contabil/fiscal
-- Notificacoes email (Resend) — planejado para v1.1
 - Recuperacao de senha por email — planejado para v1.1
 
 ---
@@ -670,7 +672,7 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 
 ---
 
-## 14. Status de Implementacao (atualizado 2026-03-29)
+## 14. Status de Implementacao (atualizado 2026-03-30)
 
 ### Fase 0 — Fundacao: CONCLUIDA
 
@@ -681,15 +683,15 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 5.3 | API REST cotacoes (CRUD completo + paginacao + filtros) | DONE |
 | 5.4 | Tela de login frontend (dark gradient, Poppins, Apolizza brand) | DONE |
 
-### Fase 1 — CRUD + Migracao: PARCIALMENTE CONCLUIDA
+### Fase 1 — CRUD + Migracao: EM ANDAMENTO
 
 | Story | Descricao | Status |
 |-------|-----------|--------|
 | 6.1 | Formulario de criacao de cotacao (19 campos tipados) | DONE |
 | 6.2 | Formulario de edicao de cotacao | DONE |
 | 6.3 | Validacao de campos obrigatorios por status (status_config) | DONE |
-| 6.4 | Script de migracao ClickUp → Neon (3.279 cotacoes) | PENDENTE |
-| 6.5 | Execucao da migracao + validacao de integridade | PENDENTE |
+| 6.4 | Script de migracao ClickUp → Neon | DONE (script funcional, 100 tasks migradas previamente) |
+| 6.5 | Execucao da migracao completa + validacao de integridade | EM ANDAMENTO (60/100 tasks re-sincronizadas, falta migracao completa das 3.279) |
 
 ### Fase 2 — Dashboard Proprio: CONCLUIDA
 
@@ -700,11 +702,11 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 7.3 | Metas persistidas no banco (API /api/metas, MetasCard com barras de progresso) | DONE |
 | 7.4 | Upload de documentos (Vercel Blob, /api/cotacoes/[id]/docs) | DONE |
 
-### Fase 3 — Automacoes + Polish: PARCIALMENTE CONCLUIDA
+### Fase 3 — Automacoes + Polish: CONCLUIDA
 
 | Story | Descricao | Status |
 |-------|-----------|--------|
-| 8.1 | Adaptar N8N workflows para consultar Neon | PENDENTE |
+| 8.1 | ~~Adaptar N8N workflows~~ → Substituido por Vercel Cron + Resend | DONE (N8N eliminado) |
 | 8.2 | Cron job: auto-status ATRASADO (/api/cron/atrasados) | DONE |
 | 8.3 | Audit trail — historico de alteracoes (field-level tracking) | DONE |
 | 8.4 | Admin: gestao de usuarios (criar/editar/desativar) | DONE |
@@ -728,12 +730,12 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 10.5 | Promise.all no dashboard — 4 queries paralelas | DONE |
 | 10.6 | Migration inicial gerada com drizzle-kit generate | DONE |
 
-### Epic 2 — CRM Upgrade Completo: 10/11 DONE (Stories 11.x)
+### Epic 2 — CRM Upgrade Completo: 11/11 DONE (Stories 11.x)
 
 | Story | Descricao | Status | Detalhes |
 |-------|-----------|--------|----------|
 | 11.1 | Export CSV/PDF de cotacoes | DONE | CSV download + pagina de impressao PDF com KPIs, logo, filtros |
-| 11.2 | Notificacoes email (Resend) | DRAFT | Requer API key Resend — planejado para v1.1 |
+| 11.2 | Notificacoes email (Resend) | DONE | Resend SDK + templates HTML Apolizza (vigencia, tratativa, prazo, resumo diario) |
 | 11.3 | View renovacoes com alertas 60/30/15 dias | DONE | Pagina /renovacoes com urgencia colorida |
 | 11.4 | Relatorio mensal gerencial | DONE | KPIs com comparacao periodo anterior, ranking cotadores, pipeline, evolucao 12 meses |
 | 11.5 | Busca full-text e filtros avancados | DONE | 8 filtros (status, produto, seguradora, prioridade, renovacao, date range) + URL sync |
@@ -753,22 +755,26 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | Status Config Admin | UI para admin editar campos obrigatorios por status, cor, icone, terminal | DONE |
 | Cards Cotadores | Cards com foto/iniciais, metricas individuais, progress bar conversao | DONE |
 | Auto-sugestao comissao | Ao selecionar seguradora, sugere % da tabela comissao_tabela | DONE |
+| Eliminacao N8N | Substituido por Vercel Cron Jobs (2 jobs) + Resend email — economia de $24/mes | DONE |
+| Vercel Cron Jobs | vercel.json com 2 crons: atrasados (6h) + alertas consolidado (diario 9h BRT) | DONE |
+| Email Resend | src/lib/email.ts — templates HTML (vigencia, tratativa, prazo, resumo diario) | DONE |
 
 ### O que falta fazer
 
-1. **Story 6.4 + 6.5 — Migracao ClickUp → Neon** (3.279 cotacoes)
-   - Script existe (`scripts/migrate-clickup.ts`) mas precisa ser executado
-   - Validacao de contagem e somas financeiras
+1. **Story 6.5 — Migracao completa ClickUp → Neon** (3.279 cotacoes)
+   - Script funcional (`scripts/migrate-clickup.ts`), 100 tasks ja migradas
+   - 60 tasks re-sincronizadas em 2026-03-30
+   - Falta executar migracao completa (sem --limit) e validar integridade
 
-2. **Story 8.1 — Adaptar N8N workflows**
-   - 5 workflows N8N Cloud: trocar ClickUp API para queries SQL no Neon
-
-3. **Story 9.1-9.3 — Fase de transicao**
+2. **Story 9.1-9.3 — Fase de transicao**
    - Operacao paralela, remover codigo ClickUp, documentacao final
 
-4. **Story 11.2 — Notificacoes email (Resend)**
-   - Requer configuracao de conta Resend + API key
-   - Templates: cotacao atrasada, vencimento proximo, resumo diario
+3. **Configuracao Resend em producao**
+   - Verificar dominio `apolizza.com` no Resend (atualmente usando `onboarding@resend.dev`)
+   - Adicionar `RESEND_API_KEY` e `RESEND_FROM` no Vercel Dashboard
+
+4. **Story FR-AUTH-08 — Recuperacao de senha por email** (COULD)
+   - Planejado para v1.1, agora viavel com Resend configurado
 
 ---
 
@@ -781,12 +787,12 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | Linhas de codigo | 26.749 |
 | Arquivos no commit | 136 |
 | Paginas (frontend) | 9 |
-| API Routes | 21 |
+| API Routes | 22 |
 | Componentes React | 21 |
 | Tabelas no banco | 7 |
 | SQL Views | 4 |
 | Scripts utilitarios | 6 |
-| Rotas no build | 34 |
+| Rotas no build | 35 |
 | Erros TypeScript | 0 |
 
 ### Stack Final
@@ -817,6 +823,7 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 2026-03-28 | 0.4 | Epic 1 Hardening completo (6/6 stories) — seguranca, validacao, transacoes, headers | @dev (Dex) |
 | 2026-03-28 | 0.5 | Epic 2 CRM Upgrade (10/11 stories) — kanban, calendario, relatorios, bulk ops, import CSV, mobile, filtros, comissao | @dev (Dex) |
 | 2026-03-29 | 1.0 | Deploy producao Vercel — https://apolizza-crm.vercel.app | @dev (Dex) |
+| 2026-03-30 | 1.1 | Eliminar N8N Cloud → Vercel Cron + Resend email. Migracao parcial ClickUp (60 tasks). Story 8.1 e 11.2 DONE | @dev (Dex) |
 
 ---
 

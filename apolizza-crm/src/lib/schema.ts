@@ -21,6 +21,13 @@ import { relations } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "cotador"]);
 
+export const tarefaStatusEnum = pgEnum("tarefa_status", [
+  "Pendente",
+  "Em Andamento",
+  "Concluída",
+  "Cancelada",
+]);
+
 // ============================================================
 // USERS
 // ============================================================
@@ -225,12 +232,48 @@ export const comissaoTabela = pgTable(
 );
 
 // ============================================================
+// TAREFAS (EPIC-003: Controle de Tarefas Diárias)
+// ============================================================
+
+export const tarefas = pgTable(
+  "tarefas",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    titulo: varchar("titulo", { length: 255 }).notNull(),
+    descricao: text("descricao"),
+    dataVencimento: timestamp("data_vencimento", { withTimezone: true }),
+    status: tarefaStatusEnum("status").notNull().default("Pendente"),
+    cotadorId: uuid("cotador_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    criadorId: uuid("criador_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("tarefas_status_idx").on(table.status),
+    index("tarefas_cotador_idx").on(table.cotadorId),
+    index("tarefas_criador_idx").on(table.criadorId),
+    index("tarefas_data_vencimento_idx").on(table.dataVencimento),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 
 export const usersRelations = relations(users, ({ many }) => ({
   cotacoes: many(cotacoes),
   metas: many(metas),
+  tarefasCotador: many(tarefas, { relationName: "tarefasCotador" }),
+  tarefasCriador: many(tarefas, { relationName: "tarefasCriador" }),
 }));
 
 export const cotacoesRelations = relations(cotacoes, ({ one, many }) => ({
@@ -273,3 +316,16 @@ export const cotacaoHistoryRelations = relations(
     }),
   })
 );
+
+export const tarefasRelations = relations(tarefas, ({ one }) => ({
+  cotador: one(users, {
+    fields: [tarefas.cotadorId],
+    references: [users.id],
+    relationName: "tarefasCotador",
+  }),
+  criador: one(users, {
+    fields: [tarefas.criadorId],
+    references: [users.id],
+    relationName: "tarefasCriador",
+  }),
+}));

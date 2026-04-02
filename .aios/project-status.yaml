@@ -1,0 +1,19 @@
+status:
+  branch: feat/dashboard-v2-modulos
+  modifiedFiles:
+    - docs/stories/4.1.view-metas-corretora.md
+    - .aios-core/
+    - .aios/
+    - .antigravity/
+    - .codex/
+  modifiedFilesTotalCount: 7
+  recentCommits:
+    - 'feat: servidor proxy Python + API ClickUp via proxy local'
+    - 'feat: busca rápida de cotações, print styles'
+  currentEpic: null
+  currentStory: null
+  lastUpdate: '2026-03-28T00:36:42.758Z'
+  isGitRepo: true
+timestamp: 1774658202765
+ttl: 60
+gitFingerprint: 1774639184607.3625:1774657977365.7222

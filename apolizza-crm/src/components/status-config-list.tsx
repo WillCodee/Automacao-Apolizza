@@ -45,15 +45,15 @@ export function StatusConfigList() {
   });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
   async function fetchItems() {
     const res = await fetch("/api/status-config");
     const json = await res.json();
     setItems(json.data || []);
   }
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   function startEdit(item: StatusConfigItem) {
     setForm({
