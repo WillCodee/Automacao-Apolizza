@@ -98,7 +98,7 @@ export const cotacoes = pgTable(
     valorPerda: decimal("valor_perda", { precision: 12, scale: 2 }),
     proximaTratativa: date("proxima_tratativa"),
     observacao: text("observacao"),
-    mesReferencia: varchar("mes_referencia", { length: 3 }),
+    mesReferencia: varchar("mes_referencia", { length: 10 }), // Alterado de 3 para 10 (ex: "MAIO", "SETEMBRO")
     anoReferencia: integer("ano_referencia"),
 
     tags: jsonb("tags").$type<string[]>().default([]),
