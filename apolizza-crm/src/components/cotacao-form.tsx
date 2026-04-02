@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   STATUS_OPTIONS,
@@ -86,8 +86,8 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [comissaoPercentual, setComissaoPercentual] = useState("");
-  const comissaoManual = useRef(false);
-  const aReceberManual = useRef(false);
+  const [comissaoManual, setComissaoManual] = useState(false);
+  const [aReceberManual, setAReceberManual] = useState(false);
 
   useEffect(() => {
     fetch("/api/status-config")
@@ -112,7 +112,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       .then((r) => r.json())
       .then((d) => {
         const rows = d.data || [];
-        if (rows.length > 0 && !comissaoManual.current) {
+        if (rows.length > 0 && !comissaoManual) {
           // Pick most specific match (with produto) or first
           const match = rows.find((r: { produto: string | null }) => r.produto === form.produto) || rows[0];
           if (match?.percentual) {
@@ -129,10 +129,10 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     const pct = parseFloat(comissaoPercentual);
     if (!isNaN(premio) && !isNaN(pct) && pct > 0 && premio > 0) {
       const calculated = (premio * pct / 100).toFixed(2);
-      if (!comissaoManual.current) {
+      if (!comissaoManual) {
         setForm((prev) => ({ ...prev, comissao: calculated }));
       }
-      if (!aReceberManual.current) {
+      if (!aReceberManual) {
         setForm((prev) => ({ ...prev, aReceber: calculated }));
       }
     }
@@ -457,8 +457,8 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               value={comissaoPercentual}
               onChange={(e) => {
                 setComissaoPercentual(e.target.value);
-                comissaoManual.current = false;
-                aReceberManual.current = false;
+                setComissaoManual(false);
+                setAReceberManual(false);
               }}
               className={inputClass()}
               placeholder="Ex: 15.00"
@@ -472,7 +472,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           <div>
             <label htmlFor="comissao" className={labelClass}>
               Comissao (R$)
-              {!comissaoManual.current && comissaoPercentual && (
+              {!comissaoManual && comissaoPercentual && (
                 <span className="text-xs text-[#03a4ed] ml-1">auto</span>
               )}
             </label>
@@ -483,7 +483,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               min="0"
               value={form.comissao}
               onChange={(e) => {
-                comissaoManual.current = true;
+                setComissaoManual(true);
                 set("comissao", e.target.value);
               }}
               className={inputClass("comissao")}
@@ -493,7 +493,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           <div>
             <label htmlFor="aReceber" className={labelClass}>
               A Receber (R$)
-              {!aReceberManual.current && comissaoPercentual && (
+              {!aReceberManual && comissaoPercentual && (
                 <span className="text-xs text-[#03a4ed] ml-1">auto</span>
               )}
             </label>
@@ -504,7 +504,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               min="0"
               value={form.aReceber}
               onChange={(e) => {
-                aReceberManual.current = true;
+                setAReceberManual(true);
                 set("aReceber", e.target.value);
               }}
               className={inputClass("aReceber")}

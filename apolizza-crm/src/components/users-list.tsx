@@ -24,15 +24,15 @@ export function UsersList() {
     role: "cotador" as "admin" | "cotador",
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   async function fetchUsers() {
     const res = await fetch("/api/users");
     const json = await res.json();
     setUsersList(json.data || []);
   }
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   function resetForm() {
     setForm({ name: "", email: "", username: "", password: "", role: "cotador" });
