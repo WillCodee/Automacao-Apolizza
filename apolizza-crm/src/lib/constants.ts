@@ -1,16 +1,13 @@
+// Status reais do ClickUp (lista COTAÇÕES)
 export const STATUS_OPTIONS = [
-  "nao iniciado",
-  "em andamento",
-  "pendencia",
-  "aguardando",
-  "em analise",
-  "aprovado",
-  "implantando",
-  "venda parada",
+  "não iniciado",
+  "raut",
   "atrasado",
-  "fechado",
+  "pendencia",
   "perda",
-  "cancelado",
+  "fechado",
+  "implantando",
+  "concluido ocultar",
 ] as const;
 
 export const PRIORITY_OPTIONS = ["urgente", "alta", "normal", "baixa"] as const;

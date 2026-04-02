@@ -60,7 +60,7 @@ export const cotacoes = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     clickupId: varchar("clickup_id", { length: 20 }),
     name: varchar("name", { length: 500 }).notNull(),
-    status: varchar("status", { length: 50 }).notNull().default("nao iniciado"),
+    status: varchar("status", { length: 50 }).notNull().default("não iniciado"),
     priority: varchar("priority", { length: 20 }).default("normal"),
     dueDate: timestamp("due_date", { withTimezone: true }),
     assigneeId: uuid("assignee_id").references(() => users.id),

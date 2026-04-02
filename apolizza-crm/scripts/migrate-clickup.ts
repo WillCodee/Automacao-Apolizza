@@ -302,20 +302,16 @@ function msToDate(ms: string | null): Date | null {
   return isNaN(num) ? null : new Date(num);
 }
 
-/** Normalize ClickUp status to lowercase */
+/** Normalize ClickUp status - remove extra spaces */
 function normalizeStatus(status: string): string {
-  const s = status.trim().toLowerCase();
-  // Normalize accented variants and ClickUp-specific statuses
-  const map: Record<string, string> = {
-    "não iniciado": "nao iniciado",
-    "pendência": "pendencia",
-    "em análise": "em analise",
-    "concluido ocultar": "fechado", // ClickUp "completed hidden" → fechado
-    "concluído ocultar": "fechado",
-    "complete": "fechado",
-    "closed": "fechado",
-  };
-  return map[s] || s;
+  // Remove leading/trailing spaces and normalize to exact ClickUp format
+  const s = status.trim();
+
+  // Fix "perda " (com espaço) → "perda" (sem espaço)
+  if (s === "perda " || s === "perda") return "perda";
+
+  // Retorna o status exato do ClickUp
+  return s;
 }
 
 /** Map ClickUp priority to our format */

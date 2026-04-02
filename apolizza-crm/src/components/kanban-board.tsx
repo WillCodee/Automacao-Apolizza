@@ -139,7 +139,7 @@ export function KanbanBoard({ userRole }: KanbanBoardProps) {
   // Only show columns that have cotações or are commonly used
   const activeColumns = columns.filter((col) => {
     const count = cotacoes.filter((c) => c.status === col.statusName).length;
-    return count > 0 || ["nao iniciado", "em andamento", "fechado", "perda"].includes(col.statusName);
+    return count > 0 || ["não iniciado", "raut", "fechado", "perda"].includes(col.statusName);
   });
 
   return (

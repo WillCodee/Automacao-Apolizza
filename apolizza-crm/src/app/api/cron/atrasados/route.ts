@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     // Mark cotações as "atrasado" when:
     // - due_date < now
-    // - status is not terminal (fechado, perda, cancelado)
+    // - status is not terminal (fechado, perda, concluido ocultar)
     // - not already "atrasado"
     // - not soft deleted
     const result = await db.execute(sql`
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       SET status = 'atrasado', updated_at = now()
       WHERE deleted_at IS NULL
         AND due_date < now()
-        AND status NOT IN ('fechado', 'perda', 'cancelado', 'atrasado')
+        AND status NOT IN ('fechado', 'perda', 'concluido ocultar', 'atrasado')
       RETURNING id, name, status
     `);
 

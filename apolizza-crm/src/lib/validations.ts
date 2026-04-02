@@ -10,7 +10,7 @@ import {
 
 export const cotacaoCreateSchema = z.object({
   name: z.string().min(1, "Nome e obrigatorio").max(500),
-  status: z.enum(STATUS_OPTIONS).default("nao iniciado"),
+  status: z.enum(STATUS_OPTIONS).default("não iniciado"),
   priority: z.enum(PRIORITY_OPTIONS).optional().default("normal"),
   dueDate: z.string().datetime().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
