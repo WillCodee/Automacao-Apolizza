@@ -103,7 +103,7 @@ export async function PATCH(
     console.error(`PATCH /api/tarefas/[id] error:`, error);
 
     if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
-      const zodError = error as { errors: Array<{ message: string }> };
+      const zodError = error as unknown as { errors: Array<{ message: string }> };
       return apiError(
         "Dados inválidos: " + zodError.errors.map((e) => e.message).join(", "),
         400
