@@ -1,0 +1,624 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { STATUS_OPTIONS, MES_OPTIONS, PRODUTO_OPTIONS, PRIORITY_OPTIONS } from "@/lib/constants";
+import { CsvImportModal } from "./csv-import-modal";
+
+type Cotacao = {
+  id: string;
+  name: string;
+  status: string;
+  produto: string | null;
+  seguradora: string | null;
+  aReceber: number | null;
+  dueDate: string | null;
+  mesReferencia: string | null;
+  anoReferencia: number | null;
+  createdAt: string;
+};
+
+type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+import { STATUS_BADGES } from "@/lib/status-config";
+const STATUS_COLORS = STATUS_BADGES;
+
+export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const assigneeFilter = searchParams.get("assignee") || "";
+
+  const [cotacoes, setCotacoes] = useState<Cotacao[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [mesFilter, setMesFilter] = useState("");
+  const [produtoFilter, setProdutoFilter] = useState("");
+  const [seguradoraFilter, setSeguradoraFilter] = useState("");
+  const [prioridadeFilter, setPrioridadeFilter] = useState("");
+  const [renovacaoFilter, setRenovacaoFilter] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [seguradoras, setSeguradoras] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+
+  // Fetch unique seguradoras for dropdown
+  useEffect(() => {
+    fetch("/api/cotacoes/seguradoras")
+      .then((r) => r.json())
+      .then((j) => setSeguradoras(j.data || []))
+      .catch(() => {});
+  }, []);
+
+  const buildParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (statusFilter) params.set("status", statusFilter);
+    if (mesFilter) params.set("mes", mesFilter);
+    if (assigneeFilter) params.set("assignee", assigneeFilter);
+    if (produtoFilter) params.set("produto", produtoFilter);
+    if (seguradoraFilter) params.set("seguradora", seguradoraFilter);
+    if (prioridadeFilter) params.set("prioridade", prioridadeFilter);
+    if (renovacaoFilter) params.set("isRenovacao", "true");
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    return params;
+  }, [search, statusFilter, mesFilter, assigneeFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
+
+  // Sync filters to URL (AC10)
+  useEffect(() => {
+    const params = buildParams();
+    if (page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    const currentQs = searchParams.toString();
+    if (qs !== currentQs) {
+      router.replace(`/cotacoes${qs ? `?${qs}` : ""}`, { scroll: false });
+    }
+  }, [buildParams, page, router, searchParams]);
+
+  const fetchCotacoes = useCallback(async () => {
+    setLoading(true);
+    const params = buildParams();
+    params.set("page", String(page));
+    params.set("limit", "25");
+
+    const res = await fetch(`/api/cotacoes?${params}`);
+    const json = await res.json();
+    setCotacoes(json.data || []);
+    setPagination(json.pagination || null);
+    setLoading(false);
+  }, [page, buildParams]);
+
+  useEffect(() => {
+    fetchCotacoes();
+  }, [fetchCotacoes]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    fetchCotacoes();
+  }
+
+  async function handleExportCSV() {
+    setExporting(true);
+    try {
+      const params = buildParams();
+      const res = await fetch(`/api/cotacoes/export?${params}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cotacoes-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Erro ao exportar CSV");
+    }
+    setExporting(false);
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Excluir "${name}"?`)) return;
+    await fetch(`/api/cotacoes/${id}`, { method: "DELETE" });
+    fetchCotacoes();
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === cotacoes.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(cotacoes.map((c) => c.id)));
+    }
+  }
+
+  async function handleBulkStatusUpdate() {
+    if (!bulkStatus || selectedIds.size === 0) return;
+    if (!confirm(`Alterar status de ${selectedIds.size} cotacao(es) para "${bulkStatus}"?`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/cotacoes/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action: "updateStatus", data: { status: bulkStatus } }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        alert(`${json.data.updated} atualizada(s), ${json.data.skipped} ignorada(s)`);
+        setSelectedIds(new Set());
+        setBulkStatus("");
+        fetchCotacoes();
+      } else {
+        alert(json.error || "Erro na operacao");
+      }
+    } catch {
+      alert("Erro de conexao");
+    }
+    setBulkLoading(false);
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Excluir ${selectedIds.size} cotacao(es)? Esta acao nao pode ser desfeita.`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/cotacoes/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action: "delete" }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        alert(`${json.data.deleted} excluida(s)`);
+        setSelectedIds(new Set());
+        fetchCotacoes();
+      } else {
+        alert(json.error || "Erro na operacao");
+      }
+    } catch {
+      alert("Erro de conexao");
+    }
+    setBulkLoading(false);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("");
+    setMesFilter("");
+    setProdutoFilter("");
+    setSeguradoraFilter("");
+    setPrioridadeFilter("");
+    setRenovacaoFilter(false);
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  }
+
+  const hasActiveFilters = statusFilter || mesFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || dateFrom || dateTo;
+
+  const fmt = (v: number | null) =>
+    v != null
+      ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+      : "—";
+
+  return (
+    <div className="space-y-4">
+      {/* Assignee filter banner */}
+      {assigneeFilter && (
+        <div className="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
+          <p className="text-sm text-sky-800">
+            Mostrando cotacoes filtradas por cotador
+          </p>
+          <Link
+            href="/cotacoes"
+            className="text-xs font-medium text-sky-700 hover:text-sky-900 underline"
+          >
+            Limpar filtro
+          </Link>
+        </div>
+      )}
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+        <form onSubmit={handleSearch} className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            <input
+              type="text"
+              placeholder="Buscar por nome, seguradora, indicacao..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 min-w-[200px] px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+            >
+              <option value="">Todos os status</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <select
+              value={mesFilter}
+              onChange={(e) => { setMesFilter(e.target.value); setPage(1); }}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+            >
+              <option value="">Todos os meses</option>
+              {MES_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm"
+            >
+              Buscar
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="px-3 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+            >
+              {showAdvanced ? "Menos filtros" : "Mais filtros"}
+            </button>
+          </div>
+
+          {/* Advanced filters */}
+          {showAdvanced && (
+            <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
+              <select
+                value={produtoFilter}
+                onChange={(e) => { setProdutoFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+              >
+                <option value="">Todos os produtos</option>
+                {PRODUTO_OPTIONS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <select
+                value={seguradoraFilter}
+                onChange={(e) => { setSeguradoraFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+              >
+                <option value="">Todas as seguradoras</option>
+                {seguradoras.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                value={prioridadeFilter}
+                onChange={(e) => { setPrioridadeFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+              >
+                <option value="">Todas as prioridades</option>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 cursor-pointer hover:bg-slate-50 transition">
+                <input
+                  type="checkbox"
+                  checked={renovacaoFilter}
+                  onChange={(e) => { setRenovacaoFilter(e.target.checked); setPage(1); }}
+                  className="rounded border-slate-300 text-[#03a4ed] focus:ring-[#03a4ed]"
+                />
+                Apenas Renovacoes
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">De:</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+                />
+                <span className="text-xs text-slate-500">Ate:</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+                />
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="px-3 py-2 text-sm font-medium text-[#ff695f] border border-[#ff695f]/30 rounded-xl hover:bg-red-50 transition"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          )}
+        </form>
+
+        {/* Export + Import buttons */}
+        <div className="flex flex-wrap justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+          {userRole === "admin" && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12" />
+              </svg>
+              Importar CSV
+            </button>
+          )}
+          <button
+            onClick={() => {
+              const params = buildParams();
+              window.open(`/cotacoes/print?${params}`, "_blank");
+            }}
+            className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Exportar PDF
+          </button>
+          <button
+            onClick={handleExportCSV}
+            disabled={exporting}
+            className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition disabled:opacity-50 flex items-center gap-2"
+          >
+            {exporting ? (
+              <>
+                <span className="inline-block w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                Exportando...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar CSV
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Bulk action bar */}
+      {userRole === "admin" && selectedIds.size > 0 && (
+        <div className="bg-[#03a4ed]/5 border border-[#03a4ed]/20 rounded-xl p-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold text-[#03a4ed]">
+            {selectedIds.size} selecionada(s)
+          </span>
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white"
+          >
+            <option value="">Alterar status para...</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleBulkStatusUpdate}
+            disabled={!bulkStatus || bulkLoading}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-[#03a4ed] rounded-lg hover:bg-[#0288d1] transition disabled:opacity-50"
+          >
+            Aplicar
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkLoading}
+            className="px-3 py-1.5 text-sm font-medium text-[#ff695f] border border-[#ff695f]/30 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
+          >
+            Excluir
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 transition"
+          >
+            Limpar selecao
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-100">
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="inline-block w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-400 mt-2 text-sm">Carregando...</p>
+          </div>
+        ) : cotacoes.length === 0 ? (
+          <div className="p-8 text-center text-slate-400">
+            Nenhuma cotacao encontrada.
+          </div>
+        ) : (
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {cotacoes.map((c) => (
+                <div key={c.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    {userRole === "admin" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => toggleSelect(c.id)}
+                        className="mt-1 rounded border-slate-300 text-[#03a4ed] focus:ring-[#03a4ed] min-w-[20px] min-h-[20px]"
+                      />
+                    )}
+                    <Link href={`/cotacoes/${c.id}`} className="text-sm font-semibold text-slate-900 hover:text-[#03a4ed] transition-colors line-clamp-2 flex-1">
+                      {c.name}
+                    </Link>
+                    <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${STATUS_COLORS[c.status] || "bg-slate-100 text-slate-600"}`}>
+                      {c.status}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                    {c.seguradora && <span>{c.seguradora}</span>}
+                    {c.produto && <span>{c.produto}</span>}
+                    {c.mesReferencia && c.anoReferencia && (
+                      <span>{c.mesReferencia}/{c.anoReferencia}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">{fmt(c.aReceber)}</span>
+                    <div className="flex gap-3">
+                      <Link
+                        href={`/cotacoes/${c.id}/edit`}
+                        className="text-[#03a4ed] hover:text-[#0288d1] text-xs font-medium min-h-[44px] flex items-center"
+                      >
+                        Editar
+                      </Link>
+                      {userRole === "admin" && (
+                        <button
+                          onClick={() => handleDelete(c.id, c.name)}
+                          className="text-[#ff695f] hover:text-[#e55a50] text-xs font-medium min-h-[44px] flex items-center"
+                        >
+                          Excluir
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    {userRole === "admin" && (
+                      <th className="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === cotacoes.length && cotacoes.length > 0}
+                          onChange={toggleSelectAll}
+                          className="rounded border-slate-300 text-[#03a4ed] focus:ring-[#03a4ed]"
+                        />
+                      </th>
+                    )}
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Nome</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Produto</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Seguradora</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide text-right">A Receber</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Ref</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Acoes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {cotacoes.map((c) => (
+                    <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(c.id) ? "bg-sky-50/50" : ""}`}>
+                      {userRole === "admin" && (
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(c.id)}
+                            onChange={() => toggleSelect(c.id)}
+                            className="rounded border-slate-300 text-[#03a4ed] focus:ring-[#03a4ed]"
+                          />
+                        </td>
+                      )}
+                      <td className="px-4 py-3 font-medium text-slate-900 max-w-[250px] truncate">
+                        <Link href={`/cotacoes/${c.id}`} className="hover:text-[#03a4ed] transition-colors">
+                          {c.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${STATUS_COLORS[c.status] || "bg-slate-100 text-slate-600"}`}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{c.produto || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{c.seguradora || "—"}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{fmt(c.aReceber)}</td>
+                      <td className="px-4 py-3 text-slate-400 text-xs">
+                        {c.mesReferencia && c.anoReferencia
+                          ? `${c.mesReferencia}/${c.anoReferencia}`
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/cotacoes/${c.id}/edit`}
+                            className="text-[#03a4ed] hover:text-[#0288d1] text-xs font-medium"
+                          >
+                            Editar
+                          </Link>
+                          {userRole === "admin" && (
+                            <button
+                              onClick={() => handleDelete(c.id, c.name)}
+                              className="text-[#ff695f] hover:text-[#e55a50] text-xs font-medium"
+                            >
+                              Excluir
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+          <p className="text-sm text-slate-500">
+            {pagination.total} cotacao(es) — pagina {pagination.page} de{" "}
+            {pagination.totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50 text-slate-700 transition"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= pagination.totalPages}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50 text-slate-700 transition"
+            >
+              Proximo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Import CSV modal */}
+      {showImport && (
+        <CsvImportModal
+          onClose={() => setShowImport(false)}
+          onSuccess={() => { fetchCotacoes(); }}
+        />
+      )}
+    </div>
+  );
+}

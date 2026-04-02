@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/atrasados",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/alertas",
+      "schedule": "0 12 * * *"
+    }
+  ]
+}

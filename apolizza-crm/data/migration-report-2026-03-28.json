@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-03-28T14:08:31.465Z",
+  "source": "ClickUp API v2",
+  "taskLimit": 5,
+  "totalExtracted": 5,
+  "totalInserted": 0,
+  "totalUpdated": 0,
+  "totalSkipped": 5,
+  "totalErrors": 0,
+  "usersCreated": [],
+  "errors": [],
+  "statusBreakdown": {
+    "fechado": 5
+  },
+  "financialSummary": {
+    "totalAReceber": 0,
+    "totalValorPerda": 2133.2,
+    "totalPremio": 12101.6,
+    "totalComissao": 87
+  },
+  "finishedAt": "2026-03-28T14:08:35.171Z"
+}
