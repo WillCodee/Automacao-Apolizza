@@ -7,7 +7,7 @@ import { SignOutButton } from "./sign-out-button";
 type AppHeaderProps = {
   userName: string;
   userRole: "admin" | "cotador";
-  activePage?: "dashboard" | "cotacoes" | "usuarios" | "status-config" | "renovacoes" | "relatorios" | "calendario";
+  activePage?: "dashboard" | "cotacoes" | "usuarios" | "status-config" | "renovacoes" | "relatorios" | "calendario" | "tarefas";
 };
 
 export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
@@ -17,6 +17,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
     { href: "/dashboard", label: "Dashboard", key: "dashboard" },
     { href: "/cotacoes", label: "Cotacoes", key: "cotacoes" },
     { href: "/cotacoes/new", label: "+ Nova Cotacao", key: "new" },
+    { href: "/tarefas", label: "Tarefas", key: "tarefas" },
     { href: "/renovacoes", label: "Renovacoes", key: "renovacoes" },
     { href: "/calendario", label: "Calendario", key: "calendario" },
   ];

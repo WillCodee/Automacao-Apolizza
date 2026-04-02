@@ -67,3 +67,33 @@ export const cotacaoUpdateSchema = z.object({
 
 export type CotacaoCreateInput = z.infer<typeof cotacaoCreateSchema>;
 export type CotacaoUpdateInput = z.infer<typeof cotacaoUpdateSchema>;
+
+// ============================================================
+// TAREFAS (EPIC-003)
+// ============================================================
+
+const TAREFA_STATUS_OPTIONS = [
+  "Pendente",
+  "Em Andamento",
+  "Concluída",
+  "Cancelada",
+] as const;
+
+export const tarefaCreateSchema = z.object({
+  titulo: z.string().min(1, "Título é obrigatório").max(255),
+  descricao: z.string().nullable().optional(),
+  dataVencimento: z.string().datetime().nullable().optional(),
+  status: z.enum(TAREFA_STATUS_OPTIONS).default("Pendente"),
+  cotadorId: z.string().uuid("ID do cotador inválido"),
+});
+
+export const tarefaUpdateSchema = z.object({
+  titulo: z.string().min(1).max(255).optional(),
+  descricao: z.string().nullable().optional(),
+  dataVencimento: z.string().datetime().nullable().optional(),
+  status: z.enum(TAREFA_STATUS_OPTIONS).optional(),
+  cotadorId: z.string().uuid().optional(),
+});
+
+export type TarefaCreateInput = z.infer<typeof tarefaCreateSchema>;
+export type TarefaUpdateInput = z.infer<typeof tarefaUpdateSchema>;

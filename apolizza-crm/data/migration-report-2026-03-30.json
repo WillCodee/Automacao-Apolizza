@@ -1,0 +1,25 @@
+{
+  "startedAt": "2026-03-30T13:10:36.587Z",
+  "source": "ClickUp API v2",
+  "taskLimit": 60,
+  "totalExtracted": 60,
+  "totalInserted": 0,
+  "totalUpdated": 60,
+  "totalSkipped": 0,
+  "totalErrors": 0,
+  "usersCreated": [],
+  "errors": [],
+  "statusBreakdown": {
+    "fechado": 46,
+    "perda": 6,
+    "pendencia": 7,
+    "atrasado": 1
+  },
+  "financialSummary": {
+    "totalAReceber": 187055.69999999998,
+    "totalValorPerda": 181239.19999999995,
+    "totalPremio": 991695.61,
+    "totalComissao": 2733
+  },
+  "finishedAt": "2026-03-30T13:10:46.112Z"
+}

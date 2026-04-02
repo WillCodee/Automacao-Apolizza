@@ -8,6 +8,13 @@
       "when": 1774662809748,
       "tag": "0000_faithful_redwing",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775139753622,
+      "tag": "0001_white_hawkeye",
+      "breakpoints": true
     }
   ]
 }
