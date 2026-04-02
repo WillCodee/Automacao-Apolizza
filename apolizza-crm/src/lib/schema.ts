@@ -84,7 +84,7 @@ export const cotacoes = pgTable(
     primeiroPagamento: date("primeiro_pagamento"),
     parceladoEm: integer("parcelado_em"),
     premioSemIof: decimal("premio_sem_iof", { precision: 12, scale: 2 }),
-    comissao: decimal("comissao", { precision: 12, scale: 2 }),
+    comissao: text("comissao"), // Alterado de decimal para text (fórmulas complexas)
     aReceber: decimal("a_receber", { precision: 12, scale: 2 }),
     valorPerda: decimal("valor_perda", { precision: 12, scale: 2 }),
     proximaTratativa: date("proxima_tratativa"),
