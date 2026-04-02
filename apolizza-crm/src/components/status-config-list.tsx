@@ -29,6 +29,8 @@ const FIELD_LABELS: Record<string, string> = {
   valor_perda: "Valor Perda",
   proxima_tratativa: "Prox. Tratativa",
   observacao: "Observacao",
+  mes_referencia: "Mes",
+  ano_referencia: "Ano",
 };
 
 const ALL_FIELDS = Object.keys(FIELD_LABELS);
@@ -44,6 +46,18 @@ export function StatusConfigList() {
     requiredFields: [] as string[],
   });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    statusName: "",
+    displayLabel: "",
+    color: "#7f8c8d",
+    icon: "",
+    orderIndex: 0,
+    isTerminal: false,
+  });
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
 
   async function fetchItems() {
     const res = await fetch("/api/status-config");
@@ -79,6 +93,40 @@ export function StatusConfigList() {
     }));
   }
 
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError("");
+
+    const res = await fetch("/api/status-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createForm),
+    });
+
+    const json = await res.json();
+    setCreating(false);
+
+    if (!res.ok) {
+      setCreateError(json.error || "Erro ao criar status");
+      return;
+    }
+
+    setShowCreate(false);
+    setCreateForm({ statusName: "", displayLabel: "", color: "#7f8c8d", icon: "", orderIndex: 0, isTerminal: false });
+    setCreateError("");
+    fetchItems();
+  }
+
+  async function handleDelete(item: StatusConfigItem) {
+    if (!confirm(`Excluir o status "${item.displayLabel}"?\n\nAtenção: cotações com este status podem ficar sem classificação.`)) return;
+    setDeletingId(item.id);
+    await fetch(`/api/status-config/${item.id}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (editingId === item.id) setEditingId(null);
+    fetchItems();
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editingId) return;
@@ -98,13 +146,128 @@ export function StatusConfigList() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Configuracao de Status
-        </h2>
-        <p className="text-xs text-slate-500">
-          {items.length} status configurados
-        </p>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Configuração de Status</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{items.length} status configurados</p>
+        </div>
+        {!showCreate && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-4 py-2 text-white text-sm rounded-xl font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm"
+          >
+            + Novo Status
+          </button>
+        )}
       </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <form
+          onSubmit={handleCreate}
+          className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4"
+        >
+          <h3 className="text-sm font-semibold text-slate-900">Novo Status</h3>
+
+          {createError && (
+            <p className="text-xs text-[#ff695f] bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              {createError}
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-500 font-medium">Nome interno (slug)</label>
+              <input
+                type="text"
+                required
+                value={createForm.statusName}
+                onChange={(e) => setCreateForm({ ...createForm, statusName: e.target.value })}
+                placeholder="ex: em-negociacao"
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Será salvo em minúsculas</p>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 font-medium">Label exibido</label>
+              <input
+                type="text"
+                required
+                value={createForm.displayLabel}
+                onChange={(e) => setCreateForm({ ...createForm, displayLabel: e.target.value })}
+                placeholder="ex: Em Negociação"
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 font-medium">Cor</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={createForm.color}
+                  onChange={(e) => setCreateForm({ ...createForm, color: e.target.value })}
+                  className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={createForm.color}
+                  onChange={(e) => setCreateForm({ ...createForm, color: e.target.value })}
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] outline-none"
+                  maxLength={7}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 font-medium">Ícone (emoji)</label>
+              <input
+                type="text"
+                value={createForm.icon}
+                onChange={(e) => setCreateForm({ ...createForm, icon: e.target.value })}
+                placeholder="ex: 🔄"
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] outline-none"
+                maxLength={4}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 font-medium">Ordem</label>
+              <input
+                type="number"
+                min={0}
+                value={createForm.orderIndex}
+                onChange={(e) => setCreateForm({ ...createForm, orderIndex: Number(e.target.value) })}
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] outline-none"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer pb-2">
+                <input
+                  type="checkbox"
+                  checked={createForm.isTerminal}
+                  onChange={(e) => setCreateForm({ ...createForm, isTerminal: e.target.checked })}
+                  className="w-4 h-4 rounded border-slate-300 text-[#03a4ed] focus:ring-[#03a4ed]"
+                />
+                <span className="text-sm text-slate-700">Status terminal</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={creating}
+              className="px-4 py-2 text-white text-sm rounded-xl font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm disabled:opacity-50"
+            >
+              {creating ? "Criando..." : "Criar Status"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowCreate(false); setCreateError(""); }}
+              className="px-4 py-2 text-slate-600 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="space-y-3">
         {items.map((item) => (
@@ -153,6 +316,13 @@ export function StatusConfigList() {
                   className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium whitespace-nowrap"
                 >
                   Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(item)}
+                  disabled={deletingId === item.id}
+                  className="text-xs text-[#ff695f] hover:text-[#e55a50] font-medium whitespace-nowrap disabled:opacity-50"
+                >
+                  {deletingId === item.id ? "Excluindo..." : "Excluir"}
                 </button>
               </div>
             </div>

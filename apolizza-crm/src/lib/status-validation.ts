@@ -17,6 +17,8 @@ const FIELD_LABELS: Record<string, string> = {
   parcelado_em: "Parcelado Em",
   premio_sem_iof: "Prêmio sem IOF",
   valor_perda: "Valor em Perda",
+  mes_referencia: "Mês",
+  ano_referencia: "Ano",
 };
 
 // Map DB column names (snake_case) to form field names (camelCase)
@@ -34,6 +36,8 @@ const FIELD_MAP: Record<string, string> = {
   parcelado_em: "parceladoEm",
   premio_sem_iof: "premioSemIof",
   valor_perda: "valorPerda",
+  mes_referencia: "mesReferencia",
+  ano_referencia: "anoReferencia",
 };
 
 export type StatusRule = {

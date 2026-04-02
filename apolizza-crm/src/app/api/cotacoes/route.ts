@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { eq, and, ilike, isNull, sql, count, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes } from "@/lib/schema";
+import { cotacoes, statusConfig } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
+import { validateStatusFields } from "@/lib/status-validation";
 import {
   apiError,
   apiPaginated,
@@ -110,6 +111,14 @@ export async function POST(req: NextRequest) {
     }
 
     const input = parsed.data;
+
+    // Validate required fields for the initial status
+    const rules = await db.select().from(statusConfig);
+    const validation = validateStatusFields(input as unknown as Record<string, unknown>, input.status ?? "não iniciado", rules);
+    if (!validation.valid) {
+      const missing = validation.missingFields.map((f) => f.label).join(", ");
+      return apiError(`Campos obrigatorios para status "${input.status ?? "não iniciado"}": ${missing}`, 422);
+    }
 
     const [created] = await db
       .insert(cotacoes)

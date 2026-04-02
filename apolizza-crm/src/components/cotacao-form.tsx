@@ -6,7 +6,6 @@ import {
   STATUS_OPTIONS,
   PRIORITY_OPTIONS,
   TIPO_CLIENTE_OPTIONS,
-  SITUACAO_OPTIONS,
   MES_OPTIONS,
   ANO_OPTIONS,
   PRODUTO_OPTIONS,
@@ -81,6 +80,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const [form, setForm] = useState<CotacaoData>({ ...EMPTY, ...initialData });
   const [users, setUsers] = useState<User[]>([]);
   const [statusRules, setStatusRules] = useState<StatusRule[]>([]);
+  const [situacoes, setSituacoes] = useState<string[]>([]);
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -93,6 +93,10 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     fetch("/api/status-config")
       .then((r) => r.json())
       .then((d) => setStatusRules(d.data || []));
+
+    fetch("/api/situacao-config")
+      .then((r) => r.json())
+      .then((d) => setSituacoes((d.data || []).filter((s: { isActive: boolean }) => s.isActive).map((s: { nome: string }) => s.nome)));
 
     if (currentUser.role === "admin") {
       fetch("/api/users")
@@ -360,7 +364,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               className={inputClass("situacao")}
             >
               <option value="">Selecione...</option>
-              {SITUACAO_OPTIONS.map((s) => (
+              {situacoes.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>

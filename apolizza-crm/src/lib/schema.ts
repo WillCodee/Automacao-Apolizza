@@ -217,6 +217,18 @@ export const statusConfig = pgTable("status_config", {
 });
 
 // ============================================================
+// SITUACAO_CONFIG
+// ============================================================
+
+export const situacaoConfig = pgTable("situacao_config", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nome: varchar("nome", { length: 100 }).notNull().unique(),
+  orderIndex: integer("order_index").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================
 // COMISSAO_TABELA
 // ============================================================
 

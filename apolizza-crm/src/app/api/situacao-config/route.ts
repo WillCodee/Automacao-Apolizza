@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
+import { asc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { statusConfig } from "@/lib/schema";
+import { situacaoConfig } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
-import { asc } from "drizzle-orm";
 
 export async function GET() {
   try {
@@ -12,13 +12,13 @@ export async function GET() {
 
     const rows = await db
       .select()
-      .from(statusConfig)
-      .orderBy(asc(statusConfig.orderIndex));
+      .from(situacaoConfig)
+      .orderBy(asc(situacaoConfig.orderIndex), asc(situacaoConfig.nome));
 
     return apiSuccess(rows);
   } catch (error) {
-    console.error("API GET /api/status-config:", error);
-    return apiError("Erro ao listar configuracoes de status", 500);
+    console.error("API GET /api/situacao-config:", error);
+    return apiError("Erro ao listar situacoes", 500);
   }
 }
 
@@ -29,22 +29,15 @@ export async function POST(req: NextRequest) {
     if (user.role !== "admin") return apiError("Apenas admin", 403);
 
     const body = await req.json();
-    const { statusName, displayLabel, color, icon, orderIndex, isTerminal, requiredFields } = body;
+    const { nome, orderIndex } = body;
 
-    if (!statusName || !displayLabel || !color) {
-      return apiError("statusName, displayLabel e color sao obrigatorios", 400);
-    }
+    if (!nome?.trim()) return apiError("Nome e obrigatorio", 400);
 
     const [created] = await db
-      .insert(statusConfig)
+      .insert(situacaoConfig)
       .values({
-        statusName: statusName.trim().toLowerCase(),
-        displayLabel: displayLabel.trim(),
-        color,
-        icon: icon || null,
+        nome: nome.trim().toUpperCase(),
         orderIndex: orderIndex ?? 0,
-        isTerminal: isTerminal ?? false,
-        requiredFields: requiredFields ?? [],
       })
       .returning();
 
@@ -52,9 +45,9 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("unique") || msg.includes("duplicate")) {
-      return apiError("Ja existe um status com esse nome", 409);
+      return apiError("Ja existe uma situacao com esse nome", 409);
     }
-    console.error("API POST /api/status-config:", error);
-    return apiError("Erro ao criar status", 500);
+    console.error("API POST /api/situacao-config:", error);
+    return apiError("Erro ao criar situacao", 500);
   }
 }

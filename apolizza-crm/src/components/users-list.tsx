@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type User = {
   id: string;
@@ -9,8 +9,25 @@ type User = {
   username: string;
   role: "admin" | "cotador";
   isActive: boolean;
+  photoUrl: string | null;
   createdAt: string;
 };
+
+function UserAvatar({ user, size = "md" }: { user: User; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "w-8 h-8 text-sm" : "w-10 h-10 text-base";
+  return (
+    <div className={`${dim} rounded-full overflow-hidden bg-[#03a4ed]/10 flex items-center justify-center flex-shrink-0`}>
+      {user.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="font-semibold text-[#03a4ed]">
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function UsersList() {
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -23,6 +40,9 @@ export function UsersList() {
     password: "",
     role: "cotador" as "admin" | "cotador",
   });
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingPhotoUserId, setPendingPhotoUserId] = useState<string | null>(null);
 
   async function fetchUsers() {
     const res = await fetch("/api/users");
@@ -89,8 +109,46 @@ export function UsersList() {
     setShowForm(true);
   }
 
+  function triggerPhotoUpload(userId: string) {
+    setPendingPhotoUserId(userId);
+    fileInputRef.current?.click();
+  }
+
+  async function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !pendingPhotoUserId) return;
+
+    setUploadingId(pendingPhotoUserId);
+    const fd = new FormData();
+    fd.append("photo", file);
+
+    try {
+      await fetch(`/api/users/${pendingPhotoUserId}/photo`, {
+        method: "POST",
+        body: fd,
+      });
+      fetchUsers();
+    } finally {
+      setUploadingId(null);
+      setPendingPhotoUserId(null);
+      // Reset file input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  const editingUser = editingId ? usersList.find((u) => u.id === editingId) : null;
+
   return (
     <div className="space-y-6">
+      {/* Hidden file input for photo upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handlePhotoFileChange}
+      />
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">Gestao de Usuarios</h2>
         {!showForm && (
@@ -108,6 +166,41 @@ export function UsersList() {
           <h3 className="text-sm font-semibold text-slate-900">
             {editingId ? "Editar Usuario" : "Novo Usuario"}
           </h3>
+
+          {/* Avatar + photo upload (only when editing) */}
+          {editingId && editingUser && (
+            <div className="flex items-center gap-4">
+              <div className="relative group">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-[#03a4ed]/10 flex items-center justify-center ring-2 ring-white shadow-sm">
+                  {editingUser.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={editingUser.photoUrl} alt={editingUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-bold text-[#03a4ed]">
+                      {editingUser.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                {uploadingId === editingId && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => triggerPhotoUpload(editingId)}
+                  disabled={uploadingId === editingId}
+                  className="text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium disabled:opacity-50"
+                >
+                  {uploadingId === editingId ? "Enviando..." : "Trocar foto"}
+                </button>
+                <p className="text-xs text-slate-400 mt-0.5">JPG, PNG ou WebP · máx. 5 MB</p>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-xs text-slate-500 font-medium">Nome</label>
@@ -181,9 +274,24 @@ export function UsersList() {
           {usersList.map((u) => (
             <div key={u.id} className={`p-4 space-y-2 ${!u.isActive ? "opacity-50" : ""}`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[#03a4ed]/10 flex items-center justify-center text-[#03a4ed] font-semibold text-sm">
-                    {u.name.charAt(0).toUpperCase()}
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <UserAvatar user={u} size="sm" />
+                    <button
+                      onClick={() => triggerPhotoUpload(u.id)}
+                      disabled={uploadingId === u.id}
+                      title="Trocar foto"
+                      className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#03a4ed] rounded-full flex items-center justify-center hover:bg-[#0288d1] transition-colors disabled:opacity-50"
+                    >
+                      {uploadingId === u.id ? (
+                        <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-slate-900">{u.name}</p>
@@ -235,7 +343,29 @@ export function UsersList() {
           <tbody className="divide-y divide-slate-100">
             {usersList.map((u) => (
               <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${!u.isActive ? "opacity-50" : ""}`}>
-                <td className="px-5 py-3 font-medium text-slate-900">{u.name}</td>
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative group">
+                      <UserAvatar user={u} size="sm" />
+                      <button
+                        onClick={() => triggerPhotoUpload(u.id)}
+                        disabled={uploadingId === u.id}
+                        title="Trocar foto"
+                        className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity disabled:opacity-100"
+                      >
+                        {uploadingId === u.id ? (
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <span className="font-medium text-slate-900">{u.name}</span>
+                  </div>
+                </td>
                 <td className="px-5 py-3 text-slate-600">{u.email}</td>
                 <td className="px-5 py-3">
                   <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${
