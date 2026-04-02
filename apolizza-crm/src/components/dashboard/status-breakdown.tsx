@@ -1,19 +1,6 @@
 "use client";
 
-const STATUS_COLORS: Record<string, string> = {
-  "nao iniciado": "#94a3b8",
-  "em andamento": "#03a4ed",
-  pendencia: "#eab308",
-  aguardando: "#38bdf8",
-  "em analise": "#f97316",
-  aprovado: "#14b8a6",
-  implantando: "#10b981",
-  "venda parada": "#a855f7",
-  atrasado: "#ef4444",
-  fechado: "#22c55e",
-  perda: "#ff695f",
-  cancelado: "#dc2626",
-};
+import { STATUS_COLORS } from "@/lib/status-config";
 
 type StatusData = { status: string; count: number; total: number };
 

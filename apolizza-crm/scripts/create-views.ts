@@ -16,7 +16,7 @@ async function createViews() {
       count(*)::int AS total_cotacoes,
       count(*) FILTER (WHERE status = 'fechado')::int AS fechadas,
       count(*) FILTER (WHERE status = 'perda')::int AS perdas,
-      count(*) FILTER (WHERE status NOT IN ('fechado','perda','cancelado'))::int AS em_andamento,
+      count(*) FILTER (WHERE status NOT IN ('fechado','perda','concluido ocultar'))::int AS em_andamento,
       COALESCE(SUM(a_receber::numeric) FILTER (WHERE status = 'fechado'), 0)::float AS total_a_receber,
       COALESCE(SUM(valor_perda::numeric) FILTER (WHERE status = 'perda'), 0)::float AS total_valor_perda,
       COALESCE(SUM(premio_sem_iof::numeric) FILTER (WHERE status = 'fechado'), 0)::float AS total_premio,

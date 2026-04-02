@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
           count(*)::int as "totalCotacoes",
           coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
           coalesce(sum(case when c.status = 'perda' then 1 else 0 end), 0)::int as "perdas",
-          coalesce(sum(case when c.status not in ('fechado','perda','cancelado') then 1 else 0 end), 0)::int as "emAndamento",
+          coalesce(sum(case when c.status not in ('fechado','perda','concluido ocultar') then 1 else 0 end), 0)::int as "emAndamento",
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "totalAReceber",
           coalesce(sum(case when c.status = 'perda' then cast(c.valor_perda as float) else 0 end), 0)::float as "totalValorPerda"
         from cotacoes c

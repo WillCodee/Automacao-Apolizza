@@ -26,20 +26,8 @@ type Pagination = {
   totalPages: number;
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  "nao iniciado": "bg-slate-100 text-slate-600",
-  "em andamento": "bg-sky-50 text-[#03a4ed]",
-  pendencia: "bg-amber-50 text-amber-700",
-  aguardando: "bg-sky-50 text-sky-600",
-  "em analise": "bg-orange-50 text-orange-700",
-  aprovado: "bg-teal-50 text-teal-700",
-  implantando: "bg-emerald-50 text-emerald-700",
-  "venda parada": "bg-purple-50 text-purple-700",
-  atrasado: "bg-red-50 text-red-600",
-  fechado: "bg-emerald-50 text-emerald-700",
-  perda: "bg-red-50 text-[#ff695f]",
-  cancelado: "bg-red-50 text-red-700",
-};
+import { STATUS_BADGES } from "@/lib/status-config";
+const STATUS_COLORS = STATUS_BADGES;
 
 export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
   const searchParams = useSearchParams();

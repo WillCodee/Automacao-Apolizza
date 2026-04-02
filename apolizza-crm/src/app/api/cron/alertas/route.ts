@@ -33,7 +33,7 @@ async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
-      AND c.status NOT IN ('fechado', 'perda', 'cancelado')
+      AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
       AND c.fim_vigencia IS NOT NULL
       AND c.fim_vigencia BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days'
     ORDER BY c.fim_vigencia ASC
@@ -117,7 +117,7 @@ async function alertasTratativa(): Promise<{ sent: number; cotacoes: number }> {
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
-      AND c.status NOT IN ('fechado', 'perda', 'cancelado')
+      AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
       AND c.proxima_tratativa IS NOT NULL
       AND c.proxima_tratativa BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day'
     ORDER BY c.proxima_tratativa ASC
