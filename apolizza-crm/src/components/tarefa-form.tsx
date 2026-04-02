@@ -60,8 +60,8 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
       }
 
       onTarefaCriada();
-    } catch (err: any) {
-      setError(err.message || "Erro ao criar tarefa");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar tarefa");
     } finally {
       setLoading(false);
     }

@@ -36,7 +36,7 @@ const statusColors = {
   Cancelada: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
-export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: TarefaCardProps) {
+export function TarefaCard({ tarefa, isAdmin, onDeletada }: TarefaCardProps) {
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
@@ -54,7 +54,7 @@ export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: Tarefa
       } else {
         alert(data.error || "Erro ao deletar tarefa");
       }
-    } catch (error) {
+    } catch {
       alert("Erro ao deletar tarefa");
     } finally {
       setLoading(false);
@@ -101,6 +101,7 @@ export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: Tarefa
         {/* Cotador */}
         <div className="flex items-center gap-2">
           {tarefa.cotador.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={tarefa.cotador.photoUrl}
               alt={tarefa.cotador.name}

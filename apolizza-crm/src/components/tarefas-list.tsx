@@ -30,7 +30,7 @@ interface TarefasListProps {
   userId: string;
 }
 
-export function TarefasList({ userRole, userId }: TarefasListProps) {
+export function TarefasList({ userRole }: TarefasListProps) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -57,6 +57,7 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
 
   useEffect(() => {
     fetchTarefas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus]);
 
   const handleTarefaCriada = () => {
