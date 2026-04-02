@@ -44,7 +44,7 @@ type CotacaoData = {
 
 const EMPTY: CotacaoData = {
   name: "",
-  status: "nao iniciado",
+  status: "não iniciado",
   priority: "normal",
   dueDate: "",
   assigneeId: "",

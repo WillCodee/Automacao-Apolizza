@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Set defaults
-      if (!row.status) row.status = "nao iniciado";
+      if (!row.status) row.status = "não iniciado";
       if (!row.priority) row.priority = "normal";
       row.assigneeId = user.id;
       row.tags = [];
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
         await db.insert(cotacoes).values(
           batch.map((row) => ({
             name: row.name as string,
-            status: (row.status as string) || "nao iniciado",
+            status: (row.status as string) || "não iniciado",
             priority: (row.priority as string) || "normal",
             assigneeId: row.assigneeId as string,
             tipoCliente: (row.tipoCliente as string) || null,

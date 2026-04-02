@@ -8,22 +8,11 @@ import { cotacoes, users } from "@/lib/schema";
 import { AppHeader } from "@/components/app-header";
 import { DocsUpload } from "@/components/docs-upload";
 import { CotacaoHistory } from "@/components/cotacao-history";
+import { STATUS_BADGES } from "@/lib/status-config";
 
 type Params = { params: Promise<{ id: string }> };
 
-const STATUS_BADGE: Record<string, string> = {
-  "nao iniciado": "bg-slate-100 text-slate-600",
-  "em andamento": "bg-sky-50 text-[#03a4ed]",
-  pendencia: "bg-amber-50 text-amber-700",
-  aguardando: "bg-sky-50 text-sky-600",
-  "em analise": "bg-orange-50 text-orange-700",
-  aprovado: "bg-teal-50 text-teal-700",
-  implantando: "bg-emerald-50 text-emerald-700",
-  atrasado: "bg-red-50 text-red-600",
-  fechado: "bg-emerald-50 text-emerald-700",
-  perda: "bg-red-50 text-[#ff695f]",
-  cancelado: "bg-red-50 text-red-700",
-};
+const STATUS_BADGE = STATUS_BADGES;
 
 export default async function CotacaoDetailPage({ params }: Params) {
   const session = await auth();
