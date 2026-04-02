@@ -112,3 +112,30 @@ export const createBriefingSchema = z.object({
 
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type CreateBriefingInput = z.infer<typeof createBriefingSchema>;
+
+// Story 13.6: Upload de Anexos
+export const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+] as const;
+
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+export function validateAnexo(file: File): { valid: boolean; error?: string } {
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, error: "Arquivo muito grande (máximo 10MB)" };
+  }
+
+  if (!ALLOWED_MIME_TYPES.includes(file.type as any)) {
+    return {
+      valid: false,
+      error: "Tipo de arquivo não permitido. Apenas PDF, PNG, JPG, DOCX e XLSX",
+    };
+  }
+
+  return { valid: true };
+}

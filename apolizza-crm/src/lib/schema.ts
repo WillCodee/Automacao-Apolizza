@@ -291,6 +291,35 @@ export const tarefasBriefings = pgTable(
 );
 
 // ============================================================
+// TAREFAS_ANEXOS (EPIC-003: Story 13.6)
+// ============================================================
+
+export const tarefasAnexos = pgTable(
+  "tarefas_anexos",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tarefaId: uuid("tarefa_id")
+      .notNull()
+      .references(() => tarefas.id, { onDelete: "cascade" }),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => users.id),
+    nomeArquivo: varchar("nome_arquivo", { length: 255 }).notNull(),
+    urlBlob: text("url_blob").notNull(),
+    tamanho: integer("tamanho").notNull(), // em bytes
+    mimeType: varchar("mime_type", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("tarefas_anexos_tarefa_idx").on(table.tarefaId),
+    index("tarefas_anexos_usuario_idx").on(table.usuarioId),
+    index("tarefas_anexos_created_idx").on(table.createdAt),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 
@@ -300,6 +329,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   tarefasCotador: many(tarefas, { relationName: "tarefasCotador" }),
   tarefasCriador: many(tarefas, { relationName: "tarefasCriador" }),
   briefings: many(tarefasBriefings),
+  anexos: many(tarefasAnexos),
 }));
 
 export const cotacoesRelations = relations(cotacoes, ({ one, many }) => ({
@@ -355,6 +385,7 @@ export const tarefasRelations = relations(tarefas, ({ one, many }) => ({
     relationName: "tarefasCriador",
   }),
   briefings: many(tarefasBriefings),
+  anexos: many(tarefasAnexos),
 }));
 
 export const tarefasBriefingsRelations = relations(tarefasBriefings, ({ one }) => ({
@@ -364,6 +395,17 @@ export const tarefasBriefingsRelations = relations(tarefasBriefings, ({ one }) =
   }),
   usuario: one(users, {
     fields: [tarefasBriefings.usuarioId],
+    references: [users.id],
+  }),
+}));
+
+export const tarefasAnexosRelations = relations(tarefasAnexos, ({ one }) => ({
+  tarefa: one(tarefas, {
+    fields: [tarefasAnexos.tarefaId],
+    references: [tarefas.id],
+  }),
+  usuario: one(users, {
+    fields: [tarefasAnexos.usuarioId],
     references: [users.id],
   }),
 }));

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { BriefingsList } from "./briefings-list";
 import { BriefingForm } from "./briefing-form";
+import { UploadAnexos } from "./upload-anexos";
+import { AnexosList } from "./anexos-list";
 
 interface Tarefa {
   id: string;
@@ -70,9 +72,11 @@ export function TarefaCard({
   const [briefings, setBriefings] = useState<Briefing[]>([]);
   const [showBriefingForm, setShowBriefingForm] = useState(false);
   const [loadingBriefings, setLoadingBriefings] = useState(false);
+  const [anexosRefresh, setAnexosRefresh] = useState(0);
 
   const isCotador = tarefa.cotador.id === userId;
   const canUpdateStatus = isAdmin || isCotador;
+  const userRole = isAdmin ? "admin" : "cotador";
 
   // Carregar briefings quando expandir
   useEffect(() => {
@@ -238,12 +242,12 @@ export function TarefaCard({
             </button>
           )}
 
-          {/* Botão Ver Briefings */}
+          {/* Botão Ver Detalhes */}
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex-1 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
           >
-            {expanded ? "Ocultar" : "Ver Briefings"}
+            {expanded ? "Ocultar Detalhes" : "Ver Detalhes"}
           </button>
 
           {/* Botão Deletar (apenas admin) */}
@@ -258,39 +262,65 @@ export function TarefaCard({
           )}
         </div>
 
-        {/* Seção Expandida - Briefings */}
+        {/* Seção Expandida - Briefings e Anexos */}
         {expanded && (
-          <div className="pt-4 mt-4 border-t border-slate-100 space-y-4">
-            {/* Botão Adicionar Briefing (cotador ou admin) */}
-            {canUpdateStatus && !showBriefingForm && (
-              <button
-                onClick={() => setShowBriefingForm(true)}
-                className="w-full px-4 py-2 text-sm font-medium text-apolizza-blue border border-apolizza-blue rounded-lg hover:bg-blue-50 transition"
-              >
-                + Adicionar Briefing
-              </button>
-            )}
+          <div className="pt-4 mt-4 border-t border-slate-100 space-y-6">
+            {/* SEÇÃO 1: Briefings */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-slate-900">💬 Briefings</h4>
 
-            {/* Formulário de Briefing */}
-            {showBriefingForm && (
-              <BriefingForm
+              {/* Botão Adicionar Briefing (cotador ou admin) */}
+              {canUpdateStatus && !showBriefingForm && (
+                <button
+                  onClick={() => setShowBriefingForm(true)}
+                  className="w-full px-4 py-2 text-sm font-medium text-apolizza-blue border border-apolizza-blue rounded-lg hover:bg-blue-50 transition"
+                >
+                  + Adicionar Briefing
+                </button>
+              )}
+
+              {/* Formulário de Briefing */}
+              {showBriefingForm && (
+                <BriefingForm
+                  tarefaId={tarefa.id}
+                  onSuccess={() => {
+                    setShowBriefingForm(false);
+                    loadBriefings();
+                  }}
+                  onCancel={() => setShowBriefingForm(false)}
+                />
+              )}
+
+              {/* Lista de Briefings */}
+              {loadingBriefings ? (
+                <div className="text-center py-4 text-slate-500 text-sm">
+                  Carregando briefings...
+                </div>
+              ) : (
+                <BriefingsList briefings={briefings} />
+              )}
+            </div>
+
+            {/* SEÇÃO 2: Anexos */}
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <h4 className="text-sm font-semibold text-slate-900">📎 Anexos</h4>
+
+              {/* Upload (apenas cotador ou admin) */}
+              {canUpdateStatus && (
+                <UploadAnexos
+                  tarefaId={tarefa.id}
+                  onUploadSuccess={() => setAnexosRefresh((prev) => prev + 1)}
+                />
+              )}
+
+              {/* Lista de Anexos */}
+              <AnexosList
                 tarefaId={tarefa.id}
-                onSuccess={() => {
-                  setShowBriefingForm(false);
-                  loadBriefings();
-                }}
-                onCancel={() => setShowBriefingForm(false)}
+                refresh={anexosRefresh}
+                currentUserId={userId}
+                currentUserRole={userRole}
               />
-            )}
-
-            {/* Lista de Briefings */}
-            {loadingBriefings ? (
-              <div className="text-center py-4 text-slate-500 text-sm">
-                Carregando briefings...
-              </div>
-            ) : (
-              <BriefingsList briefings={briefings} />
-            )}
+            </div>
           </div>
         )}
       </div>
