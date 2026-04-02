@@ -1,0 +1,181 @@
+execution:
+  epicId: EPIC-003
+  epic_title: "Sistema de Controle de Tarefas Diárias dos Cotadores"
+  storyBasePath: docs/stories
+  template: epic-orchestration  # Reference to .aios-core/development/workflows/epic-orchestration.yaml
+
+  # Story Definitions
+  stories:
+    13.1:
+      file: 13.1.story.md
+      title: "CRUD de Tarefas + Sistema de Permissões"
+      executor: "@data-engineer"
+      quality_gate: "@dev"
+      quality_gate_tools: [schema_validation, migration_review, rls_test]
+      branch: feat/epic-003-crud-tarefas-permissoes
+      complexity: MEDIUM  # Database schema, API routes, permissions
+      key_files:
+        - apolizza-crm/src/db/schema/tarefas.ts
+        - apolizza-crm/src/db/migrations/
+        - apolizza-crm/src/app/api/tarefas/route.ts
+        - apolizza-crm/src/app/tarefas/page.tsx
+      priority: critical
+
+    13.2:
+      file: 13.2.story.md
+      title: "Atualização de Status + Briefings por Cotadores"
+      executor: "@dev"
+      quality_gate: "@architect"
+      quality_gate_tools: [code_review, pattern_validation, security_scan]
+      branch: feat/epic-003-status-briefings
+      complexity: LOW
+      key_files:
+        - apolizza-crm/src/db/schema/tarefas.ts
+        - apolizza-crm/src/app/api/tarefas/[id]/status/route.ts
+        - apolizza-crm/src/app/api/tarefas/[id]/briefings/route.ts
+        - apolizza-crm/src/components/tarefa-card.tsx
+      priority: high
+
+    13.3:
+      file: 13.3.story.md
+      title: "Dashboard de Métricas de Tarefas"
+      executor: "@ux-design-expert"
+      quality_gate: "@dev"
+      quality_gate_tools: [ui_review, accessibility_check, responsive_test]
+      branch: feat/epic-003-dashboard-metricas
+      complexity: MEDIUM
+      key_files:
+        - apolizza-crm/src/db/migrations/create-view-tarefas-metricas.sql
+        - apolizza-crm/src/app/api/tarefas/metricas/route.ts
+        - apolizza-crm/src/components/tarefas-dashboard.tsx
+      priority: medium
+
+    13.4:
+      file: 13.4.story.md
+      title: "Notificações Automáticas (Vercel Cron + Resend)"
+      executor: "@dev"
+      quality_gate: "@architect"
+      quality_gate_tools: [code_review, integration_test, secrets_validation]
+      branch: feat/epic-003-notificacoes
+      complexity: MEDIUM
+      key_files:
+        - apolizza-crm/src/app/api/cron/tarefas-notificacoes/route.ts
+        - apolizza-crm/src/lib/email-templates/
+        - apolizza-crm/vercel.json
+      priority: medium
+
+    13.5:
+      file: 13.5.story.md
+      title: "Histórico de Atividades (Audit Log)"
+      executor: "@data-engineer"
+      quality_gate: "@dev"
+      quality_gate_tools: [schema_validation, query_optimization, data_integrity]
+      branch: feat/epic-003-historico-atividades
+      complexity: MEDIUM
+      key_files:
+        - apolizza-crm/src/db/schema/tarefas-atividades.ts
+        - apolizza-crm/src/app/api/tarefas/[id]/atividades/route.ts
+        - apolizza-crm/src/components/atividades-timeline.tsx
+      priority: low
+
+    13.6:
+      file: 13.6.story.md
+      title: "Upload de Anexos (Vercel Blob)"
+      executor: "@dev"
+      quality_gate: "@architect"
+      quality_gate_tools: [code_review, security_scan, file_upload_validation]
+      branch: feat/epic-003-upload-anexos
+      complexity: MEDIUM
+      key_files:
+        - apolizza-crm/src/db/schema/tarefas-anexos.ts
+        - apolizza-crm/src/app/api/tarefas/[id]/anexos/route.ts
+        - apolizza-crm/src/components/upload-anexos.tsx
+      priority: low
+
+  # Wave-Based Execution Plan
+  waves:
+    # Wave 1: Foundation (BLOCKER para todas as outras)
+    - number: 1
+      name: "Foundation - CRUD + Permissões"
+      parallel: false  # Single critical story
+      stories: [13.1]
+      dependencies: []
+      gate:
+        agent: "@architect"
+        focus: "Schema validation, API contracts, permission system correctness"
+      merge:
+        order: [feat/epic-003-crud-tarefas-permissoes]
+        conflict_risk: LOW
+        notes: "Foundation story — no conflicts expected"
+      tag: epic-003-wave-1-complete
+
+    # Wave 2: Core Features (dependem de Wave 1)
+    - number: 2
+      name: "Core Features - Status + Histórico"
+      parallel: true  # Podem rodar em paralelo
+      stories: [13.2, 13.5]
+      dependencies: [1]  # Dependem de Wave 1
+      gate:
+        agent: "@architect"
+        focus: "Cross-story integration, no shared file conflicts, audit log integrity"
+      merge:
+        order: [feat/epic-003-status-briefings, feat/epic-003-historico-atividades]
+        conflict_risk: LOW
+        notes: "Stories touch different parts of schema and API routes"
+      tag: epic-003-wave-2-complete
+
+    # Wave 3: Enhanced Features (dependem de Wave 1)
+    - number: 3
+      name: "Enhanced Features - Dashboard + Anexos"
+      parallel: true
+      stories: [13.3, 13.6]
+      dependencies: [1]
+      gate:
+        agent: "@architect"
+        focus: "UI consistency, file upload security, no performance regressions"
+      merge:
+        order: [feat/epic-003-dashboard-metricas, feat/epic-003-upload-anexos]
+        conflict_risk: MEDIUM
+        notes: "Dashboard may touch global CSS; anexos adds Vercel Blob dependency"
+      tag: epic-003-wave-3-complete
+
+    # Wave 4: Automações (pode rodar após Wave 1)
+    - number: 4
+      name: "Automações - Notificações"
+      parallel: false
+      stories: [13.4]
+      dependencies: [1]
+      gate:
+        agent: "@dev"
+        focus: "Cron syntax, Resend integration, email templates rendering"
+      merge:
+        order: [feat/epic-003-notificacoes]
+        conflict_risk: LOW
+        notes: "Isolated feature — only touches cron routes and email templates"
+      tag: epic-003-wave-4-complete
+
+  # Final Gate (Epic-Level Sign-Off)
+  final_gate:
+    agent: "@architect"
+    focus: |
+      Epic-level validation for EPIC-003:
+      - All 6 stories integrated successfully
+      - No regressions in existing CRM functionality (login, dashboard, cotações)
+      - Performance baseline maintained (query times, page load)
+      - Security validated (permissions, file upload, SQL injection prevention)
+      - UI consistency with Apolizza design system
+      - Feature flag FEATURE_TAREFAS_ENABLED works correctly
+    tag: epic-003-complete
+
+  # Bug Verification (if applicable)
+  bug_verification: []  # No bugs being fixed — this is a new feature
+
+  # Retrospective (optional)
+  retrospective:
+    enabled: true
+    agent: "@pm"
+    focus: |
+      - Lessons learned from wave-based parallel development
+      - Quality gate effectiveness (CodeRabbit, specialized agents)
+      - Estimated vs actual complexity per story
+      - Recommendations for next epic
