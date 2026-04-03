@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { BriefingsList } from "./briefings-list";
+import { BriefingForm } from "./briefing-form";
+import { UploadAnexos } from "./upload-anexos";
+import { AnexosList } from "./anexos-list";
+import { AtividadesTimeline } from "./atividades-timeline";
 
 interface Tarefa {
   id: string;
@@ -22,9 +27,22 @@ interface Tarefa {
   createdAt: string;
 }
 
+interface Briefing {
+  id: string;
+  briefing: string;
+  createdAt: string;
+  usuario: {
+    id: string;
+    name: string;
+    email: string;
+    photoUrl: string | null;
+  };
+}
+
 interface TarefaCardProps {
   tarefa: Tarefa;
   isAdmin: boolean;
+  userId: string;
   onAtualizada: () => void;
   onDeletada: () => void;
 }
@@ -36,8 +54,83 @@ const statusColors = {
   Cancelada: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
-export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: TarefaCardProps) {
+const statusFlow: Record<string, string | null> = {
+  Pendente: "Em Andamento",
+  "Em Andamento": "Concluída",
+  Concluída: null,
+  Cancelada: null,
+};
+
+export function TarefaCard({
+  tarefa,
+  isAdmin,
+  userId,
+  onAtualizada,
+  onDeletada,
+}: TarefaCardProps) {
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [briefings, setBriefings] = useState<Briefing[]>([]);
+  const [showBriefingForm, setShowBriefingForm] = useState(false);
+  const [loadingBriefings, setLoadingBriefings] = useState(false);
+  const [anexosRefresh, setAnexosRefresh] = useState(0);
+  const [atividadesRefresh, setAtividadesRefresh] = useState(0);
+
+  const isCotador = tarefa.cotador.id === userId;
+  const canUpdateStatus = isAdmin || isCotador;
+  const userRole = isAdmin ? "admin" : "cotador";
+
+  // Atualizar timeline de atividades quando houver mudanças
+  const refreshAtividades = () => setAtividadesRefresh((prev) => prev + 1);
+
+  // Carregar briefings quando expandir
+  useEffect(() => {
+    if (expanded && briefings.length === 0) {
+      loadBriefings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  const loadBriefings = async () => {
+    setLoadingBriefings(true);
+    try {
+      const res = await fetch(`/api/tarefas/${tarefa.id}/briefings`);
+      const data = await res.json();
+      if (data.success) {
+        setBriefings(data.data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar briefings:", error);
+    } finally {
+      setLoadingBriefings(false);
+    }
+  };
+
+  const handleStatusUpdate = async () => {
+    const nextStatus = statusFlow[tarefa.status];
+    if (!nextStatus) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tarefas/${tarefa.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        onAtualizada();
+        refreshAtividades();
+      } else {
+        alert(data.error || "Erro ao atualizar status");
+      }
+    } catch {
+      alert("Erro ao atualizar status");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!confirm("Tem certeza que deseja deletar esta tarefa?")) return;
@@ -54,7 +147,7 @@ export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: Tarefa
       } else {
         alert(data.error || "Erro ao deletar tarefa");
       }
-    } catch (error) {
+    } catch {
       alert("Erro ao deletar tarefa");
     } finally {
       setLoading(false);
@@ -71,6 +164,8 @@ export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: Tarefa
     tarefa.dataVencimento &&
     tarefa.status !== "Concluída" &&
     new Date(tarefa.dataVencimento) < new Date();
+
+  const nextStatus = statusFlow[tarefa.status];
 
   return (
     <div
@@ -95,12 +190,15 @@ export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: Tarefa
 
         {/* Descrição */}
         {tarefa.descricao && (
-          <p className="text-slate-600 text-sm line-clamp-2">{tarefa.descricao}</p>
+          <p className="text-slate-600 text-sm line-clamp-2">
+            {tarefa.descricao}
+          </p>
         )}
 
         {/* Cotador */}
         <div className="flex items-center gap-2">
           {tarefa.cotador.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={tarefa.cotador.photoUrl}
               alt={tarefa.cotador.name}
@@ -129,22 +227,119 @@ export function TarefaCard({ tarefa, isAdmin, onAtualizada, onDeletada }: Tarefa
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
-          <span className={isOverdue ? "text-red-600 font-medium" : "text-slate-600"}>
+          <span
+            className={isOverdue ? "text-red-600 font-medium" : "text-slate-600"}
+          >
             {formatDate(tarefa.dataVencimento)}
             {isOverdue && " (Atrasada)"}
           </span>
         </div>
 
-        {/* Ações (apenas admin) */}
-        {isAdmin && (
-          <div className="flex gap-2 pt-2 border-t border-slate-100">
+        {/* Botões de Ação */}
+        <div className="flex gap-2 pt-2 border-t border-slate-100">
+          {/* Botão de Status (cotador ou admin) */}
+          {canUpdateStatus && nextStatus && (
+            <button
+              onClick={handleStatusUpdate}
+              disabled={loading}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-medium text-apolizza-blue hover:bg-blue-50 transition disabled:opacity-50"
+            >
+              {loading ? "Atualizando..." : `Marcar como ${nextStatus}`}
+            </button>
+          )}
+
+          {/* Botão Ver Detalhes */}
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex-1 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+          >
+            {expanded ? "Ocultar Detalhes" : "Ver Detalhes"}
+          </button>
+
+          {/* Botão Deletar (apenas admin) */}
+          {isAdmin && (
             <button
               onClick={handleDelete}
               disabled={loading}
-              className="flex-1 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+              className="px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-50"
             >
-              {loading ? "Deletando..." : "Deletar"}
+              Deletar
             </button>
+          )}
+        </div>
+
+        {/* Seção Expandida - Briefings e Anexos */}
+        {expanded && (
+          <div className="pt-4 mt-4 border-t border-slate-100 space-y-6">
+            {/* SEÇÃO 1: Briefings */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-slate-900">💬 Briefings</h4>
+
+              {/* Botão Adicionar Briefing (cotador ou admin) */}
+              {canUpdateStatus && !showBriefingForm && (
+                <button
+                  onClick={() => setShowBriefingForm(true)}
+                  className="w-full px-4 py-2 text-sm font-medium text-apolizza-blue border border-apolizza-blue rounded-lg hover:bg-blue-50 transition"
+                >
+                  + Adicionar Briefing
+                </button>
+              )}
+
+              {/* Formulário de Briefing */}
+              {showBriefingForm && (
+                <BriefingForm
+                  tarefaId={tarefa.id}
+                  onSuccess={() => {
+                    setShowBriefingForm(false);
+                    loadBriefings();
+                    refreshAtividades();
+                  }}
+                  onCancel={() => setShowBriefingForm(false)}
+                />
+              )}
+
+              {/* Lista de Briefings */}
+              {loadingBriefings ? (
+                <div className="text-center py-4 text-slate-500 text-sm">
+                  Carregando briefings...
+                </div>
+              ) : (
+                <BriefingsList briefings={briefings} />
+              )}
+            </div>
+
+            {/* SEÇÃO 2: Anexos */}
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <h4 className="text-sm font-semibold text-slate-900">📎 Anexos</h4>
+
+              {/* Upload (apenas cotador ou admin) */}
+              {canUpdateStatus && (
+                <UploadAnexos
+                  tarefaId={tarefa.id}
+                  onUploadSuccess={() => {
+                    setAnexosRefresh((prev) => prev + 1);
+                    refreshAtividades();
+                  }}
+                />
+              )}
+
+              {/* Lista de Anexos */}
+              <AnexosList
+                tarefaId={tarefa.id}
+                refresh={anexosRefresh}
+                currentUserId={userId}
+                currentUserRole={userRole}
+              />
+            </div>
+
+            {/* SEÇÃO 3: Histórico de Atividades */}
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <h4 className="text-sm font-semibold text-slate-900">📝 Histórico de Atividades</h4>
+              <AtividadesTimeline
+                tarefaId={tarefa.id}
+                refresh={atividadesRefresh}
+              />
+            </div>
           </div>
         )}
       </div>

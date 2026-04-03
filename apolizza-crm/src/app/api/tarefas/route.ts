@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
-import { eq, and, sql, count } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tarefas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaCreateSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
+import { logAtividade } from "@/lib/audit-log";
 
 // GET /api/tarefas - Listar tarefas
 export async function GET(req: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (statusFilter) {
-      conditions.push(eq(tarefas.status, statusFilter as any));
+      conditions.push(eq(tarefas.status, statusFilter as "Pendente" | "Em Andamento" | "Concluída" | "Cancelada"));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -68,9 +69,9 @@ export async function GET(req: NextRequest) {
     });
 
     return apiPaginated(rows, { page, limit, total });
-  } catch (error: any) {
+  } catch (error) {
     console.error("GET /api/tarefas error:", error);
-    return apiError(error.message || "Erro ao listar tarefas", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao listar tarefas", 500);
   }
 }
 
@@ -102,17 +103,30 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    // Registrar atividade
+    await logAtividade({
+      tarefaId: novaTarefa.id,
+      usuarioId: user.id,
+      tipoAcao: "CRIADA",
+      detalhes: {
+        titulo: novaTarefa.titulo,
+        cotadorId: novaTarefa.cotadorId,
+        status: novaTarefa.status,
+      },
+    });
+
     return apiSuccess(novaTarefa, 201);
-  } catch (error: any) {
+  } catch (error) {
     console.error("POST /api/tarefas error:", error);
 
-    if (error.name === "ZodError") {
+    if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
+      const zodError = error as unknown as { errors: Array<{ message: string }> };
       return apiError(
-        "Dados inválidos: " + error.errors.map((e: any) => e.message).join(", "),
+        "Dados inválidos: " + zodError.errors.map((e) => e.message).join(", "),
         400
       );
     }
 
-    return apiError(error.message || "Erro ao criar tarefa", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao criar tarefa", 500);
   }
 }

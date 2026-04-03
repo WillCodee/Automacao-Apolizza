@@ -22,7 +22,7 @@ type DashboardData = {
   };
   statusBreakdown: { status: string; count: number; total: number }[];
   monthlyTrend: { mes: string; ano: number; fechadas: number; perdas: number; total: number; aReceber: number }[];
-  cotadores: { userId: string; name: string; totalCotacoes: number; fechadas: number; faturamento: number; taxaConversao: number }[];
+  cotadores: { userId: string; name: string; photoUrl?: string; totalCotacoes: number; fechadas: number; faturamento: number; taxaConversao: number }[];
 };
 
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" }) {

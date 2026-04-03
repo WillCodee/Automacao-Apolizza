@@ -57,6 +57,7 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
 
   useEffect(() => {
     fetchTarefas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus]);
 
   const handleTarefaCriada = () => {
@@ -156,6 +157,7 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
               key={tarefa.id}
               tarefa={tarefa}
               isAdmin={isAdmin}
+              userId={userId}
               onAtualizada={handleTarefaAtualizada}
               onDeletada={handleTarefaDeletada}
             />
