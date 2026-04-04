@@ -154,9 +154,9 @@ function inferYearFromDates(task: ClickUpTask, customFieldDates: { [key: string]
     customFieldDates['inicioVigencia'],
     customFieldDates['fimVigencia'],
     customFieldDates['primeiroPagamento'],
-    timestampToDate(task.due_date),
-    timestampToDate(task.date_created),
-    timestampToDate(task.date_closed),
+    timestampToDate(task.due_date || null),
+    timestampToDate(task.date_created || null),
+    timestampToDate(task.date_closed || null),
   ];
 
   // Retornar o ano da primeira data válida

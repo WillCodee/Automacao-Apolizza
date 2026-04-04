@@ -745,24 +745,26 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 11.9 | Calendario de vencimentos e tratativas | DONE | Grid mensal (desktop) + lista (mobile), 3 tipos de evento |
 | 11.10 | Bulk operations e import CSV | DONE | Selecao multipla, update status/delete em lote, import CSV com validacao Zod |
 
-### Epic 3 — Controle de Tarefas Diárias: 5/6 DONE (Stories 13.x)
+### Epic 3 — Controle de Tarefas Diárias: ✅ 6/6 DONE (Stories 13.x)
 
 | Story | Descricao | Status | Detalhes |
 |-------|-----------|--------|----------|
 | 13.1 | CRUD completo de tarefas | DONE | API routes (GET/POST/DELETE), validacao Zod, permissoes (cotador+admin), TarefaCard component |
 | 13.2 | Sistema de status + briefings | DONE | PATCH status com validacao, POST briefings com textarea expansivel, historico cronologico |
 | 13.3 | Dashboard de métricas de tarefas | DONE | SQL View agregada (vw_tarefas_metricas), 4 KPIs, 3 graficos Chart.js (status, cotadores, tendencia) |
-| 13.4 | Notificações via webhook/email | PENDENTE | Planejado para v1.1 (requer Resend configurado em producao) |
+| 13.4 | Notificações email (Vercel Cron + Resend) | DONE | Cron diario 11h UTC, 3 templates (nova/atrasada/concluída), envio para cotador + admins |
 | 13.5 | Histórico de atividades (audit log) | DONE | 6 tipos de acao (CRIADA, EDITADA, STATUS_ALTERADO, BRIEFING_ADICIONADO, ANEXO_ADICIONADO/REMOVIDO), timeline vertical com timestamps relativos |
 | 13.6 | Upload de anexos (Vercel Blob) | DONE | Drag-and-drop, validacao (10MB max, PDF/PNG/JPG/DOCX/XLSX), preview imagens, permission-based delete |
 
 **Features implementadas:**
 - 4 tabelas novas: tarefas, tarefas_briefings, tarefas_anexos, tarefas_atividades
 - 1 SQL View: vw_tarefas_metricas (agregacao com 3 CTEs)
-- 8 API routes: /api/tarefas (CRUD), /status, /briefings, /anexos, /atividades, /metricas
+- 9 API routes: /api/tarefas (CRUD), /status, /briefings, /anexos, /atividades, /metricas, /cron/tarefas-notificacoes
 - 7 componentes: TarefaCard, TarefasDashboard, BriefingsList/Form, UploadAnexos, AnexosList, AtividadesTimeline
+- 3 templates de email: nova tarefa, tarefa atrasada, tarefa concluída
 - Audit log passivo (nao bloqueia operacoes se falhar)
 - Integracao Vercel Blob para storage de anexos
+- Notificacoes email via Vercel Cron (diario 11h UTC / 8h BRT)
 
 ### Extras Realizados (fora do PRD original)
 
@@ -803,15 +805,16 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 
 | Metrica | Valor |
 |---------|-------|
-| Linhas de codigo | 30.000+ |
-| Arquivos no commit | 150+ |
+| Linhas de codigo | 30.500+ |
+| Arquivos no commit | 155+ |
 | Paginas (frontend) | 9 |
-| API Routes | 30 |
+| API Routes | 31 |
 | Componentes React | 28 |
 | Tabelas no banco | 11 |
 | SQL Views | 5 |
 | Scripts utilitarios | 7 |
-| Rotas no build | 40 |
+| Vercel Cron Jobs | 3 |
+| Rotas no build | 41 |
 | Erros TypeScript | 0 |
 
 ### Stack Final
@@ -844,6 +847,7 @@ JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ
 | 2026-03-29 | 1.0 | Deploy producao Vercel — https://apolizza-crm.vercel.app | @dev (Dex) |
 | 2026-03-30 | 1.1 | Eliminar N8N Cloud → Vercel Cron + Resend email. Migracao parcial ClickUp (60 tasks). Story 8.1 e 11.2 DONE | @dev (Dex) |
 | 2026-04-02 | 1.2 | Epic 3 Controle de Tarefas (5/6 stories) — CRUD tarefas, status+briefings, dashboard metricas, audit log, upload anexos | @dev (Dex) |
+| 2026-04-04 | 1.3 | Epic 3 COMPLETO (6/6 stories) — notificacoes email com Vercel Cron + Resend, 3 templates HTML | @aios-master |
 
 ---
 

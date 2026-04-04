@@ -162,8 +162,8 @@ function inferYearFromDates(task: ClickUpTask, customFieldDates: { [key: string]
     { date: customFieldDates['inicioVigencia'], source: "início vigência" },
     { date: customFieldDates['fimVigencia'], source: "fim vigência" },
     { date: customFieldDates['primeiroPagamento'], source: "primeiro pagamento" },
-    { date: timestampToDate(task.due_date), source: "due date" },
-    { date: timestampToDate(task.date_created), source: "data criação" },
+    { date: timestampToDate(task.due_date || null), source: "due date" },
+    { date: timestampToDate(task.date_created || null), source: "data criação" },
   ];
 
   for (const { date, source } of datePriority) {

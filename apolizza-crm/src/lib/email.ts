@@ -62,6 +62,17 @@ export interface CotacaoAlerta {
   assignee_email?: string | null;
 }
 
+export interface TarefaNotificacao {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  data_vencimento: string | null;
+  status: string;
+  cotador_name: string;
+  cotador_email: string;
+  criador_name: string;
+}
+
 // ─── Helpers públicos ───────────────────────────────────────
 
 export async function getAdminEmails(): Promise<string[]> {
@@ -187,4 +198,92 @@ export function buildResumoHtml(kpis: {
     </div>`;
 
   return htmlWrapper("Resumo Diário", body);
+}
+
+// ─── Templates de Tarefas ───────────────────────────────────────
+
+function formatDate(dateString: string | null): string {
+  if (!dateString) return "Sem prazo";
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function buildNovaTarefaHtml(tarefa: TarefaNotificacao): string {
+  const body = `
+    <p>Olá <strong>${tarefa.cotador_name}</strong>,</p>
+    <p>Uma nova tarefa foi atribuída a você:</p>
+
+    <h3><span class="badge badge-blue">NOVA</span> ${tarefa.titulo}</h3>
+
+    ${tarefa.descricao ? `<p><em>${tarefa.descricao}</em></p>` : ""}
+
+    <table>
+      <tr><th>Atribuído por</th><td>${tarefa.criador_name}</td></tr>
+      <tr><th>Data de vencimento</th><td>${formatDate(tarefa.data_vencimento)}</td></tr>
+      <tr><th>Status</th><td><span class="badge badge-blue">${tarefa.status}</span></td></tr>
+    </table>
+
+    <p style="margin-top:20px;">
+      <a href="${process.env.AUTH_URL || "https://apolizza-crm.vercel.app"}/dashboard"
+         style="display:inline-block;background:#03a4ed;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+        Ver Tarefa
+      </a>
+    </p>
+  `;
+
+  return htmlWrapper("Nova Tarefa Atribuída", body);
+}
+
+export function buildTarefaAtrasadaHtml(tarefa: TarefaNotificacao): string {
+  const diasAtrasada = tarefa.data_vencimento
+    ? Math.floor((Date.now() - new Date(tarefa.data_vencimento).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const body = `
+    <p><strong>Atenção!</strong> A tarefa abaixo está atrasada:</p>
+
+    <h3><span class="badge badge-red">ATRASADA</span> ${tarefa.titulo}</h3>
+
+    ${tarefa.descricao ? `<p><em>${tarefa.descricao}</em></p>` : ""}
+
+    <table>
+      <tr><th>Responsável</th><td>${tarefa.cotador_name}</td></tr>
+      <tr><th>Vencimento</th><td style="color:#ff695f;font-weight:600;">${formatDate(tarefa.data_vencimento)} (${diasAtrasada} dia${diasAtrasada !== 1 ? "s" : ""} de atraso)</td></tr>
+      <tr><th>Status</th><td><span class="badge badge-orange">${tarefa.status}</span></td></tr>
+    </table>
+
+    <p style="margin-top:20px;">
+      <a href="${process.env.AUTH_URL || "https://apolizza-crm.vercel.app"}/dashboard"
+         style="display:inline-block;background:#ff695f;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+        Atualizar Tarefa
+      </a>
+    </p>
+  `;
+
+  return htmlWrapper("⚠️ Tarefa Atrasada", body);
+}
+
+export function buildTarefaConcluidaHtml(tarefa: TarefaNotificacao): string {
+  const body = `
+    <p>A seguinte tarefa foi concluída:</p>
+
+    <h3><span class="badge" style="background:#22c55e;">CONCLUÍDA</span> ${tarefa.titulo}</h3>
+
+    ${tarefa.descricao ? `<p><em>${tarefa.descricao}</em></p>` : ""}
+
+    <table>
+      <tr><th>Responsável</th><td>${tarefa.cotador_name}</td></tr>
+      <tr><th>Vencimento original</th><td>${formatDate(tarefa.data_vencimento)}</td></tr>
+      <tr><th>Status</th><td><span class="badge" style="background:#22c55e;">Concluída</span></td></tr>
+    </table>
+
+    <p style="margin-top:20px;color:#10b981;">
+      ✅ Tarefa completada com sucesso!
+    </p>
+  `;
+
+  return htmlWrapper("✅ Tarefa Concluída", body);
 }
