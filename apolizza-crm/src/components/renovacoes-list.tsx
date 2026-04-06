@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { STATUS_OPTIONS, PRODUTO_OPTIONS } from "@/lib/constants";
 
 type Renovacao = {
   id: string;
@@ -45,6 +46,10 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
   const [kpis, setKpis] = useState<RenovacoesKpis | null>(null);
   const [loading, setLoading] = useState(true);
   const [urgenciaFilter, setUrgenciaFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [produtoFilter, setProdutoFilter] = useState("");
+  const [seguradoraFilter, setSeguradoraFilter] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -61,6 +66,33 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Seguradoras únicas para o filtro
+  const seguradorasUnicas = useMemo(() => {
+    const set = new Set(renovacoes.map((r) => r.seguradora).filter(Boolean) as string[]);
+    return Array.from(set).sort();
+  }, [renovacoes]);
+
+  // Filtros client-side
+  const renovacoesFiltradas = useMemo(() => {
+    return renovacoes.filter((r) => {
+      if (search && !r.name.toLowerCase().includes(search.toLowerCase()) &&
+          !(r.seguradora ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (produtoFilter && r.produto !== produtoFilter) return false;
+      if (seguradoraFilter && r.seguradora !== seguradoraFilter) return false;
+      return true;
+    });
+  }, [renovacoes, search, statusFilter, produtoFilter, seguradoraFilter]);
+
+  const hasFilters = search || statusFilter || produtoFilter || seguradoraFilter;
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+    setProdutoFilter("");
+    setSeguradoraFilter("");
+  };
 
   const fmt = (v: number | null) =>
     v != null
@@ -79,20 +111,83 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
         </div>
       )}
 
-      {/* Filter */}
-      <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
-        <div className="flex flex-wrap gap-3 items-center">
-          <span className="text-sm font-medium text-slate-600">Filtrar por urgencia:</span>
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100 space-y-3">
+        {/* Search + dropdowns */}
+        <div className="flex flex-wrap gap-3">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px]">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar por nome ou seguradora..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-[#03a4ed] focus:ring-1 focus:ring-[#03a4ed]/20 bg-slate-50"
+            />
+          </div>
+
+          {/* Status */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-sm rounded-xl border border-slate-200 px-3 py-2 bg-slate-50 focus:outline-none focus:border-[#03a4ed] text-slate-600"
+          >
+            <option value="">Todos os status</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
+          {/* Produto */}
+          <select
+            value={produtoFilter}
+            onChange={(e) => setProdutoFilter(e.target.value)}
+            className="text-sm rounded-xl border border-slate-200 px-3 py-2 bg-slate-50 focus:outline-none focus:border-[#03a4ed] text-slate-600"
+          >
+            <option value="">Todos os produtos</option>
+            {PRODUTO_OPTIONS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+
+          {/* Seguradora */}
+          <select
+            value={seguradoraFilter}
+            onChange={(e) => setSeguradoraFilter(e.target.value)}
+            className="text-sm rounded-xl border border-slate-200 px-3 py-2 bg-slate-50 focus:outline-none focus:border-[#03a4ed] text-slate-600"
+          >
+            <option value="">Todas as seguradoras</option>
+            {seguradorasUnicas.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-sm text-slate-400 hover:text-slate-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+
+        {/* Urgência pills */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-medium text-slate-500">Urgência:</span>
           {[
             { label: "Todos", value: "" },
-            { label: "< 15 dias", value: "15" },
-            { label: "< 30 dias", value: "30" },
-            { label: "< 60 dias", value: "60" },
+            { label: "Crítico (≤15d)", value: "15" },
+            { label: "Urgente (≤30d)", value: "30" },
+            { label: "Atenção (≤60d)", value: "60" },
           ].map((f) => (
             <button
               key={f.value}
               onClick={() => setUrgenciaFilter(f.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
                 urgenciaFilter === f.value
                   ? "bg-[#03a4ed] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -111,7 +206,7 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
             <div className="inline-block w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
             <p className="text-slate-400 mt-2 text-sm">Carregando...</p>
           </div>
-        ) : renovacoes.length === 0 ? (
+        ) : renovacoesFiltradas.length === 0 ? (
           <div className="p-8 text-center text-slate-400">
             Nenhuma renovacao encontrada.
           </div>
@@ -119,7 +214,7 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
           <>
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-slate-100">
-              {renovacoes.map((r) => {
+              {renovacoesFiltradas.map((r) => {
                 const urg = getUrgencia(r.diasParaVencer);
                 return (
                   <div key={r.id} className="p-4 space-y-2">
@@ -167,7 +262,7 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {renovacoes.map((r) => {
+                  {renovacoesFiltradas.map((r) => {
                     const urg = getUrgencia(r.diasParaVencer);
                     return (
                       <tr key={r.id} className="hover:bg-slate-50 transition-colors">
