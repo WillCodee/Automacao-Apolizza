@@ -46,6 +46,14 @@ export default async function CotacaoDetailPage({ params }: Params) {
   const fmtDate = (v: string | Date | null) =>
     v ? new Date(v).toLocaleDateString("pt-BR") : "—";
 
+  const fmtDateTime = (v: string | Date | null) =>
+    v
+      ? new Date(v).toLocaleString("pt-BR", {
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        })
+      : "—";
+
   return (
     <div className="min-h-screen bg-slate-50">
       <AppHeader
@@ -97,18 +105,39 @@ export default async function CotacaoDetailPage({ params }: Params) {
             <Detail label="Inicio Vigencia" value={fmtDate(row.inicioVigencia)} />
             <Detail label="Fim Vigencia" value={fmtDate(row.fimVigencia)} />
             <Detail label="1o Pagamento" value={fmtDate(row.primeiroPagamento)} />
-            <Detail label="Proxima Tratativa" value={fmtDate(row.proximaTratativa)} />
-            <Detail label="Data Limite" value={fmtDate(row.dueDate)} />
+            <Detail label="Data Contato com Cliente" value={fmtDate(row.proximaTratativa)} />
+            <Detail label="Data de Entrega" value={fmtDate(row.dueDate)} />
             <Detail label="Premio sem IOF" value={fmt(row.premioSemIof)} highlight />
             <Detail label="Comissao" value={fmt(row.comissao)} highlight />
             <Detail label="A Receber" value={fmt(row.aReceber)} highlight />
             <Detail label="Valor Perda" value={fmt(row.valorPerda)} />
-            <Detail label="Parcelado Em" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />
+            <Detail label="Parcela do Cliente" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />
+            <Detail label="Valor Parcelado (R$/mês)" value={fmt(row.valorParcelado)} highlight />
             <Detail
               label="Referencia"
               value={row.mesReferencia && row.anoReferencia ? `${row.mesReferencia}/${row.anoReferencia}` : "—"}
             />
           </div>
+
+          {/* Comissionamento parcelado — só para Saúde PF / Saúde PJ */}
+          {row.comissaoParcelada && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                Data de Comissionamento ({(row.comissaoParcelada as { parcelas: number; percentuais: number[] }).parcelas} parcelas)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(row.comissaoParcelada as { parcelas: number; percentuais: number[] }).percentuais.map((pct, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex flex-col items-center bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm"
+                  >
+                    <span className="text-[10px] text-slate-400 font-medium">Parcela {i + 1}</span>
+                    <span className="font-semibold text-slate-800">{pct}%</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {row.observacao && (
             <div className="bg-slate-50 rounded-xl p-4">
@@ -118,7 +147,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
           )}
 
           <div className="text-xs text-slate-400 pt-4 border-t border-slate-100">
-            Criado em {fmtDate(row.createdAt)} — Atualizado em {fmtDate(row.updatedAt)}
+            Criado em {fmtDateTime(row.createdAt)} — Atualizado em {fmtDateTime(row.updatedAt)}
             {row.clickupId && ` — ClickUp #${row.clickupId}`}
           </div>
         </div>

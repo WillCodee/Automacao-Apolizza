@@ -92,6 +92,7 @@ export const cotacoes = pgTable(
     fimVigencia: date("fim_vigencia"),
     primeiroPagamento: date("primeiro_pagamento"),
     parceladoEm: integer("parcelado_em"),
+    valorParcelado: decimal("valor_parcelado", { precision: 12, scale: 2 }),
     premioSemIof: decimal("premio_sem_iof", { precision: 12, scale: 2 }),
     comissao: text("comissao"), // Alterado de decimal para text (fórmulas complexas)
     aReceber: decimal("a_receber", { precision: 12, scale: 2 }),
@@ -101,6 +102,7 @@ export const cotacoes = pgTable(
     mesReferencia: varchar("mes_referencia", { length: 10 }), // Alterado de 3 para 10 (ex: "MAIO", "SETEMBRO")
     anoReferencia: integer("ano_referencia"),
 
+    comissaoParcelada: jsonb("comissao_parcelada").$type<{ parcelas: number; percentuais: number[] } | null>(),
     tags: jsonb("tags").$type<string[]>().default([]),
     isRenovacao: boolean("is_renovacao").notNull().default(false),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

@@ -8,18 +8,30 @@ type SituacaoItem = {
   orderIndex: number;
   isActive: boolean;
   createdAt: string;
+  defaultCotadorId: string | null;
+};
+
+type User = {
+  id: string;
+  name: string;
+  role: string;
+  isActive: boolean;
 };
 
 export function SituacaoConfigList() {
   const [items, setItems] = useState<SituacaoItem[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", orderIndex: 0 });
+  const [form, setForm] = useState({ nome: "", orderIndex: 0, defaultCotadorId: "" });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => {
+    fetchItems();
+    fetchUsers();
+  }, []);
 
   async function fetchItems() {
     const res = await fetch("/api/situacao-config");
@@ -27,15 +39,21 @@ export function SituacaoConfigList() {
     setItems(json.data || []);
   }
 
+  async function fetchUsers() {
+    const res = await fetch("/api/users");
+    const json = await res.json();
+    if (json.success) setUsers(json.data.filter((u: User) => u.isActive));
+  }
+
   function resetForm() {
-    setForm({ nome: "", orderIndex: 0 });
+    setForm({ nome: "", orderIndex: 0, defaultCotadorId: "" });
     setShowForm(false);
     setEditingId(null);
     setError("");
   }
 
   function startEdit(item: SituacaoItem) {
-    setForm({ nome: item.nome, orderIndex: item.orderIndex });
+    setForm({ nome: item.nome, orderIndex: item.orderIndex, defaultCotadorId: item.defaultCotadorId ?? "" });
     setEditingId(item.id);
     setShowForm(true);
     setError("");
@@ -52,7 +70,11 @@ export function SituacaoConfigList() {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        nome: form.nome,
+        orderIndex: form.orderIndex,
+        defaultCotadorId: form.defaultCotadorId || null,
+      }),
     });
 
     const json = await res.json();
@@ -83,6 +105,11 @@ export function SituacaoConfigList() {
     setDeletingId(null);
     if (editingId === item.id) resetForm();
     fetchItems();
+  }
+
+  function getUserName(id: string | null) {
+    if (!id) return null;
+    return users.find((u) => u.id === id)?.name ?? null;
   }
 
   const activeItems = items.filter((i) => i.isActive);
@@ -149,6 +176,25 @@ export function SituacaoConfigList() {
             </div>
           </div>
 
+          <div>
+            <label className="text-xs text-slate-500 font-medium">Responsável padrão</label>
+            <select
+              value={form.defaultCotadorId}
+              onChange={(e) => setForm({ ...form, defaultCotadorId: e.target.value })}
+              className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition text-slate-700"
+            >
+              <option value="">Nenhum (sem auto-atribuição)</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} — {u.role === "admin" ? "Admin" : "Cotador"}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Ao mudar a situação da cotação para esta, o responsável será atribuído automaticamente.
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <button
               type="submit"
@@ -183,37 +229,47 @@ export function SituacaoConfigList() {
           </p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {activeItems.map((item) => (
-              <li key={item.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-lg bg-[#03a4ed]/10 flex items-center justify-center text-[10px] font-bold text-[#03a4ed]">
-                    {item.orderIndex}
-                  </span>
-                  <span className="text-sm font-semibold text-slate-800">{item.nome}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => startEdit(item)}
-                    className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleToggleActive(item)}
-                    className="text-xs text-amber-500 hover:text-amber-700 font-medium"
-                  >
-                    Desativar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item)}
-                    disabled={deletingId === item.id}
-                    className="text-xs text-[#ff695f] hover:text-[#e55a50] font-medium disabled:opacity-50"
-                  >
-                    {deletingId === item.id ? "Excluindo..." : "Excluir"}
-                  </button>
-                </div>
-              </li>
-            ))}
+            {activeItems.map((item) => {
+              const linkedUser = getUserName(item.defaultCotadorId);
+              return (
+                <li key={item.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-6 h-6 rounded-lg bg-[#03a4ed]/10 flex items-center justify-center text-[10px] font-bold text-[#03a4ed] shrink-0">
+                      {item.orderIndex}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-slate-800">{item.nome}</span>
+                      {linkedUser && (
+                        <span className="ml-2 text-xs text-emerald-600 font-medium">
+                          → {linkedUser}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => startEdit(item)}
+                      className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(item)}
+                      className="text-xs text-amber-500 hover:text-amber-700 font-medium"
+                    >
+                      Desativar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      disabled={deletingId === item.id}
+                      className="text-xs text-[#ff695f] hover:text-[#e55a50] font-medium disabled:opacity-50"
+                    >
+                      {deletingId === item.id ? "Excluindo..." : "Excluir"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

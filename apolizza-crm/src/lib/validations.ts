@@ -23,6 +23,7 @@ export const cotacaoCreateSchema = z.object({
   fimVigencia: z.string().nullable().optional(),
   primeiroPagamento: z.string().nullable().optional(),
   parceladoEm: z.number().int().min(1).max(120).nullable().optional(),
+  valorParcelado: z.string().nullable().optional(),
   premioSemIof: z.string().nullable().optional(),
   comissao: z.string().nullable().optional(),
   aReceber: z.string().nullable().optional(),
@@ -31,6 +32,10 @@ export const cotacaoCreateSchema = z.object({
   observacao: z.string().nullable().optional(),
   mesReferencia: z.enum(MES_OPTIONS).nullable().optional(),
   anoReferencia: z.number().int().min(2020).max(2030).nullable().optional(),
+  comissaoParcelada: z.object({
+    parcelas: z.number().int().min(1).max(60),
+    percentuais: z.array(z.number().min(0).max(100)),
+  }).nullable().optional(),
   tags: z.array(z.string()).optional().default([]),
   isRenovacao: z.boolean().optional().default(false),
 });
@@ -52,6 +57,7 @@ export const cotacaoUpdateSchema = z.object({
   fimVigencia: z.string().nullable().optional(),
   primeiroPagamento: z.string().nullable().optional(),
   parceladoEm: z.number().int().min(1).max(120).nullable().optional(),
+  valorParcelado: z.string().nullable().optional(),
   premioSemIof: z.string().nullable().optional(),
   comissao: z.string().nullable().optional(),
   aReceber: z.string().nullable().optional(),
@@ -60,6 +66,10 @@ export const cotacaoUpdateSchema = z.object({
   observacao: z.string().nullable().optional(),
   mesReferencia: z.enum(MES_OPTIONS).nullable().optional(),
   anoReferencia: z.number().int().min(2020).max(2030).nullable().optional(),
+  comissaoParcelada: z.object({
+    parcelas: z.number().int().min(1).max(60),
+    percentuais: z.array(z.number().min(0).max(100)),
+  }).nullable().optional(),
   tags: z.array(z.string()).optional(),
   isRenovacao: z.boolean().optional(),
 });

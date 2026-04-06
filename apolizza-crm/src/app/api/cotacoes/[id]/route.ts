@@ -91,6 +91,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.fimVigencia !== undefined) updateData.fimVigencia = input.fimVigencia;
     if (input.primeiroPagamento !== undefined) updateData.primeiroPagamento = input.primeiroPagamento;
     if (input.parceladoEm !== undefined) updateData.parceladoEm = input.parceladoEm;
+    if (input.valorParcelado !== undefined) updateData.valorParcelado = input.valorParcelado;
     if (input.premioSemIof !== undefined) updateData.premioSemIof = input.premioSemIof;
     if (input.comissao !== undefined) updateData.comissao = input.comissao;
     if (input.aReceber !== undefined) updateData.aReceber = input.aReceber;
@@ -101,6 +102,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.anoReferencia !== undefined) updateData.anoReferencia = input.anoReferencia;
     if (input.tags !== undefined) updateData.tags = input.tags;
     if (input.isRenovacao !== undefined) updateData.isRenovacao = input.isRenovacao;
+    if (input.comissaoParcelada !== undefined) updateData.comissaoParcelada = input.comissaoParcelada ?? null;
 
     // Validate required fields when status changes
     const newStatus = input.status ?? existing.status;

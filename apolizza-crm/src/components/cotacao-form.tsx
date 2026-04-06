@@ -10,9 +10,15 @@ import {
   ANO_OPTIONS,
   PRODUTO_OPTIONS,
 } from "@/lib/constants";
+import { calcularDataEntrega, toDateInput, precisaMaisInfo } from "@/lib/prazo-utils";
 import { validateStatusFields, type StatusRule } from "@/lib/status-validation";
 
 type User = { id: string; name: string; role: string };
+
+type ComissaoParcelada = {
+  parcelas: number;
+  percentuais: number[];
+};
 
 type CotacaoData = {
   name: string;
@@ -31,6 +37,7 @@ type CotacaoData = {
   primeiroPagamento: string;
   proximaTratativa: string;
   parceladoEm: string;
+  valorParcelado: string;
   premioSemIof: string;
   comissao: string;
   aReceber: string;
@@ -39,7 +46,13 @@ type CotacaoData = {
   mesReferencia: string;
   anoReferencia: string;
   isRenovacao: boolean;
+  comissaoParcelada: ComissaoParcelada | null;
 };
+
+const SAUDE_PRODUTOS = ["SAÚDE PF", "SAÚDE PJ"] as const;
+function isSaudeProduto(produto: string) {
+  return SAUDE_PRODUTOS.includes(produto as (typeof SAUDE_PRODUTOS)[number]);
+}
 
 const EMPTY: CotacaoData = {
   name: "",
@@ -58,6 +71,7 @@ const EMPTY: CotacaoData = {
   primeiroPagamento: "",
   proximaTratativa: "",
   parceladoEm: "",
+  valorParcelado: "",
   premioSemIof: "",
   comissao: "",
   aReceber: "",
@@ -66,6 +80,7 @@ const EMPTY: CotacaoData = {
   mesReferencia: "",
   anoReferencia: "",
   isRenovacao: false,
+  comissaoParcelada: null,
 };
 
 interface CotacaoFormProps {
@@ -86,8 +101,11 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [comissaoPercentual, setComissaoPercentual] = useState("");
-  const [comissaoManual, setComissaoManual] = useState(false);
   const [aReceberManual, setAReceberManual] = useState(false);
+  const [valorParceladoManual, setValorParceladoManual] = useState(false);
+  const [showMaisInfo, setShowMaisInfo] = useState(false);
+  const [quantidadeVeiculos, setQuantidadeVeiculos] = useState("");
+  const [quantidadeVidas, setQuantidadeVidas] = useState("");
 
   useEffect(() => {
     fetch("/api/status-config")
@@ -105,7 +123,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     }
   }, [currentUser.role]);
 
-  function set(field: keyof CotacaoData, value: string | boolean) {
+  function set(field: keyof CotacaoData, value: string | boolean | ComissaoParcelada | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -116,7 +134,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       .then((r) => r.json())
       .then((d) => {
         const rows = d.data || [];
-        if (rows.length > 0 && !comissaoManual) {
+        if (rows.length > 0) {
           // Pick most specific match (with produto) or first
           const match = rows.find((r: { produto: string | null }) => r.produto === form.produto) || rows[0];
           if (match?.percentual) {
@@ -127,15 +145,40 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       .catch(() => {});
   }, [form.seguradora, form.produto]);
 
-  // Story 11.6: Auto-calculate comissao and aReceber
+  // Auto-cálculo da Data de Entrega com base em Produto + Tipo Cliente + Situação + infos extras
+  useEffect(() => {
+    if (!form.produto || !form.tipoCliente) return;
+    const qtdVeiculos = quantidadeVeiculos ? Number(quantidadeVeiculos) : null;
+    const qtdVidas = quantidadeVidas ? Number(quantidadeVidas) : null;
+    const dataEntrega = calcularDataEntrega(
+      form.produto,
+      form.tipoCliente,
+      qtdVeiculos,
+      qtdVidas,
+      form.situacao || null,
+      form.fimVigencia || null
+    );
+    setForm((prev) => ({ ...prev, dueDate: toDateInput(dataEntrega) }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.produto, form.tipoCliente, form.situacao, form.fimVigencia, quantidadeVeiculos, quantidadeVidas]);
+
+  // Auto-cálculo de Valor Parcelado = Premio sem IOF / Parcela do Cliente
+  useEffect(() => {
+    if (valorParceladoManual) return;
+    const premio = parseFloat(form.premioSemIof);
+    const parcelas = parseInt(form.parceladoEm, 10);
+    if (!isNaN(premio) && !isNaN(parcelas) && parcelas > 0 && premio > 0) {
+      setForm((prev) => ({ ...prev, valorParcelado: (premio / parcelas).toFixed(2) }));
+    }
+  }, [form.premioSemIof, form.parceladoEm]);
+
+  // Auto-calculate comissao (guardado silenciosamente) e aReceber a partir de Premio × %
   useEffect(() => {
     const premio = parseFloat(form.premioSemIof);
     const pct = parseFloat(comissaoPercentual);
     if (!isNaN(premio) && !isNaN(pct) && pct > 0 && premio > 0) {
       const calculated = (premio * pct / 100).toFixed(2);
-      if (!comissaoManual) {
-        setForm((prev) => ({ ...prev, comissao: calculated }));
-      }
+      setForm((prev) => ({ ...prev, comissao: calculated }));
       if (!aReceberManual) {
         setForm((prev) => ({ ...prev, aReceber: calculated }));
       }
@@ -166,6 +209,15 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       return;
     }
 
+    // Validação: Data Contato com Cliente não pode ser superior à Data de Entrega
+    if (form.proximaTratativa && form.dueDate) {
+      if (new Date(form.proximaTratativa) > new Date(form.dueDate)) {
+        setError("Data Contato com Cliente não pode ser superior à Data de Entrega.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const body: Record<string, unknown> = {
       name: form.name,
       status: form.status,
@@ -187,6 +239,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     if (form.primeiroPagamento) body.primeiroPagamento = form.primeiroPagamento;
     if (form.proximaTratativa) body.proximaTratativa = form.proximaTratativa;
     if (form.parceladoEm) body.parceladoEm = Number(form.parceladoEm);
+    if (form.valorParcelado) body.valorParcelado = form.valorParcelado;
     if (form.premioSemIof) body.premioSemIof = form.premioSemIof;
     if (form.comissao) body.comissao = form.comissao;
     if (form.aReceber) body.aReceber = form.aReceber;
@@ -194,6 +247,11 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     if (form.observacao) body.observacao = form.observacao;
     if (form.mesReferencia) body.mesReferencia = form.mesReferencia;
     if (form.anoReferencia) body.anoReferencia = Number(form.anoReferencia);
+    if (isSaudeProduto(form.produto) && form.comissaoParcelada) {
+      body.comissaoParcelada = form.comissaoParcelada;
+    } else {
+      body.comissaoParcelada = null;
+    }
 
     const url = isEdit ? `/api/cotacoes/${cotacaoId}` : "/api/cotacoes";
     const method = isEdit ? "PUT" : "POST";
@@ -272,14 +330,12 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             </select>
           </div>
           <div>
-            <label htmlFor="dueDate" className={labelClass}>Data Limite</label>
-            <input
-              id="dueDate"
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => set("dueDate", e.target.value)}
-              className={inputClass()}
-            />
+            <label className={labelClass}>Data de Entrega</label>
+            <div className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-500 bg-slate-50 min-h-[38px]">
+              {form.dueDate
+                ? new Date(form.dueDate + "T00:00:00").toLocaleDateString("pt-BR")
+                : "Selecione Produto e Tipo Cliente"}
+            </div>
           </div>
           {currentUser.role === "admin" ? (
             <div>
@@ -380,6 +436,66 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
         </div>
+
+        {/* Botão de informações adicionais para parametrização do prazo */}
+        {(() => {
+          if (!form.produto || !form.tipoCliente) return null;
+          const info = precisaMaisInfo(form.produto, form.tipoCliente);
+          if (!info.mostrarVeiculos && !info.mostrarVidas) return null;
+          return (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowMaisInfo((v) => !v)}
+                className="px-4 py-2 text-sm font-medium text-[#03a4ed] border border-[#03a4ed] rounded-xl hover:bg-blue-50 transition"
+              >
+                {showMaisInfo ? "− Ocultar informações adicionais" : "+ Adicionar mais informações"}
+              </button>
+
+              {showMaisInfo && (
+                <div className="mt-3 p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Informações adicionais para cálculo preciso da Data de Entrega — opcional
+                  </p>
+                  {info.mostrarVeiculos && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Quantidade de Veículos
+                        <span className="text-slate-400 font-normal ml-1">
+                          (≤ 2 = 24h &nbsp;·&nbsp; ≤ 10 = 2 dias &nbsp;·&nbsp; &gt; 10 = 5 dias)
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={quantidadeVeiculos}
+                        onChange={(e) => setQuantidadeVeiculos(e.target.value)}
+                        placeholder="Ex: 5"
+                        className="w-48 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none bg-white"
+                      />
+                    </div>
+                  )}
+                  {info.mostrarVidas && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Quantidade de Vidas
+                        <span className="text-slate-400 font-normal ml-1">
+                          (≤ 99 = 30 dias &nbsp;·&nbsp; &gt; 99 = 60 dias)
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={quantidadeVidas}
+                        onChange={(e) => setQuantidadeVidas(e.target.value)}
+                        placeholder="Ex: 50"
+                        className="w-48 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </fieldset>
 
       {/* Datas */}
@@ -419,14 +535,20 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="proximaTratativa" className={labelClass}>Proxima Tratativa</label>
+            <label htmlFor="proximaTratativa" className={labelClass}>Data Contato com Cliente</label>
             <input
               id="proximaTratativa"
               type="date"
               value={form.proximaTratativa}
+              max={form.dueDate || undefined}
               onChange={(e) => set("proximaTratativa", e.target.value)}
               className={inputClass()}
             />
+            {form.dueDate && (
+              <p className="text-xs text-slate-400 mt-1">
+                Máximo: {new Date(form.dueDate + "T00:00:00").toLocaleDateString("pt-BR")}
+              </p>
+            )}
           </div>
         </div>
       </fieldset>
@@ -461,7 +583,6 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               value={comissaoPercentual}
               onChange={(e) => {
                 setComissaoPercentual(e.target.value);
-                setComissaoManual(false);
                 setAReceberManual(false);
               }}
               className={inputClass()}
@@ -472,27 +593,6 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
                 {comissaoPercentual}% de R$ {parseFloat(form.premioSemIof).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
             )}
-          </div>
-          <div>
-            <label htmlFor="comissao" className={labelClass}>
-              Comissao (R$)
-              {!comissaoManual && comissaoPercentual && (
-                <span className="text-xs text-[#03a4ed] ml-1">auto</span>
-              )}
-            </label>
-            <input
-              id="comissao"
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.comissao}
-              onChange={(e) => {
-                setComissaoManual(true);
-                set("comissao", e.target.value);
-              }}
-              className={inputClass("comissao")}
-              placeholder="0.00"
-            />
           </div>
           <div>
             <label htmlFor="aReceber" className={labelClass}>
@@ -529,20 +629,96 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="parceladoEm" className={labelClass}>Parcelado Em</label>
+            <label htmlFor="parceladoEm" className={labelClass}>Parcela do Cliente</label>
             <input
               id="parceladoEm"
-              type="number"
-              min="1"
-              max="48"
+              type="text"
               value={form.parceladoEm}
               onChange={(e) => set("parceladoEm", e.target.value)}
               className={inputClass("parceladoEm")}
-              placeholder="1"
+              placeholder="Ex: 12"
+            />
+          </div>
+          <div>
+            <label htmlFor="valorParcelado" className={labelClass}>
+              Valor Parcelado (R$/mês)
+              {!valorParceladoManual && form.valorParcelado && (
+                <span className="text-xs text-[#03a4ed] ml-1">auto</span>
+              )}
+            </label>
+            <input
+              id="valorParcelado"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.valorParcelado}
+              onChange={(e) => {
+                setValorParceladoManual(true);
+                set("valorParcelado", e.target.value);
+              }}
+              className={inputClass()}
+              placeholder="0.00"
             />
           </div>
         </div>
       </fieldset>
+
+      {/* Data de Comissionamento — apenas Saúde PF / Saúde PJ */}
+      {isSaudeProduto(form.produto) && (
+        <fieldset className={sectionClass}>
+          <legend className="text-lg font-semibold text-slate-900 mb-1">
+            Data de Comissionamento
+          </legend>
+          <p className="text-xs text-slate-500 mb-3">
+            Informe quantas parcelas de comissão e a porcentagem de cada uma.
+          </p>
+
+          <div className="mb-4">
+            <label htmlFor="parcelasComissao" className={labelClass}>
+              Quantidade de Parcelas
+            </label>
+            <input
+              id="parcelasComissao"
+              type="text"
+              value={form.comissaoParcelada?.parcelas ?? ""}
+              onChange={(e) => {
+                const n = Math.max(1, Math.min(60, Number(e.target.value) || 1));
+                const prev = form.comissaoParcelada?.percentuais ?? [];
+                const percentuais = Array.from({ length: n }, (_, i) => prev[i] ?? 0);
+                set("comissaoParcelada", { parcelas: n, percentuais });
+              }}
+              className={`${inputBase} border-slate-200 max-w-[160px]`}
+              placeholder="Ex: 12"
+            />
+          </div>
+
+          {form.comissaoParcelada && form.comissaoParcelada.parcelas > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {Array.from({ length: form.comissaoParcelada.parcelas }, (_, i) => (
+                <div key={i}>
+                  <label className="text-xs text-slate-500 font-medium mb-1 block">
+                    Parcela {i + 1} (%)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.comissaoParcelada!.percentuais[i] ?? ""}
+                    onChange={(e) => {
+                      const percentuais = [...(form.comissaoParcelada!.percentuais)];
+                      percentuais[i] = parseFloat(e.target.value) || 0;
+                      set("comissaoParcelada", {
+                        parcelas: form.comissaoParcelada!.parcelas,
+                        percentuais,
+                      });
+                    }}
+                    className={`${inputBase} border-slate-200`}
+                    placeholder="0.00"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </fieldset>
+      )}
 
       {/* Referencia e Observacoes */}
       <fieldset className={sectionClass}>

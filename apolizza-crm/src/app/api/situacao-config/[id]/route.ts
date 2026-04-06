@@ -15,12 +15,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     const { id } = await params;
     const body = await req.json();
-    const { nome, orderIndex, isActive } = body;
+    const { nome, orderIndex, isActive, defaultCotadorId } = body;
 
     const updateData: Record<string, unknown> = {};
     if (nome !== undefined) updateData.nome = nome.trim().toUpperCase();
     if (orderIndex !== undefined) updateData.orderIndex = orderIndex;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (defaultCotadorId !== undefined) updateData.defaultCotadorId = defaultCotadorId || null;
 
     const [updated] = await db
       .update(situacaoConfig)

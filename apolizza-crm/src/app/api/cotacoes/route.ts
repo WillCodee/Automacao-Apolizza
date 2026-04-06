@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
         observacao: input.observacao,
         mesReferencia: input.mesReferencia,
         anoReferencia: input.anoReferencia,
+        comissaoParcelada: input.comissaoParcelada ?? null,
         tags: input.tags,
         isRenovacao: input.isRenovacao,
       })

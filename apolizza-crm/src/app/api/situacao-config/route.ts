@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (user.role !== "admin") return apiError("Apenas admin", 403);
 
     const body = await req.json();
-    const { nome, orderIndex } = body;
+    const { nome, orderIndex, defaultCotadorId } = body;
 
     if (!nome?.trim()) return apiError("Nome e obrigatorio", 400);
 
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       .values({
         nome: nome.trim().toUpperCase(),
         orderIndex: orderIndex ?? 0,
+        defaultCotadorId: defaultCotadorId || null,
       })
       .returning();
 
