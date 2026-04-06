@@ -270,6 +270,9 @@ export const tarefas = pgTable(
     criadorId: uuid("criador_id")
       .notNull()
       .references(() => users.id),
+    visualizadaEm: timestamp("visualizada_em", { withTimezone: true }),
+    iniciadaEm: timestamp("iniciada_em", { withTimezone: true }),
+    concluidaEm: timestamp("concluida_em", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -368,6 +371,32 @@ export const tarefasAtividades = pgTable(
 );
 
 // ============================================================
+// TAREFAS_CHECKLIST
+// ============================================================
+
+export const tarefasChecklist = pgTable(
+  "tarefas_checklist",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tarefaId: uuid("tarefa_id")
+      .notNull()
+      .references(() => tarefas.id, { onDelete: "cascade" }),
+    texto: varchar("texto", { length: 500 }).notNull(),
+    concluido: boolean("concluido").notNull().default(false),
+    concluidoPor: uuid("concluido_por").references(() => users.id),
+    concluidoEm: timestamp("concluido_em", { withTimezone: true }),
+    ordem: integer("ordem").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("tarefas_checklist_tarefa_idx").on(table.tarefaId),
+    index("tarefas_checklist_ordem_idx").on(table.tarefaId, table.ordem),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 
@@ -436,6 +465,18 @@ export const tarefasRelations = relations(tarefas, ({ one, many }) => ({
   briefings: many(tarefasBriefings),
   anexos: many(tarefasAnexos),
   atividades: many(tarefasAtividades),
+  checklist: many(tarefasChecklist),
+}));
+
+export const tarefasChecklistRelations = relations(tarefasChecklist, ({ one }) => ({
+  tarefa: one(tarefas, {
+    fields: [tarefasChecklist.tarefaId],
+    references: [tarefas.id],
+  }),
+  concluidoPorUser: one(users, {
+    fields: [tarefasChecklist.concluidoPor],
+    references: [users.id],
+  }),
 }));
 
 export const tarefasBriefingsRelations = relations(tarefasBriefings, ({ one }) => ({

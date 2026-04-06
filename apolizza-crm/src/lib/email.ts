@@ -2,7 +2,12 @@ import { Resend } from "resend";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: InstanceType<typeof Resend> | null = null;
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
+  return resend;
+}
 
 const FROM = process.env.RESEND_FROM || "alertas@apolizza.com";
 
@@ -99,7 +104,8 @@ export async function sendAlertEmail({
 
   try {
     const recipients = Array.isArray(to) ? to : [to];
-    await resend.emails.send({
+    const client = getResend()!;
+    await client.emails.send({
       from: FROM,
       to: recipients,
       subject,

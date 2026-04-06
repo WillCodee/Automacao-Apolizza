@@ -39,11 +39,20 @@ export async function PATCH(
     const body = await req.json();
     const validated = updateStatusSchema.parse(body);
 
-    // Atualizar status
+    // Atualizar status + timestamps
     const statusAnterior = tarefa.status;
+    const now = new Date();
+    const extraFields: Record<string, Date | null> = {};
+    if (validated.status === "Em Andamento" && !tarefa.iniciadaEm) {
+      extraFields.iniciadaEm = now;
+    }
+    if (validated.status === "Concluída") {
+      extraFields.concluidaEm = now;
+    }
+
     const [tarefaAtualizada] = await db
       .update(tarefas)
-      .set({ status: validated.status })
+      .set({ status: validated.status, ...extraFields })
       .where(eq(tarefas.id, id))
       .returning();
 

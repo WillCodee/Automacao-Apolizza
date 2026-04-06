@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and, isNull, or, sql } from "drizzle-orm";
+import { eq, and, isNull, or, sql, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tarefas, cotacoes, metas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -31,10 +31,13 @@ export async function GET(req: NextRequest) {
     if (produtoFilter) cotacoesConditions.push(eq(cotacoes.produto, produtoFilter));
 
     const [tarefasRows, metaRows, prodRows, cotacoesRecentesRows] = await Promise.all([
-      // Tarefas Pendente ou Em Andamento do cotador
+      // Tarefas Pendente/Em Andamento onde é cotador OU criador
       db.query.tarefas.findMany({
         where: and(
-          eq(tarefas.cotadorId, user.id),
+          or(
+            eq(tarefas.cotadorId, user.id),
+            eq(tarefas.criadorId, user.id)
+          ),
           or(
             eq(tarefas.status, "Pendente"),
             eq(tarefas.status, "Em Andamento")
@@ -42,6 +45,7 @@ export async function GET(req: NextRequest) {
         ),
         with: {
           criador: { columns: { id: true, name: true } },
+          cotador: { columns: { id: true, name: true, photoUrl: true } },
         },
         orderBy: (t, { asc, desc }) => [asc(t.dataVencimento), desc(t.createdAt)],
         limit: 20,

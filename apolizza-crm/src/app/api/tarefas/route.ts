@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, count } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas } from "@/lib/schema";
+import { tarefas, tarefasChecklist } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaCreateSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const validated = tarefaCreateSchema.parse(body);
+    const { checklistItems, ...rest } = body;
+    const validated = tarefaCreateSchema.parse(rest);
 
     const [novaTarefa] = await db
       .insert(tarefas)
@@ -102,6 +103,20 @@ export async function POST(req: NextRequest) {
         criadorId: user.id,
       })
       .returning();
+
+    // Salvar itens do checklist
+    if (Array.isArray(checklistItems) && checklistItems.length > 0) {
+      const items = checklistItems
+        .filter((t: string) => t?.trim())
+        .map((t: string, i: number) => ({
+          tarefaId: novaTarefa.id,
+          texto: t.trim(),
+          ordem: i,
+        }));
+      if (items.length > 0) {
+        await db.insert(tarefasChecklist).values(items);
+      }
+    }
 
     // Registrar atividade
     await logAtividade({

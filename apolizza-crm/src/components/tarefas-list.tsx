@@ -10,6 +10,9 @@ interface Tarefa {
   descricao: string | null;
   dataVencimento: string | null;
   status: "Pendente" | "Em Andamento" | "Concluída" | "Cancelada";
+  visualizadaEm: string | null;
+  iniciadaEm: string | null;
+  concluidaEm: string | null;
   cotador: {
     id: string;
     name: string;
