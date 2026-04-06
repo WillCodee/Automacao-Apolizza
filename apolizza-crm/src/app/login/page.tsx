@@ -46,10 +46,11 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo-apolizza-fundo.png"
+              src="/logo-apolizza.png"
               alt="Apolizza"
-              className="mx-auto mb-4 h-24 w-auto object-contain"
+              className="mx-auto mb-4 h-40 w-auto object-contain"
             />
+            <h1 className="text-2xl font-bold text-slate-800 tracking-wide mb-1">CRM APOLIZZA</h1>
             <p className="text-slate-500 text-sm">Gestao de Cotacoes de Seguros</p>
           </div>
 
