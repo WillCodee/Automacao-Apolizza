@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { formatarDetalhesAtividade, getIconeTipoAcao } from "@/lib/audit-log";
+import { formatarDetalhesAtividade, getIconeTipoAcao } from "@/lib/audit-log-utils";
 
 type TipoAcao =
   | "CRIADA"
