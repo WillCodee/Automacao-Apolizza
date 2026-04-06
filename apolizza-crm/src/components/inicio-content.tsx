@@ -439,7 +439,7 @@ export function InicioContent({
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-900">
-                Cotações Recentes
+                Minhas Cotações
                 {cotacoesFiltradas.length > 0 && (
                   <span className="ml-2 text-xs font-normal text-slate-400">
                     ({cotacoesFiltradas.length})
