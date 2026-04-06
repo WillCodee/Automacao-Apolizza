@@ -10,7 +10,6 @@ interface Tarefa {
   descricao: string | null;
   dataVencimento: string | null;
   status: "Pendente" | "Em Andamento" | "Concluída" | "Cancelada";
-  situacao: string | null;
   visualizadaEm: string | null;
   iniciadaEm: string | null;
   concluidaEm: string | null;

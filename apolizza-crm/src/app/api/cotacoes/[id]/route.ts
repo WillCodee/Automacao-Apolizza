@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory, situacaoConfig } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -73,7 +73,19 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.contatoCliente !== undefined) updateData.contatoCliente = input.contatoCliente;
     if (input.seguradora !== undefined) updateData.seguradora = input.seguradora;
     if (input.produto !== undefined) updateData.produto = input.produto;
-    if (input.situacao !== undefined) updateData.situacao = input.situacao;
+    if (input.situacao !== undefined) {
+      updateData.situacao = input.situacao;
+      // Auto-atribuição: se a situação tem um cotador padrão vinculado, aplica automaticamente
+      if (input.situacao && input.situacao !== existing.situacao) {
+        const [sitCfg] = await db
+          .select({ defaultCotadorId: situacaoConfig.defaultCotadorId })
+          .from(situacaoConfig)
+          .where(eq(situacaoConfig.nome, input.situacao));
+        if (sitCfg?.defaultCotadorId) {
+          updateData.assigneeId = sitCfg.defaultCotadorId;
+        }
+      }
+    }
     if (input.indicacao !== undefined) updateData.indicacao = input.indicacao;
     if (input.inicioVigencia !== undefined) updateData.inicioVigencia = input.inicioVigencia;
     if (input.fimVigencia !== undefined) updateData.fimVigencia = input.fimVigencia;

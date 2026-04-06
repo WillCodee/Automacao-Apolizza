@@ -99,7 +99,6 @@ export async function POST(req: NextRequest) {
           ? new Date(validated.dataVencimento)
           : null,
         status: validated.status,
-        situacao: validated.situacao ?? null,
         cotadorId: validated.cotadorId,
         criadorId: user.id,
       })

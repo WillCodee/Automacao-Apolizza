@@ -265,7 +265,6 @@ export const tarefas = pgTable(
     descricao: text("descricao"),
     dataVencimento: timestamp("data_vencimento", { withTimezone: true }),
     status: tarefaStatusEnum("status").notNull().default("Pendente"),
-    situacao: varchar("situacao", { length: 100 }),
     cotadorId: uuid("cotador_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

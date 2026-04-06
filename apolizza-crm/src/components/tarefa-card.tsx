@@ -14,7 +14,6 @@ interface Tarefa {
   descricao: string | null;
   dataVencimento: string | null;
   status: "Pendente" | "Em Andamento" | "Concluída" | "Cancelada";
-  situacao: string | null;
   visualizadaEm: string | null;
   iniciadaEm: string | null;
   concluidaEm: string | null;
@@ -170,14 +169,7 @@ export function TarefaCard({ tarefa, isAdmin, userId, onAtualizada, onDeletada }
       <div className="p-5 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-slate-900 text-base leading-tight">{tarefa.titulo}</h3>
-            {tarefa.situacao && (
-              <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-xs font-medium bg-[#03a4ed]/10 text-[#03a4ed]">
-                {tarefa.situacao}
-              </span>
-            )}
-          </div>
+          <h3 className="font-semibold text-slate-900 text-base leading-tight flex-1">{tarefa.titulo}</h3>
           <StatusBadge tarefa={tarefa} />
         </div>
 
