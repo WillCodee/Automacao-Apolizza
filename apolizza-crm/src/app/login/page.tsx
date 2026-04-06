@@ -41,14 +41,15 @@ export default function LoginPage() {
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#ff695f] rounded-full mix-blend-multiply filter blur-[128px] opacity-20 translate-x-1/2 translate-y-1/2" />
 
       <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 border border-white/20" style={{boxShadow: '0 8px 48px 0 rgba(255, 105, 95, 0.25), 0 2px 16px 0 rgba(255, 105, 95, 0.12)'}}>
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
           {/* Logo area */}
           <div className="text-center mb-8">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo-apolizza.png"
               alt="Apolizza"
-              className="mx-auto mb-4 h-40 w-auto object-contain"
+              className="mx-auto mb-4 h-40 w-auto object-contain rounded-3xl"
+              style={{boxShadow: '0 8px 48px 0 rgba(255, 105, 95, 0.25), 0 2px 16px 0 rgba(255, 105, 95, 0.12)'}}
             />
             <h1 className="text-2xl font-bold text-slate-800 tracking-wide mb-1">CRM APOLIZZA</h1>
             <p className="text-slate-500 text-sm">Gestao de Cotacoes de Seguros</p>
