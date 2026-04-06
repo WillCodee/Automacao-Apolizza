@@ -27,24 +27,36 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
   const [error, setError] = useState("");
   const [checklistItems, setChecklistItems] = useState<string[]>([""]);
 
-  const fetchUsers = () => {
+  const fetchUsers = async (attempt = 1) => {
     setLoadingUsers(true);
     setUsersError("");
-    fetch("/api/users")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setUsers(data.data.filter((u: User) => u.isActive));
-        } else {
-          setUsersError("Não foi possível carregar os usuários.");
-        }
-      })
-      .catch(() => setUsersError("Erro ao conectar. Verifique sua conexão."))
-      .finally(() => setLoadingUsers(false));
+    try {
+      const res = await fetch("/api/users");
+      const data = await res.json();
+      if (data.success) {
+        setUsers(data.data.filter((u: User) => u.isActive));
+        setLoadingUsers(false);
+        return;
+      }
+      // Retry up to 3 times (Neon cold start)
+      if (attempt < 3) {
+        setTimeout(() => fetchUsers(attempt + 1), 1500);
+        return;
+      }
+      setUsersError("Não foi possível carregar os usuários.");
+    } catch {
+      if (attempt < 3) {
+        setTimeout(() => fetchUsers(attempt + 1), 1500);
+        return;
+      }
+      setUsersError("Erro ao conectar. Verifique sua conexão.");
+    }
+    setLoadingUsers(false);
   };
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChecklistChange = (idx: number, value: string) => {
@@ -154,7 +166,7 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
                 <div className="w-full px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-sm text-red-600">
                   {usersError}
                 </div>
-                <button type="button" onClick={fetchUsers} className="text-xs text-[#03a4ed] hover:underline font-medium">
+                <button type="button" onClick={() => fetchUsers(1)} className="text-xs text-[#03a4ed] hover:underline font-medium">
                   Tentar novamente
                 </button>
               </div>
