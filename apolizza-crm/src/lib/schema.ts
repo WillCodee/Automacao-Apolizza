@@ -225,6 +225,7 @@ export const situacaoConfig = pgTable("situacao_config", {
   nome: varchar("nome", { length: 100 }).notNull().unique(),
   orderIndex: integer("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  defaultCotadorId: uuid("default_cotador_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -264,6 +265,7 @@ export const tarefas = pgTable(
     descricao: text("descricao"),
     dataVencimento: timestamp("data_vencimento", { withTimezone: true }),
     status: tarefaStatusEnum("status").notNull().default("Pendente"),
+    situacao: varchar("situacao", { length: 100 }),
     cotadorId: uuid("cotador_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

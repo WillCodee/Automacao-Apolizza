@@ -84,6 +84,7 @@ export const tarefaCreateSchema = z.object({
   dataVencimento: z.string().datetime().nullable().optional(),
   status: z.enum(TAREFA_STATUS_OPTIONS).default("Pendente"),
   cotadorId: z.string().uuid("ID do cotador inválido"),
+  situacao: z.string().max(100).nullable().optional(),
 });
 
 export const tarefaUpdateSchema = z.object({

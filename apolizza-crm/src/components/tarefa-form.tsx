@@ -15,12 +15,20 @@ interface User {
   isActive: boolean;
 }
 
+interface Situacao {
+  id: string;
+  nome: string;
+  defaultCotadorId: string | null;
+}
+
 export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [cotadorId, setCotadorId] = useState("");
+  const [situacao, setSituacao] = useState("");
   const [users, setUsers] = useState<User[]>([]);
+  const [situacoes, setSituacoes] = useState<Situacao[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [usersError, setUsersError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,33 +39,44 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
     setLoadingUsers(true);
     setUsersError("");
     try {
-      const res = await fetch("/api/users");
-      const data = await res.json();
-      if (data.success) {
-        setUsers(data.data.filter((u: User) => u.isActive));
+      const [resUsers, resSit] = await Promise.all([
+        fetch("/api/users"),
+        fetch("/api/situacao-config"),
+      ]);
+      const [dataUsers, dataSit] = await Promise.all([resUsers.json(), resSit.json()]);
+
+      if (dataUsers.success) {
+        setUsers(dataUsers.data.filter((u: User) => u.isActive));
         setLoadingUsers(false);
-        return;
+      } else {
+        throw new Error("users failed");
       }
-      // Retry up to 3 times (Neon cold start)
-      if (attempt < 3) {
-        setTimeout(() => fetchUsers(attempt + 1), 1500);
-        return;
+      if (dataSit.success) {
+        setSituacoes(dataSit.data.filter((s: Situacao & { isActive: boolean }) => s.isActive));
       }
-      setUsersError("Não foi possível carregar os usuários.");
     } catch {
       if (attempt < 3) {
         setTimeout(() => fetchUsers(attempt + 1), 1500);
         return;
       }
-      setUsersError("Erro ao conectar. Verifique sua conexão.");
+      setUsersError("Não foi possível carregar os dados. Tente novamente.");
+      setLoadingUsers(false);
     }
-    setLoadingUsers(false);
   };
 
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-preenche destinatário quando situação tem usuário vinculado
+  const handleSituacaoChange = (nome: string) => {
+    setSituacao(nome);
+    const sit = situacoes.find((s) => s.nome === nome);
+    if (sit?.defaultCotadorId) {
+      setCotadorId(sit.defaultCotadorId);
+    }
+  };
 
   const handleChecklistChange = (idx: number, value: string) => {
     setChecklistItems((prev) => prev.map((v, i) => (i === idx ? value : v)));
@@ -85,6 +104,7 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
           descricao: descricao || null,
           dataVencimento: dataVencimento ? new Date(dataVencimento).toISOString() : null,
           cotadorId,
+          situacao: situacao || null,
           checklistItems: checklistItems.filter((t) => t.trim()),
         }),
       });
@@ -103,6 +123,12 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
       setLoading(false);
     }
   };
+
+  // Situação selecionada tem usuário vinculado?
+  const sitAtual = situacoes.find((s) => s.nome === situacao);
+  const cotadorVinculado = sitAtual?.defaultCotadorId
+    ? users.find((u) => u.id === sitAtual.defaultCotadorId)
+    : null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -146,6 +172,33 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition resize-none text-sm"
               placeholder="Detalhes da tarefa..."
             />
+          </div>
+
+          {/* Situação */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Situação
+            </label>
+            <select
+              value={situacao}
+              onChange={(e) => handleSituacaoChange(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition text-sm text-slate-700"
+            >
+              <option value="">Sem situação</option>
+              {situacoes.map((s) => (
+                <option key={s.id} value={s.nome}>
+                  {s.nome}
+                </option>
+              ))}
+            </select>
+            {cotadorVinculado && (
+              <p className="text-xs text-[#03a4ed] mt-1 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Destinatário auto-preenchido: <strong>{cotadorVinculado.name}</strong>
+              </p>
+            )}
           </div>
 
           {/* Destinatário */}
@@ -251,7 +304,7 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingUsers}
               className="flex-1 px-4 py-2.5 rounded-xl bg-apolizza-gradient text-white font-medium hover:opacity-90 transition disabled:opacity-50 text-sm"
             >
               {loading ? "Criando..." : "Criar Tarefa"}
