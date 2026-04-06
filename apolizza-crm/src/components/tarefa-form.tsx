@@ -21,18 +21,30 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
   const [dataVencimento, setDataVencimento] = useState("");
   const [cotadorId, setCotadorId] = useState("");
   const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [usersError, setUsersError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checklistItems, setChecklistItems] = useState<string[]>([""]);
 
-  useEffect(() => {
+  const fetchUsers = () => {
+    setLoadingUsers(true);
+    setUsersError("");
     fetch("/api/users")
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
           setUsers(data.data.filter((u: User) => u.isActive));
+        } else {
+          setUsersError("Não foi possível carregar os usuários.");
         }
-      });
+      })
+      .catch(() => setUsersError("Erro ao conectar. Verifique sua conexão."))
+      .finally(() => setLoadingUsers(false));
+  };
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
   const handleChecklistChange = (idx: number, value: string) => {
@@ -129,21 +141,37 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Destinatário <span className="text-red-500">*</span>
             </label>
-            <select
-              value={cotadorId}
-              onChange={(e) => setCotadorId(e.target.value)}
-              required
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition text-sm text-slate-700"
-            >
-              <option value="">Selecione o destinatário...</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} — {u.role === "admin" ? "Admin" : "Cotador"}
-                </option>
-              ))}
-            </select>
-            {users.length === 0 && (
-              <p className="text-xs text-slate-400 mt-1">Carregando usuários...</p>
+            {loadingUsers ? (
+              <div className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2 text-sm text-slate-400">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Carregando usuários...
+              </div>
+            ) : usersError ? (
+              <div className="space-y-1">
+                <div className="w-full px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-sm text-red-600">
+                  {usersError}
+                </div>
+                <button type="button" onClick={fetchUsers} className="text-xs text-[#03a4ed] hover:underline font-medium">
+                  Tentar novamente
+                </button>
+              </div>
+            ) : (
+              <select
+                value={cotadorId}
+                onChange={(e) => setCotadorId(e.target.value)}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition text-sm text-slate-700"
+              >
+                <option value="">Selecione o destinatário...</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} — {u.role === "admin" ? "Admin" : "Cotador"}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
