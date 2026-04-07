@@ -53,35 +53,28 @@ async function main() {
   const W = info.width;
   const H = info.height;
 
-  // ── 2. Convert logo pixels → white (remove background) ─────────
-  const whiteData = Buffer.alloc(W * H * 4);
+  // ── 2. Remove white background, keep original logo colors ───────
+  const cleanData = Buffer.alloc(W * H * 4);
   for (let i = 0; i < logoData.length; i += 4) {
     const r = logoData[i];
     const g = logoData[i + 1];
     const b = logoData[i + 2];
     const a = logoData[i + 3];
 
-    // Pixels that are white/near-white background → transparent
-    // Pixels that are colored (logo strokes) → white
-    const brightness = (r + g + b) / 3;
-    const isBackground = brightness > 235 && a < 200;
+    // White/near-white pixels → transparent; colored pixels → keep original
+    const isBackground = r > 235 && g > 235 && b > 235;
 
-    if (isBackground) {
-      whiteData[i]     = 0;
-      whiteData[i + 1] = 0;
-      whiteData[i + 2] = 0;
-      whiteData[i + 3] = 0;
+    if (isBackground || a < 10) {
+      cleanData[i] = cleanData[i + 1] = cleanData[i + 2] = cleanData[i + 3] = 0;
     } else {
-      // Preserve alpha for smooth edges, make opaque areas white
-      const opacity = a;
-      whiteData[i]     = 255;
-      whiteData[i + 1] = 255;
-      whiteData[i + 2] = 255;
-      whiteData[i + 3] = opacity;
+      cleanData[i]     = r;
+      cleanData[i + 1] = g;
+      cleanData[i + 2] = b;
+      cleanData[i + 3] = a;
     }
   }
 
-  const whiteLogo = await sharp(whiteData, {
+  const whiteLogo = await sharp(cleanData, {
     raw: { width: W, height: H, channels: 4 },
   })
     .png()
@@ -113,9 +106,9 @@ async function main() {
       const t = ((SIZE - 1 - x) + y) / ((SIZE - 1) * 2);
       const color = gradientColor(t);
 
-      bgData[i]     = color.r;
-      bgData[i + 1] = color.g;
-      bgData[i + 2] = color.b;
+      bgData[i]     = 0;
+      bgData[i + 1] = 0;
+      bgData[i + 2] = 0;
       bgData[i + 3] = 255;
     }
   }
