@@ -83,17 +83,21 @@ export function RelatorioMensal() {
   const [loading, setLoading] = useState(true);
   const [ano, setAno] = useState(String(new Date().getFullYear()));
   const [mes, setMes] = useState(MES_OPTIONS[new Date().getMonth()] as string);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ ano });
     if (mes) params.set("mes", mes);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
     const res = await fetch(`/api/relatorios?${params}`);
     const json = await res.json();
     setData(json.data);
     setLoading(false);
-  }, [ano, mes]);
+  }, [ano, mes, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchReport();
@@ -174,6 +178,28 @@ export function RelatorioMensal() {
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
+        <span className="text-sm text-slate-500 font-medium whitespace-nowrap">De:</span>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
+        />
+        <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Até:</span>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
+        />
+        {(dateFrom || dateTo) && (
+          <button
+            onClick={() => { setDateFrom(""); setDateTo(""); }}
+            className="text-xs text-slate-400 hover:text-slate-600"
+          >
+            ✕ Limpar
+          </button>
+        )}
         <button
           onClick={handlePrint}
           className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-apolizza-gradient hover:opacity-90 transition-all shadow-sm flex items-center gap-2"

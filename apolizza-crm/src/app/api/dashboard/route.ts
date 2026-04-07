@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { apiError, apiSuccess, validateMes, validateAno } from "@/lib/api-helpers";
+import { apiError, apiSuccess } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,16 +10,32 @@ export async function GET(req: NextRequest) {
     if (!user) return apiError("Nao autenticado", 401);
 
     const { searchParams } = req.nextUrl;
-    const ano = searchParams.get("ano");
-    const mes = searchParams.get("mes");
+    const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
+    const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
     const isCotador = user.role === "cotador";
 
-    // Validate params (Story 10.2)
-    if (!validateAno(ano)) return apiError("Ano invalido", 400);
-    if (!validateMes(mes)) return apiError("Mes invalido", 400);
+    let anoFilter = sql``;
+    let mesFilter = sql``;
 
-    const anoFilter = ano ? sql`and ano = ${Number(ano)}` : sql``;
-    const mesFilter = mes ? sql`and mes = ${mes}` : sql``;
+    if (dateFrom) {
+      const dFrom = new Date(dateFrom);
+      anoFilter = sql`and ano = ${dFrom.getFullYear()}`;
+      const mesNome = dFrom.toLocaleDateString("pt-BR", { month: "short" }).toUpperCase().replace(".", "");
+      mesFilter = sql`and mes = ${mesNome}`;
+
+      if (dateTo) {
+        const dTo = new Date(dateTo);
+        // Se dateFrom e dateTo estiverem em meses/anos diferentes, remove filtro de mês
+        if (dFrom.getMonth() !== dTo.getMonth() || dFrom.getFullYear() !== dTo.getFullYear()) {
+          mesFilter = sql``;
+          // Se anos diferentes, remove filtro de ano também
+          if (dFrom.getFullYear() !== dTo.getFullYear()) {
+            anoFilter = sql``;
+          }
+        }
+      }
+    }
+
     const userFilter = isCotador ? sql`and assignee_id = ${user.id}` : sql``;
 
     // Story 10.5: Parallel queries with Promise.all
@@ -66,25 +82,35 @@ export async function GET(req: NextRequest) {
         group by mes, ano
         order by ano asc, mes asc
       `),
-      // Cotadores from view (admin only)
+      // Cotadores — todos ativos, com LEFT JOIN nos dados do período
       isCotador
         ? Promise.resolve({ rows: [] })
         : db.execute(sql`
             select
-              user_id as "userId",
-              name,
-              photo_url as "photoUrl",
-              coalesce(sum(total_cotacoes), 0)::int as "totalCotacoes",
-              coalesce(sum(fechadas), 0)::int as "fechadas",
-              coalesce(sum(faturamento), 0)::float as "faturamento",
-              round(
-                coalesce(sum(fechadas), 0)::numeric
-                / nullif(coalesce(sum(total_cotacoes), 0), 0) * 100, 1
-              )::float as "taxaConversao"
-            from vw_cotadores
-            where true ${anoFilter} ${mesFilter}
-            group by user_id, name, photo_url
-            order by sum(faturamento) desc
+              u.id as "userId",
+              u.name,
+              u.photo_url as "photoUrl",
+              coalesce(v.total_cotacoes, 0)::int as "totalCotacoes",
+              coalesce(v.fechadas, 0)::int as "fechadas",
+              coalesce(v.faturamento, 0)::float as "faturamento",
+              coalesce(v.taxa_conversao, 0)::float as "taxaConversao"
+            from users u
+            left join (
+              select
+                user_id,
+                coalesce(sum(total_cotacoes), 0)::int as total_cotacoes,
+                coalesce(sum(fechadas), 0)::int as fechadas,
+                coalesce(sum(faturamento), 0)::float as faturamento,
+                round(
+                  coalesce(sum(fechadas), 0)::numeric
+                  / nullif(coalesce(sum(total_cotacoes), 0), 0) * 100, 1
+                )::float as taxa_conversao
+              from vw_cotadores
+              where true ${anoFilter} ${mesFilter}
+              group by user_id
+            ) v on v.user_id = u.id
+            where u.is_active = true and u.role = 'cotador'
+            order by coalesce(v.faturamento, 0) desc
           `),
     ]);
 

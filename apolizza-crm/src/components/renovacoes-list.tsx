@@ -50,18 +50,22 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
   const [statusFilter, setStatusFilter] = useState("");
   const [produtoFilter, setProdutoFilter] = useState("");
   const [seguradoraFilter, setSeguradoraFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (urgenciaFilter) params.set("urgencia", urgenciaFilter);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
 
     const res = await fetch(`/api/renovacoes?${params}`);
     const json = await res.json();
     setRenovacoes(json.data?.renovacoes || []);
     setKpis(json.data?.kpis || null);
     setLoading(false);
-  }, [urgenciaFilter]);
+  }, [urgenciaFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchData();
@@ -196,6 +200,32 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
               {f.label}
             </button>
           ))}
+        </div>
+
+        {/* Filtro por período de vencimento */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Vencimento de:</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
+          />
+          <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Até:</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-slate-400 hover:text-slate-600"
+            >
+              ✕ Limpar
+            </button>
+          )}
         </div>
       </div>
 

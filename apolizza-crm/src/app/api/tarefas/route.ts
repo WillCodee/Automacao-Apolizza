@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tarefas, tarefasChecklist } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
 
     const statusFilter = searchParams.get("status");
     const cotadorIdFilter = searchParams.get("cotadorId");
+    const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
+    const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
 
     const conditions = [];
 
@@ -33,6 +35,13 @@ export async function GET(req: NextRequest) {
 
     if (statusFilter) {
       conditions.push(eq(tarefas.status, statusFilter as "Pendente" | "Em Andamento" | "Concluída" | "Cancelada"));
+    }
+
+    if (dateFrom) {
+      conditions.push(sql`${tarefas.dataVencimento}::date >= ${dateFrom}::date`);
+    }
+    if (dateTo) {
+      conditions.push(sql`${tarefas.dataVencimento}::date <= ${dateTo}::date`);
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
