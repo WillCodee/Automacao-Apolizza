@@ -2,11 +2,21 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-type CurrentUser = {
-  id: string;
-  name: string;
-  role: string;
-  photoUrl: string | null;
+type CurrentUser = { id: string; name: string; role: string; photoUrl: string | null };
+
+type SuporteData = {
+  userId: string;
+  lastTexto: string | null;
+  lastCreatedAt: string | null;
+  lastFromUserId: string | null;
+  naoLidas: number;
+};
+
+type ConversaTodos = {
+  lastTexto: string | null;
+  lastCreatedAt: string | null;
+  lastFromUserName: string | null;
+  naoLidas: number;
 };
 
 type Conversa = {
@@ -19,13 +29,6 @@ type Conversa = {
   naoLidas: number;
 };
 
-type ConversasTodos = {
-  lastTexto: string | null;
-  lastCreatedAt: string | null;
-  lastFromUserName: string | null;
-  naoLidas: number;
-};
-
 type Mensagem = {
   id: string;
   texto: string;
@@ -33,23 +36,18 @@ type Mensagem = {
   fromUserId: string;
   fromUserName: string | null;
   fromUserPhoto: string | null;
-  lida: boolean;
 };
 
-type UserOption = {
-  id: string;
-  name: string;
-  photoUrl: string | null;
-};
+type UserOption = { id: string; name: string; photoUrl: string | null };
+
+type ConversaAtiva = { id: "todos" | string; nome: string; photo: string | null };
 
 function Avatar({ name, photo, size = "md" }: { name: string | null; photo: string | null; size?: "sm" | "md" }) {
-  const dim = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
-  if (photo) {
-    return <img src={photo} alt={name || ""} className={`${dim} rounded-full object-cover shrink-0`} />;
-  }
+  const dim = size === "sm" ? "w-7 h-7 text-[10px]" : "w-9 h-9 text-sm";
+  if (photo) return <img src={photo} alt={name || ""} className={`${dim} rounded-full object-cover shrink-0`} />;
   const initials = (name || "?").split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className={`${dim} rounded-full bg-[#03a4ed] text-white font-bold flex items-center justify-center shrink-0`}>
+    <div className={`${dim} rounded-full bg-[var(--primary)] text-white font-bold flex items-center justify-center shrink-0`}>
       {initials}
     </div>
   );
@@ -57,7 +55,16 @@ function Avatar({ name, photo, size = "md" }: { name: string | null; photo: stri
 
 function fmtTime(v: string | null) {
   if (!v) return "";
-  return new Date(v).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+  const d = new Date(v);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  return isToday
+    ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function fmtFull(v: string) {
+  return new Date(v).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 export function ChatGlobal() {
@@ -65,9 +72,10 @@ export function ChatGlobal() {
   const [view, setView] = useState<"lista" | "thread" | "nova">("lista");
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [naoLidas, setNaoLidas] = useState(0);
-  const [todosData, setTodosData] = useState<ConversasTodos | null>(null);
+  const [todosData, setTodosData] = useState<ConversaTodos | null>(null);
+  const [suporteData, setSuporteData] = useState<SuporteData | null>(null);
   const [conversas, setConversas] = useState<Conversa[]>([]);
-  const [conversaAtiva, setConversaAtiva] = useState<{ id: "todos" | string; nome: string; photo: string | null } | null>(null);
+  const [conversaAtiva, setConversaAtiva] = useState<ConversaAtiva | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [texto, setTexto] = useState("");
@@ -77,7 +85,7 @@ export function ChatGlobal() {
   const msgEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load user info + unread count
+  // ── Unread count + current user (polled) ────────────────────────
   const fetchNaoLidas = useCallback(async () => {
     try {
       const r = await fetch("/api/chat/nao-lidas");
@@ -85,66 +93,64 @@ export function ChatGlobal() {
       const d = await r.json();
       if (d.data) {
         setNaoLidas(d.data.count);
-        if (!currentUser) setCurrentUser(d.data.user);
+        setCurrentUser((prev) => prev ?? d.data.user);
       }
-    } catch {/* ignore */}
-  }, [currentUser]);
+    } catch { /* silent */ }
+  }, []);
 
   useEffect(() => {
     fetchNaoLidas();
-    const interval = setInterval(fetchNaoLidas, 30000);
-    return () => clearInterval(interval);
+    const t = setInterval(fetchNaoLidas, 30_000);
+    return () => clearInterval(t);
   }, [fetchNaoLidas]);
 
-  // Load conversations list whenever lista is visible
+  // ── Conversation list ────────────────────────────────────────────
   const fetchConversas = useCallback(async () => {
     try {
       const r = await fetch("/api/chat");
       const d = await r.json();
       if (d.data) {
         setTodosData(d.data.todos);
+        setSuporteData(d.data.suporte ?? null);
         setConversas(d.data.diretas || []);
       }
-    } catch {/* ignore */}
+    } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
-    if (open && view === "lista") {
-      fetchConversas();
-    }
+    if (open && view === "lista") fetchConversas();
   }, [open, view]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load messages for active thread
-  const fetchMensagens = useCallback(async (conversaId: string) => {
+  // ── Messages ─────────────────────────────────────────────────────
+  const fetchMensagens = useCallback(async (id: string) => {
     setLoadingMsgs(true);
     try {
-      const r = await fetch(`/api/chat/${conversaId}`);
+      const r = await fetch(`/api/chat/${id}`);
       const d = await r.json();
       if (d.data) {
         setMensagens(d.data);
-        setNaoLidas((prev) => Math.max(0, prev - 1)); // optimistic
+        setNaoLidas((p) => Math.max(0, p - 1));
       }
-    } catch {/* ignore */}
+    } catch { /* silent */ }
     setLoadingMsgs(false);
   }, []);
 
   useEffect(() => {
-    if (conversaAtiva) {
-      fetchMensagens(conversaAtiva.id);
-    }
-  }, [conversaAtiva, fetchMensagens]);
+    if (conversaAtiva) fetchMensagens(conversaAtiva.id);
+  }, [conversaAtiva]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens]);
 
-  // Poll for new messages when thread is open
+  // Poll new messages while thread is open
   useEffect(() => {
     if (!conversaAtiva) return;
-    const interval = setInterval(() => fetchMensagens(conversaAtiva.id), 15000);
-    return () => clearInterval(interval);
-  }, [conversaAtiva, fetchMensagens]);
+    const t = setInterval(() => fetchMensagens(conversaAtiva.id), 15_000);
+    return () => clearInterval(t);
+  }, [conversaAtiva]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Send ─────────────────────────────────────────────────────────
   async function enviar() {
     if (!texto.trim() || !conversaAtiva || enviando) return;
     setEnviando(true);
@@ -155,11 +161,11 @@ export function ChatGlobal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texto: texto.trim(), toUserId }),
       });
-      const d = await r.json();
-      if (d.data) {
+      if (r.ok) {
         setTexto("");
         await fetchMensagens(conversaAtiva.id);
         fetchConversas();
+        fetchNaoLidas();
       }
     } finally {
       setEnviando(false);
@@ -168,10 +174,7 @@ export function ChatGlobal() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      enviar();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
   }
 
   function openThread(id: "todos" | string, nome: string, photo: string | null) {
@@ -188,18 +191,29 @@ export function ChatGlobal() {
     fetchNaoLidas();
   }
 
-  // Load users for new conversation
+  function openPanel() {
+    setOpen(true);
+    setView("lista");
+    setConversaAtiva(null);
+  }
+
+  function closePanel() {
+    setOpen(false);
+    setView("lista");
+    setConversaAtiva(null);
+  }
+
+  // Load users for "Nova Mensagem"
   useEffect(() => {
-    if (view === "nova" && users.length === 0) {
-      fetch("/api/users?limit=100")
-        .then((r) => r.json())
-        .then((d) => {
-          const list = (d.data || []) as UserOption[];
-          setUsers(list.filter((u) => u.id !== currentUser?.id));
-        })
-        .catch(() => {});
-    }
-  }, [view, users.length, currentUser?.id]);
+    if (view !== "nova" || users.length > 0) return;
+    fetch("/api/users?limit=200")
+      .then((r) => r.json())
+      .then((d) => {
+        const list = (d.data || []) as UserOption[];
+        setUsers(list.filter((u) => u.id !== currentUser?.id && u.name !== "Suporte"));
+      })
+      .catch(() => {});
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredUsers = users.filter((u) =>
     u.name.toLowerCase().includes(userSearch.toLowerCase())
@@ -207,258 +221,248 @@ export function ChatGlobal() {
 
   if (!currentUser) return null;
 
+  // ── UI helpers ───────────────────────────────────────────────────
+  const totalBadge = naoLidas > 99 ? "99+" : String(naoLidas);
+
   return (
     <>
-      {/* Floating Button */}
+      {/* ── Floating Button ─────────────────────────────────────────── */}
       <button
-        onClick={() => { setOpen(true); setView("lista"); }}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[#03a4ed] text-white shadow-lg hover:bg-[#0288d1] transition-all hover:scale-105 flex items-center justify-center"
+        onClick={openPanel}
         title="Chat"
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center hover:scale-105 transition-all"
+        style={{ background: "var(--primary)" }}
       >
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
         {naoLidas > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#ff695f] text-white text-[11px] font-bold flex items-center justify-center">
-            {naoLidas > 99 ? "99+" : naoLidas}
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full text-white text-[11px] font-bold flex items-center justify-center" style={{ background: "var(--accent)" }}>
+            {totalBadge}
           </span>
         )}
       </button>
 
-      {/* Overlay */}
+      {/* ── Backdrop ────────────────────────────────────────────────── */}
       {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
-          onClick={() => { setOpen(false); setView("lista"); setConversaAtiva(null); }}
-        />
+        <div className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px]" onClick={closePanel} />
       )}
 
-      {/* Panel */}
+      {/* ── Panel ───────────────────────────────────────────────────── */}
       <div
-        className={`fixed top-0 right-0 h-full w-[380px] max-w-full z-50 bg-white shadow-2xl flex flex-col transition-transform duration-300 ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed top-0 right-0 h-full w-[380px] max-w-full z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}`}
+        style={{ background: "var(--surface)" }}
       >
-        {/* ─── HEADER ─── */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0 bg-gradient-to-r from-[#03a4ed] to-[#0288d1]">
-          {view === "thread" && (
-            <button onClick={backToList} className="text-white/80 hover:text-white transition-colors mr-1">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          )}
-          {view === "nova" && (
-            <button onClick={() => { setView("lista"); setUserSearch(""); }} className="text-white/80 hover:text-white transition-colors mr-1">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        {/* Header */}
+        <div
+          className="px-4 py-3.5 flex items-center gap-3 shrink-0"
+          style={{ background: `linear-gradient(135deg, var(--header-from), var(--header-to))` }}
+        >
+          {(view === "thread" || view === "nova") && (
+            <button
+              onClick={view === "nova" ? () => { setView("lista"); setUserSearch(""); } : backToList}
+              className="text-white/70 hover:text-white transition-colors shrink-0"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
           )}
 
           {view === "thread" && conversaAtiva ? (
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
               {conversaAtiva.id === "todos" ? (
-                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
+              ) : suporteData && conversaAtiva.id === suporteData.userId ? (
+                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white shrink-0 text-base">🤖</div>
               ) : (
                 <Avatar name={conversaAtiva.nome} photo={conversaAtiva.photo} />
               )}
-              <span className="font-semibold text-white truncate">{conversaAtiva.nome}</span>
+              <div className="min-w-0">
+                <p className="font-semibold text-white text-sm truncate">{conversaAtiva.nome}</p>
+                {suporteData && conversaAtiva.id === suporteData.userId && (
+                  <p className="text-white/60 text-[10px]">Agente virtual</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex-1">
-              <h2 className="font-bold text-white text-base">
-                {view === "nova" ? "Nova Mensagem" : "Chat"}
+              <h2 className="font-bold text-white text-base leading-none">
+                {view === "nova" ? "Nova mensagem" : "Chat"}
               </h2>
               {view === "lista" && naoLidas > 0 && (
-                <p className="text-white/70 text-xs">{naoLidas} nao lida{naoLidas > 1 ? "s" : ""}</p>
+                <p className="text-white/60 text-xs mt-0.5">{naoLidas} não lida{naoLidas !== 1 ? "s" : ""}</p>
               )}
             </div>
           )}
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {view === "lista" && (
               <button
                 onClick={() => { setView("nova"); setUserSearch(""); }}
-                title="Nova mensagem direta"
-                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+                title="Nova mensagem"
+                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </button>
             )}
             <button
-              onClick={() => { setOpen(false); setView("lista"); setConversaAtiva(null); }}
-              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+              onClick={closePanel}
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         </div>
 
-        {/* ─── LISTA DE CONVERSAS ─── */}
+        {/* ── LISTA ─────────────────────────────────────────────────── */}
         {view === "lista" && (
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" style={{ color: "var(--foreground)" }}>
             {/* Canal Todos */}
-            <button
-              onClick={() => openThread("todos", "Todos", null)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors border-b border-slate-50 text-left"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#03a4ed]/10 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-[#03a4ed]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-900 text-sm">Todos</span>
-                  {todosData?.lastCreatedAt && (
-                    <span className="text-[11px] text-slate-400 shrink-0">{fmtTime(todosData.lastCreatedAt)}</span>
-                  )}
+            <ConversaItem
+              icon={
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)" }}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "var(--primary)" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                 </div>
-                {todosData?.lastTexto && (
-                  <p className="text-xs text-slate-500 truncate mt-0.5">
-                    {todosData.lastFromUserName}: {todosData.lastTexto}
-                  </p>
-                )}
-                {!todosData?.lastTexto && (
-                  <p className="text-xs text-slate-400 mt-0.5">Canal para todos os usuarios</p>
-                )}
-              </div>
-              {(todosData?.naoLidas ?? 0) > 0 && (
-                <span className="shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-[#03a4ed] text-white text-[11px] font-bold flex items-center justify-center">
-                  {todosData!.naoLidas}
-                </span>
-              )}
-            </button>
+              }
+              nome="Todos"
+              sub={todosData?.lastTexto ? `${todosData.lastFromUserName}: ${todosData.lastTexto}` : "Canal geral da equipe"}
+              time={todosData?.lastCreatedAt ?? null}
+              naoLidas={todosData?.naoLidas ?? 0}
+              onClick={() => openThread("todos", "Todos", null)}
+            />
+
+            {/* Canal Suporte */}
+            {suporteData && (
+              <>
+                <div className="px-4 pt-3 pb-1">
+                  <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--text-subtle)" }}>Suporte</span>
+                </div>
+                <ConversaItem
+                  icon={
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)" }}>
+                      🤖
+                    </div>
+                  }
+                  nome="Suporte"
+                  sub={
+                    suporteData.lastTexto
+                      ? `${suporteData.lastFromUserId === currentUser.id ? "Você: " : ""}${suporteData.lastTexto}`
+                      : "Agente virtual — dúvidas sobre o sistema"
+                  }
+                  time={suporteData.lastCreatedAt}
+                  naoLidas={suporteData.naoLidas}
+                  onClick={() => openThread(suporteData.userId, "Suporte", null)}
+                />
+              </>
+            )}
 
             {/* DMs */}
-            {conversas.length === 0 && (
-              <div className="px-4 py-6 text-center">
-                <p className="text-xs text-slate-400">Nenhuma conversa direta ainda.</p>
+            {conversas.length > 0 && (
+              <div className="px-4 pt-3 pb-1">
+                <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--text-subtle)" }}>Mensagens diretas</span>
+              </div>
+            )}
+            {conversas.map((c) => (
+              <ConversaItem
+                key={c.otherUserId}
+                icon={<Avatar name={c.otherUserName} photo={c.otherUserPhoto} />}
+                nome={c.otherUserName}
+                sub={c.lastTexto ? `${c.lastFromUserId === currentUser.id ? "Você: " : ""}${c.lastTexto}` : ""}
+                time={c.lastCreatedAt}
+                naoLidas={c.naoLidas}
+                onClick={() => openThread(c.otherUserId, c.otherUserName, c.otherUserPhoto)}
+              />
+            ))}
+
+            {conversas.length === 0 && !suporteData && (
+              <div className="px-4 py-8 text-center">
+                <p className="text-sm" style={{ color: "var(--text-subtle)" }}>Nenhuma conversa ainda.</p>
                 <button
                   onClick={() => { setView("nova"); setUserSearch(""); }}
-                  className="mt-2 text-xs text-[#03a4ed] hover:underline"
+                  className="mt-2 text-sm font-medium hover:underline"
+                  style={{ color: "var(--primary)" }}
                 >
                   Iniciar conversa
                 </button>
               </div>
             )}
-
-            {conversas.map((c) => (
-              <button
-                key={c.otherUserId}
-                onClick={() => openThread(c.otherUserId, c.otherUserName, c.otherUserPhoto)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors border-b border-slate-50 text-left"
-              >
-                <Avatar name={c.otherUserName} photo={c.otherUserPhoto} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-900 text-sm truncate">{c.otherUserName}</span>
-                    {c.lastCreatedAt && (
-                      <span className="text-[11px] text-slate-400 shrink-0">{fmtTime(c.lastCreatedAt)}</span>
-                    )}
-                  </div>
-                  {c.lastTexto && (
-                    <p className={`text-xs truncate mt-0.5 ${c.naoLidas > 0 ? "font-medium text-slate-800" : "text-slate-500"}`}>
-                      {c.lastFromUserId === currentUser.id ? "Voce: " : ""}{c.lastTexto}
-                    </p>
-                  )}
-                </div>
-                {c.naoLidas > 0 && (
-                  <span className="shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-[#03a4ed] text-white text-[11px] font-bold flex items-center justify-center">
-                    {c.naoLidas}
-                  </span>
-                )}
-              </button>
-            ))}
           </div>
         )}
 
-        {/* ─── NOVA MENSAGEM (user picker) ─── */}
+        {/* ── NOVA MENSAGEM ─────────────────────────────────────────── */}
         {view === "nova" && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-4 pt-3 pb-2 border-b border-slate-100 shrink-0">
+            <div className="px-4 pt-3 pb-2 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
               <input
                 type="text"
-                placeholder="Buscar usuario..."
+                placeholder="Buscar usuário..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
                 autoFocus
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#03a4ed] bg-slate-50 placeholder:text-slate-400"
+                className="w-full px-3 py-2 text-sm rounded-xl outline-none transition"
+                style={{ border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
               />
             </div>
             <div className="flex-1 overflow-y-auto">
-              <button
-                onClick={() => openThread("todos", "Todos", null)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50"
-              >
-                <div className="w-9 h-9 rounded-full bg-[#03a4ed]/10 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-[#03a4ed]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Todos</p>
-                  <p className="text-xs text-slate-400">Mensagem para todos os usuarios</p>
-                </div>
-              </button>
-
               {filteredUsers.map((u) => (
                 <button
                   key={u.id}
                   onClick={() => openThread(u.id, u.name, u.photoUrl)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:opacity-80"
+                  style={{ borderBottom: "1px solid var(--border)" }}
                 >
                   <Avatar name={u.name} photo={u.photoUrl} size="sm" />
-                  <span className="text-sm font-medium text-slate-900">{u.name}</span>
+                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{u.name}</span>
                 </button>
               ))}
-
-              {filteredUsers.length === 0 && userSearch && (
-                <p className="text-xs text-slate-400 text-center py-8">Nenhum usuario encontrado.</p>
+              {filteredUsers.length === 0 && (
+                <p className="text-xs text-center py-8" style={{ color: "var(--text-subtle)" }}>Nenhum usuário encontrado.</p>
               )}
             </div>
           </div>
         )}
 
-        {/* ─── THREAD ─── */}
+        {/* ── THREAD ───────────────────────────────────────────────── */}
         {view === "thread" && (
           <>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ background: "var(--surface-2)" }}>
               {loadingMsgs ? (
-                <div className="flex justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+                <div className="flex justify-center py-10">
+                  <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--primary)", borderTopColor: "transparent" }} />
                 </div>
               ) : mensagens.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-8">Nenhuma mensagem ainda. Diga ola!</p>
+                <p className="text-xs text-center py-10" style={{ color: "var(--text-subtle)" }}>Nenhuma mensagem ainda.</p>
               ) : (
                 mensagens.map((m) => {
                   const isMine = m.fromUserId === currentUser.id;
                   return (
                     <div key={m.id} className={`flex gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-                      <Avatar name={m.fromUserName} photo={m.fromUserPhoto} size="sm" />
-                      <div className={`max-w-[75%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                      {!isMine && <Avatar name={m.fromUserName} photo={m.fromUserPhoto} size="sm" />}
+                      <div className={`max-w-[76%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
                         {!isMine && conversaAtiva?.id === "todos" && (
-                          <span className="text-[10px] text-slate-400 mb-1">{m.fromUserName}</span>
+                          <span className="text-[10px] mb-0.5 px-1" style={{ color: "var(--text-muted)" }}>{m.fromUserName}</span>
                         )}
                         <div
-                          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                            isMine
-                              ? "bg-[#03a4ed] text-white rounded-tr-sm"
-                              : "bg-slate-100 text-slate-800 rounded-tl-sm"
-                          }`}
+                          className="px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm"
+                          style={isMine
+                            ? { background: "var(--primary)", color: "#fff", borderTopRightRadius: 4 }
+                            : { background: "var(--surface)", color: "var(--foreground)", borderTopLeftRadius: 4, border: "1px solid var(--border)" }
+                          }
                         >
                           {m.texto}
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">{fmtTime(m.createdAt)}</span>
+                        <span className="text-[10px] mt-1 px-1" style={{ color: "var(--text-subtle)" }}>{fmtFull(m.createdAt)}</span>
                       </div>
                     </div>
                   );
@@ -467,7 +471,8 @@ export function ChatGlobal() {
               <div ref={msgEndRef} />
             </div>
 
-            <div className="shrink-0 px-4 pb-4 pt-2 border-t border-slate-100">
+            {/* Compose */}
+            <div className="shrink-0 px-3 py-3" style={{ borderTop: "1px solid var(--border)", background: "var(--surface)" }}>
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <textarea
@@ -477,13 +482,15 @@ export function ChatGlobal() {
                     onKeyDown={handleKeyDown}
                     placeholder="Mensagem... (Enter para enviar)"
                     rows={2}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl resize-none focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-slate-50 placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-sm rounded-xl resize-none outline-none transition"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
                   />
                 </div>
                 <button
                   onClick={enviar}
                   disabled={enviando || !texto.trim()}
-                  className="shrink-0 w-9 h-9 rounded-xl bg-[#03a4ed] text-white flex items-center justify-center hover:bg-[#0288d1] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="shrink-0 w-9 h-9 rounded-xl text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: "var(--primary)" }}
                 >
                   {enviando ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -499,5 +506,49 @@ export function ChatGlobal() {
         )}
       </div>
     </>
+  );
+}
+
+// ── Shared conversation row component ─────────────────────────────
+function ConversaItem({
+  icon, nome, sub, time, naoLidas, onClick,
+}: {
+  icon: React.ReactNode;
+  nome: string;
+  sub: string;
+  time: string | null;
+  naoLidas: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-opacity hover:opacity-75"
+      style={{ borderBottom: "1px solid var(--border)" }}
+    >
+      {icon}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold text-sm truncate" style={{ color: "var(--foreground)" }}>{nome}</span>
+          {time && <span className="text-[10px] shrink-0" style={{ color: "var(--text-subtle)" }}>{fmtTime(time)}</span>}
+        </div>
+        {sub && (
+          <p
+            className={`text-xs truncate mt-0.5 ${naoLidas > 0 ? "font-semibold" : ""}`}
+            style={{ color: naoLidas > 0 ? "var(--foreground)" : "var(--text-muted)" }}
+          >
+            {sub}
+          </p>
+        )}
+      </div>
+      {naoLidas > 0 && (
+        <span
+          className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full text-white text-[11px] font-bold flex items-center justify-center"
+          style={{ background: "var(--primary)" }}
+        >
+          {naoLidas}
+        </span>
+      )}
+    </button>
   );
 }
