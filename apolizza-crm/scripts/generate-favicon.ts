@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
 const SIZE = 512;
-const PADDING = 72;
+const PADDING = 30;
 const LOGO_SIZE = SIZE - PADDING * 2;
 
 // Logo gradient colors (coral-orange top-right → yellow center → lime-green bottom-left)
@@ -67,9 +67,15 @@ async function main() {
     if (isBackground || a < 10) {
       cleanData[i] = cleanData[i + 1] = cleanData[i + 2] = cleanData[i + 3] = 0;
     } else {
-      cleanData[i]     = r;
-      cleanData[i + 1] = g;
-      cleanData[i + 2] = b;
+      // Boost saturation: push each channel away from its grey point
+      const avg = (r + g + b) / 3;
+      const SAT = 2.2; // saturation multiplier
+      const vr = Math.min(255, Math.max(0, Math.round(avg + (r - avg) * SAT)));
+      const vg = Math.min(255, Math.max(0, Math.round(avg + (g - avg) * SAT)));
+      const vb = Math.min(255, Math.max(0, Math.round(avg + (b - avg) * SAT)));
+      cleanData[i]     = vr;
+      cleanData[i + 1] = vg;
+      cleanData[i + 2] = vb;
       cleanData[i + 3] = a;
     }
   }
