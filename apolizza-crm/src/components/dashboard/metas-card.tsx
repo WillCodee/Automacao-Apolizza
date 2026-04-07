@@ -1,9 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 type Meta = {
   id: string;
+  userId: string | null;
   ano: number;
   mes: number;
   metaValor: string | null;
@@ -17,6 +28,55 @@ type KPIs = {
   totalAReceber: number;
 };
 
+function GaugeChart({
+  pct,
+  label,
+  current,
+  goal,
+  color,
+}: {
+  pct: number;
+  label: string;
+  current: string;
+  goal: string;
+  color: string;
+}) {
+  const safe = Math.min(Math.max(pct, 0), 100);
+  const remaining = 100 - safe;
+
+  const data = {
+    datasets: [
+      {
+        data: [safe, remaining],
+        backgroundColor: [color, "#f1f5f9"],
+        borderWidth: 0,
+        circumference: 180,
+        rotation: 270,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: "72%",
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-28 h-14">
+        <Doughnut data={data} options={options} />
+        <div className="absolute inset-0 flex items-end justify-center pb-1">
+          <span className="text-base font-bold text-slate-800">{safe.toFixed(0)}%</span>
+        </div>
+      </div>
+      <p className="text-[11px] font-semibold text-slate-600 mt-1">{label}</p>
+      <p className="text-[10px] text-slate-400">{current} / {goal}</p>
+    </div>
+  );
+}
+
 export function MetasCard({
   kpis,
   ano,
@@ -27,8 +87,6 @@ export function MetasCard({
   isAdmin: boolean;
 }) {
   const [metas, setMetas] = useState<Meta[]>([]);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ metaValor: "", metaQtdCotacoes: "" });
   const mesAtual = new Date().getMonth() + 1;
 
   useEffect(() => {
@@ -37,128 +95,104 @@ export function MetasCard({
       .then((d) => setMetas(d.data || []));
   }, [ano]);
 
-  const metaMesAtual = metas.find((m) => m.mes === mesAtual);
-  const metaValor = metaMesAtual?.metaValor ? parseFloat(metaMesAtual.metaValor) : null;
-  const metaQtd = metaMesAtual?.metaQtdCotacoes ?? null;
+  // Meta global da empresa (userId = null)
+  const metaEmpresa = metas.find((m) => m.mes === mesAtual && m.userId === null);
+  const metaValor = metaEmpresa?.metaValor ? parseFloat(metaEmpresa.metaValor) : null;
+  const metaQtd = metaEmpresa?.metaQtdCotacoes ?? null;
+  const metaRenovacoes = metaEmpresa?.metaRenovacoes ?? null;
 
-  const pctValor = metaValor && metaValor > 0 ? Math.min((kpis.totalAReceber / metaValor) * 100, 100) : null;
-  const pctQtd = metaQtd && metaQtd > 0 ? Math.min((kpis.fechadas / metaQtd) * 100, 100) : null;
+  const pctValor = metaValor && metaValor > 0 ? (kpis.totalAReceber / metaValor) * 100 : null;
+  const pctQtd = metaQtd && metaQtd > 0 ? (kpis.fechadas / metaQtd) * 100 : null;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtK = (v: number) =>
+    v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : fmt(v);
 
-  async function saveMeta() {
-    await fetch("/api/metas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ano,
-        mes: mesAtual,
-        metaValor: form.metaValor ? Number(form.metaValor) : null,
-        metaQtdCotacoes: form.metaQtdCotacoes ? Number(form.metaQtdCotacoes) : null,
-      }),
-    });
-    const r = await fetch(`/api/metas?ano=${ano}`);
-    const d = await r.json();
-    setMetas(d.data || []);
-    setEditing(false);
-  }
+  const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+  const temMeta = pctValor !== null || pctQtd !== null;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-900">
-          Metas ({mesAtual}/{ano})
-        </h3>
-        {isAdmin && !editing && (
-          <button
-            onClick={() => {
-              setForm({
-                metaValor: metaValor?.toString() || "",
-                metaQtdCotacoes: metaQtd?.toString() || "",
-              });
-              setEditing(true);
-            }}
-            className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium"
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">
+            Metas da Empresa
+          </h3>
+          <p className="text-xs text-slate-400">{MESES[mesAtual - 1]}/{ano}</p>
+        </div>
+        {isAdmin && (
+          <Link
+            href="/administracao/metas"
+            className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium flex items-center gap-1"
           >
-            Editar
-          </button>
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Gerenciar
+          </Link>
         )}
       </div>
 
-      {editing ? (
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-slate-500">Meta Faturamento (R$)</label>
-            <input
-              type="number"
-              value={form.metaValor}
-              onChange={(e) => setForm({ ...form, metaValor: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none"
-              placeholder="Ex: 50000"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500">Meta Qtd Fechadas</label>
-            <input
-              type="number"
-              value={form.metaQtdCotacoes}
-              onChange={(e) => setForm({ ...form, metaQtdCotacoes: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none"
-              placeholder="Ex: 20"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={saveMeta} className="px-3 py-1.5 text-white text-sm rounded-lg bg-[#03a4ed] hover:bg-[#0288d1]">
-              Salvar
-            </button>
-            <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-slate-600 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
-              Cancelar
-            </button>
-          </div>
+      {!temMeta ? (
+        <div className="py-6 text-center">
+          <p className="text-sm text-slate-400">
+            {isAdmin ? (
+              <>Nenhuma meta definida.{" "}
+                <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">
+                  Definir metas →
+                </Link>
+              </>
+            ) : "Nenhuma meta definida."}
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {pctValor !== null && (
-            <div>
-              <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                <span>Faturamento</span>
-                <span className="font-medium">{fmt(kpis.totalAReceber)} / {fmt(metaValor!)}</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5">
-                <div
-                  className={`h-2.5 rounded-full transition-all duration-500 ${
-                    pctValor >= 100 ? "bg-emerald-500" : pctValor >= 50 ? "bg-[#03a4ed]" : "bg-amber-400"
-                  }`}
-                  style={{ width: `${pctValor}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 mt-1">{pctValor.toFixed(1)}% da meta</p>
-            </div>
-          )}
+        <div className="space-y-3">
+          {/* Gráficos semicirculares */}
+          <div className="flex justify-around pt-1">
+            {pctValor !== null && (
+              <GaugeChart
+                pct={pctValor}
+                label="Faturamento"
+                current={fmtK(kpis.totalAReceber)}
+                goal={fmtK(metaValor!)}
+                color={pctValor >= 100 ? "#10b981" : pctValor >= 50 ? "#03a4ed" : "#f59e0b"}
+              />
+            )}
+            {pctQtd !== null && (
+              <GaugeChart
+                pct={pctQtd}
+                label="Fechadas"
+                current={String(kpis.fechadas)}
+                goal={String(metaQtd)}
+                color={pctQtd >= 100 ? "#10b981" : pctQtd >= 50 ? "#8b5cf6" : "#f97316"}
+              />
+            )}
+            {metaRenovacoes && (
+              <GaugeChart
+                pct={0}
+                label="Renovações"
+                current="—"
+                goal={String(metaRenovacoes)}
+                color="#94a3b8"
+              />
+            )}
+          </div>
 
-          {pctQtd !== null && (
-            <div>
-              <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                <span>Fechadas</span>
-                <span className="font-medium">{kpis.fechadas} / {metaQtd}</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5">
-                <div
-                  className={`h-2.5 rounded-full transition-all duration-500 ${
-                    pctQtd >= 100 ? "bg-emerald-500" : pctQtd >= 50 ? "bg-[#03a4ed]" : "bg-amber-400"
-                  }`}
-                  style={{ width: `${pctQtd}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 mt-1">{pctQtd.toFixed(1)}% da meta</p>
-            </div>
-          )}
-
-          {pctValor === null && pctQtd === null && (
-            <p className="text-sm text-slate-400 text-center py-4">
-              {isAdmin ? 'Clique em "Editar" para definir metas.' : "Nenhuma meta definida."}
-            </p>
-          )}
+          {/* Legenda de status */}
+          <div className="flex justify-center gap-3 flex-wrap pt-1">
+            {[
+              { label: "Atingida", color: "#10b981" },
+              { label: "Em progresso", color: "#03a4ed" },
+              { label: "Abaixo", color: "#f59e0b" },
+            ].map((l) => (
+              <span key={l.label} className="flex items-center gap-1 text-[10px] text-slate-500">
+                <span className="w-2 h-2 rounded-full" style={{ background: l.color }} />
+                {l.label}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>
