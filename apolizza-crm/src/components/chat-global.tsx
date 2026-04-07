@@ -96,7 +96,7 @@ export function ChatGlobal() {
     return () => clearInterval(interval);
   }, [fetchNaoLidas]);
 
-  // Load conversations list when panel opens
+  // Load conversations list whenever lista is visible
   const fetchConversas = useCallback(async () => {
     try {
       const r = await fetch("/api/chat");
@@ -112,7 +112,7 @@ export function ChatGlobal() {
     if (open && view === "lista") {
       fetchConversas();
     }
-  }, [open, view, fetchConversas]);
+  }, [open, view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load messages for active thread
   const fetchMensagens = useCallback(async (conversaId: string) => {

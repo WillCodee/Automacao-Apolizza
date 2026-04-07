@@ -12,75 +12,80 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
 
-    // Broadcast conversation ("Todos")
-    const broadcastResult = await db.execute(sql`
+    // ── Broadcast conversation ("Todos") ──────────────────────────────
+    const broadcastLast = await db.execute(sql`
       SELECT
-        m.id,
-        m.texto,
-        m.created_at as "createdAt",
-        m.from_user_id as "fromUserId",
-        u.name as "fromUserName",
-        u.photo_url as "fromUserPhoto",
-        COUNT(CASE WHEN
-          m.from_user_id != ${user.id}
-          AND NOT EXISTS (SELECT 1 FROM chat_leituras l WHERE l.mensagem_id = m.id AND l.user_id = ${user.id})
-        THEN 1 END)::int as "naoLidas"
-      FROM chat_mensagens m
-      JOIN users u ON u.id = m.from_user_id
-      WHERE m.to_user_id IS NULL
-      ORDER BY m.created_at DESC
+        cm.id,
+        cm.texto,
+        cm.created_at as "createdAt",
+        u.name as "fromUserName"
+      FROM chat_mensagens cm
+      JOIN users u ON u.id = cm.from_user_id
+      WHERE cm.to_user_id IS NULL
+      ORDER BY cm.created_at DESC
       LIMIT 1
     `);
 
-    const naoLidasBroadcast = await db.execute(sql`
-      SELECT COUNT(*)::int as count
-      FROM chat_mensagens m
-      WHERE m.to_user_id IS NULL
-        AND m.from_user_id != ${user.id}
-        AND NOT EXISTS (SELECT 1 FROM chat_leituras l WHERE l.mensagem_id = m.id AND l.user_id = ${user.id})
+    const broadcastNaoLidas = await db.execute(sql`
+      SELECT COUNT(cm.id)::int as count
+      FROM chat_mensagens cm
+      WHERE cm.to_user_id IS NULL
+        AND cm.from_user_id != ${user.id}
+        AND NOT EXISTS (
+          SELECT 1 FROM chat_leituras cl
+          WHERE cl.mensagem_id = cm.id AND cl.user_id = ${user.id}
+        )
     `);
 
-    // Direct conversations
+    // ── Direct conversations ──────────────────────────────────────────
     const directResult = await db.execute(sql`
       SELECT
-        other_user_id as "otherUserId",
+        sub.other_user_id as "otherUserId",
         u.name as "otherUserName",
         u.photo_url as "otherUserPhoto",
-        last_texto as "lastTexto",
-        last_created_at as "lastCreatedAt",
-        last_from_user_id as "lastFromUserId",
-        nao_lidas as "naoLidas"
+        sub.last_texto as "lastTexto",
+        sub.last_created_at as "lastCreatedAt",
+        sub.last_from_user_id as "lastFromUserId",
+        sub.nao_lidas as "naoLidas"
       FROM (
         SELECT
-          CASE WHEN from_user_id = ${user.id} THEN to_user_id ELSE from_user_id END as other_user_id,
-          (array_agg(texto ORDER BY created_at DESC))[1] as last_texto,
-          MAX(created_at) as last_created_at,
-          (array_agg(from_user_id ORDER BY created_at DESC))[1] as last_from_user_id,
+          CASE WHEN cm.from_user_id = ${user.id}
+            THEN cm.to_user_id
+            ELSE cm.from_user_id
+          END as other_user_id,
+          (array_agg(cm.texto ORDER BY cm.created_at DESC))[1] as last_texto,
+          MAX(cm.created_at) as last_created_at,
+          (array_agg(cm.from_user_id ORDER BY cm.created_at DESC))[1] as last_from_user_id,
           COUNT(CASE WHEN
-            from_user_id != ${user.id}
-            AND NOT EXISTS (SELECT 1 FROM chat_leituras l WHERE l.mensagem_id = id AND l.user_id = ${user.id})
+            cm.from_user_id != ${user.id}
+            AND NOT EXISTS (
+              SELECT 1 FROM chat_leituras cl
+              WHERE cl.mensagem_id = cm.id AND cl.user_id = ${user.id}
+            )
           THEN 1 END)::int as nao_lidas
-        FROM chat_mensagens
-        WHERE to_user_id IS NOT NULL
-          AND (from_user_id = ${user.id} OR to_user_id = ${user.id})
-        GROUP BY CASE WHEN from_user_id = ${user.id} THEN to_user_id ELSE from_user_id END
+        FROM chat_mensagens cm
+        WHERE cm.to_user_id IS NOT NULL
+          AND (cm.from_user_id = ${user.id} OR cm.to_user_id = ${user.id})
+        GROUP BY
+          CASE WHEN cm.from_user_id = ${user.id}
+            THEN cm.to_user_id
+            ELSE cm.from_user_id
+          END
       ) sub
-      JOIN users u ON u.id = other_user_id
-      ORDER BY last_created_at DESC
+      JOIN users u ON u.id = sub.other_user_id
+      ORDER BY sub.last_created_at DESC
     `);
 
-    const lastBroadcast = broadcastResult.rows[0] as Record<string, unknown> | undefined;
-    const broadcastCount = Number((naoLidasBroadcast.rows[0] as Record<string, unknown>).count ?? 0);
+    const lastBroadcast = broadcastLast.rows[0] as Record<string, unknown> | undefined;
+    const broadcastCount = Number((broadcastNaoLidas.rows[0] as Record<string, unknown>).count ?? 0);
 
     return apiSuccess({
-      todos: lastBroadcast
-        ? {
-            lastTexto: lastBroadcast.texto,
-            lastCreatedAt: lastBroadcast.createdAt,
-            lastFromUserName: lastBroadcast.fromUserName,
-            naoLidas: broadcastCount,
-          }
-        : { lastTexto: null, lastCreatedAt: null, lastFromUserName: null, naoLidas: 0 },
+      todos: {
+        lastTexto: lastBroadcast?.texto ?? null,
+        lastCreatedAt: lastBroadcast?.createdAt ?? null,
+        lastFromUserName: lastBroadcast?.fromUserName ?? null,
+        naoLidas: broadcastCount,
+      },
       diretas: directResult.rows,
     });
   } catch (error) {
