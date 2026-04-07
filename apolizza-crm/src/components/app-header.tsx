@@ -14,7 +14,10 @@ type ActivePage =
   | "renovacoes"
   | "relatorios"
   | "calendario"
-  | "tarefas";
+  | "tarefas"
+  | "tema"
+  | "metas-admin"
+  | "notificacoes";
 
 type AppHeaderProps = {
   userName: string;
@@ -24,8 +27,6 @@ type AppHeaderProps = {
 
 type NavItem = { href: string; label: string; key: string; icon: React.ReactNode };
 type NavGroup = { label: string; key: string; items: NavItem[] };
-
-// ─── Dropdown group (button + panel in the same ref) ─────────────────────────
 
 function DropdownGroup({
   group,
@@ -43,7 +44,6 @@ function DropdownGroup({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const isGroupActive = group.items.some((i) => i.key === activePage);
 
-  // Close when clicking outside the entire wrapper (button + panel)
   const handleOutside = useCallback(
     (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -54,15 +54,12 @@ function DropdownGroup({
   );
 
   useEffect(() => {
-    if (isOpen) {
-      document.addEventListener("mousedown", handleOutside);
-    }
+    if (isOpen) document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [isOpen, handleOutside]);
 
   return (
     <div ref={wrapperRef} className="relative">
-      {/* Trigger button — click always toggles, never conflicts with outside handler */}
       <button
         onClick={onToggle}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all select-none ${
@@ -74,16 +71,12 @@ function DropdownGroup({
         {group.label}
         <svg
           className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
-      {/* Dropdown panel */}
       {isOpen && (
         <div className="absolute top-full left-0 mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50">
           {group.items.map((item) => {
@@ -112,6 +105,72 @@ function DropdownGroup({
   );
 }
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
+const IconList = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+const IconPlus = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
+const IconRefresh = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
+const IconTasks = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+  </svg>
+);
+const IconCalendar = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+const IconChart = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+const IconUsers = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+  </svg>
+);
+const IconGear = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+const IconTag = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+  </svg>
+);
+const IconPalette = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+  </svg>
+);
+const IconTarget = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="12" cy="12" r="6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="12" cy="12" r="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconBell = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+);
+
 // ─── Main Header ──────────────────────────────────────────────────────────────
 
 export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
@@ -127,62 +186,17 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
       label: "Cotações",
       key: "cotacoes-group",
       items: [
-        {
-          href: "/cotacoes",
-          label: "Lista de Cotações",
-          key: "cotacoes",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          ),
-        },
-        {
-          href: "/cotacoes/new",
-          label: "Nova Cotação",
-          key: "new",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          ),
-        },
-        {
-          href: "/renovacoes",
-          label: "Renovações",
-          key: "renovacoes",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          ),
-        },
+        { href: "/cotacoes", label: "Lista de Cotações", key: "cotacoes", icon: IconList },
+        { href: "/cotacoes/new", label: "Nova Cotação", key: "new", icon: IconPlus },
+        { href: "/renovacoes", label: "Renovações", key: "renovacoes", icon: IconRefresh },
       ],
     },
     {
       label: "Operações",
       key: "operacoes-group",
       items: [
-        {
-          href: "/tarefas",
-          label: "Tarefas",
-          key: "tarefas",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-          ),
-        },
-        {
-          href: "/calendario",
-          label: "Calendário",
-          key: "calendario",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          ),
-        },
+        { href: "/tarefas", label: "Tarefas", key: "tarefas", icon: IconTasks },
+        { href: "/calendario", label: "Calendário", key: "calendario", icon: IconCalendar },
       ],
     },
   ];
@@ -192,47 +206,20 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
       label: "Administração",
       key: "admin-group",
       items: [
-        {
-          href: "/relatorios",
-          label: "Relatórios",
-          key: "relatorios",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          ),
-        },
-        {
-          href: "/usuarios",
-          label: "Usuários",
-          key: "usuarios",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          ),
-        },
-        {
-          href: "/status-config",
-          label: "Config. Status",
-          key: "status-config",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          ),
-        },
-        {
-          href: "/situacao-config",
-          label: "Config. Situação",
-          key: "situacao-config",
-          icon: (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-          ),
-        },
+        { href: "/relatorios", label: "Relatórios", key: "relatorios", icon: IconChart },
+        { href: "/administracao/metas", label: "Cadastro de Metas", key: "metas-admin", icon: IconTarget },
+        { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell },
+      ],
+    });
+
+    groups.push({
+      label: "Configurações",
+      key: "config-group",
+      items: [
+        { href: "/situacao-config", label: "Config. Situação", key: "situacao-config", icon: IconTag },
+        { href: "/status-config", label: "Config. Status", key: "status-config", icon: IconGear },
+        { href: "/usuarios", label: "Usuários", key: "usuarios", icon: IconUsers },
+        { href: "/configuracoes/tema", label: "Tema", key: "tema", icon: IconPalette },
       ],
     });
   }
@@ -246,40 +233,27 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
           <div className="flex items-center gap-6">
             <Link href="/inicio" className="flex items-center flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo-apolizza-fundo.png"
-                alt="Apolizza"
-                className="h-10 w-auto object-contain"
-              />
+              <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
             </Link>
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
-              {/* Início */}
               <Link
                 href="/inicio"
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activePage === "inicio"
-                    ? "bg-white/15 text-white"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 Início
               </Link>
-
-              {/* Dashboard — standalone */}
               <Link
                 href="/dashboard"
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activePage === "dashboard"
-                    ? "bg-white/15 text-white"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 Dashboard
               </Link>
-
-              {/* Dropdown groups */}
               {groups.map((group) => (
                 <DropdownGroup
                   key={group.key}
@@ -301,16 +275,13 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-white leading-tight">{userName}</p>
-                <p className={`text-xs leading-tight ${
-                  userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"
-                }`}>
+                <p className={`text-xs leading-tight ${userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"}`}>
                   {userRole}
                 </p>
               </div>
             </div>
             <SignOutButton />
 
-            {/* Hamburger — mobile only */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -334,39 +305,20 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-white/10">
           <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
-            {/* Início */}
-            <Link
-              href="/inicio"
-              onClick={() => setMobileMenuOpen(false)}
+            <Link href="/inicio" onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                activePage === "inicio"
-                  ? "bg-white/15 text-white"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
+                activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
               Início
             </Link>
-
-            {/* Dashboard */}
-            <Link
-              href="/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
+            <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                activePage === "dashboard"
-                  ? "bg-white/15 text-white"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
+                activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
               Dashboard
             </Link>
-
-            {/* Groups */}
             {groups.map((group) => (
               <div key={group.key}>
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest">
@@ -375,14 +327,9 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
                 {group.items.map((item) => {
                   const isActive = activePage === item.key;
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
+                    <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                        isActive
-                          ? "bg-white/15 text-white"
-                          : "text-slate-300 hover:bg-white/10 hover:text-white"
+                        isActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                       }`}
                     >
                       {item.icon}

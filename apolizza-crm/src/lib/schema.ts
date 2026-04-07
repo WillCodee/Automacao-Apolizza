@@ -452,6 +452,40 @@ export const grupoMembros = pgTable("grupo_membros", {
 ]);
 
 // ============================================================
+// CHAT GLOBAL
+// ============================================================
+
+export const chatMensagens = pgTable(
+  "chat_mensagens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    fromUserId: uuid("from_user_id").notNull().references(() => users.id),
+    toUserId: uuid("to_user_id").references(() => users.id), // null = broadcast (Todos)
+    texto: text("texto").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("chat_mensagens_from_idx").on(table.fromUserId),
+    index("chat_mensagens_to_idx").on(table.toUserId),
+    index("chat_mensagens_created_idx").on(table.createdAt),
+  ]
+);
+
+export const chatLeituras = pgTable(
+  "chat_leituras",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    mensagemId: uuid("mensagem_id").notNull().references(() => chatMensagens.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    lidaEm: timestamp("lida_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("chat_leituras_unique").on(table.mensagemId, table.userId),
+    index("chat_leituras_user_idx").on(table.userId),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 

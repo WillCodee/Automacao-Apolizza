@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
-import { UsersList } from "@/components/users-list";
+import { UsuariosPageClient } from "@/components/usuarios-page-client";
 
 export default async function UsuariosPage() {
   const session = await auth();
@@ -15,8 +15,8 @@ export default async function UsuariosPage() {
         userRole={session.user.role}
         activePage="usuarios"
       />
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <UsersList />
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        <UsuariosPageClient />
       </main>
     </div>
   );
