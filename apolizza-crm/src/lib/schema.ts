@@ -400,6 +400,58 @@ export const tarefasChecklist = pgTable(
 );
 
 // ============================================================
+// COTACAO_MENSAGENS
+// ============================================================
+
+export const cotacaoMensagens = pgTable(
+  "cotacao_mensagens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    cotacaoId: uuid("cotacao_id")
+      .notNull()
+      .references(() => cotacoes.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    texto: text("texto").notNull(),
+    imageUrl: text("image_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("cotacao_mensagens_cotacao_idx").on(table.cotacaoId),
+    index("cotacao_mensagens_created_idx").on(table.createdAt),
+  ]
+);
+
+// ============================================================
+// GRUPOS DE USUARIOS
+// ============================================================
+
+export const gruposUsuarios = pgTable("grupos_usuarios", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nome: varchar("nome", { length: 100 }).notNull(),
+  descricao: text("descricao"),
+  cor: varchar("cor", { length: 7 }).notNull().default("#03a4ed"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  uniqueIndex("grupos_usuarios_nome_idx").on(table.nome),
+]);
+
+export const grupoMembros = pgTable("grupo_membros", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  grupoId: uuid("grupo_id").notNull().references(() => gruposUsuarios.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("grupo_membros_unique_idx").on(table.grupoId, table.userId),
+  index("grupo_membros_grupo_idx").on(table.grupoId),
+  index("grupo_membros_user_idx").on(table.userId),
+]);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 
@@ -420,6 +472,18 @@ export const cotacoesRelations = relations(cotacoes, ({ one, many }) => ({
   }),
   docs: many(cotacaoDocs),
   history: many(cotacaoHistory),
+  mensagens: many(cotacaoMensagens),
+}));
+
+export const cotacaoMensagensRelations = relations(cotacaoMensagens, ({ one }) => ({
+  cotacao: one(cotacoes, {
+    fields: [cotacaoMensagens.cotacaoId],
+    references: [cotacoes.id],
+  }),
+  user: one(users, {
+    fields: [cotacaoMensagens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const cotacaoDocsRelations = relations(cotacaoDocs, ({ one }) => ({
@@ -513,4 +577,13 @@ export const tarefasAtividadesRelations = relations(tarefasAtividades, ({ one })
     fields: [tarefasAtividades.usuarioId],
     references: [users.id],
   }),
+}));
+
+export const gruposUsuariosRelations = relations(gruposUsuarios, ({ many }) => ({
+  membros: many(grupoMembros),
+}));
+
+export const grupoMembrosRelations = relations(grupoMembros, ({ one }) => ({
+  grupo: one(gruposUsuarios, { fields: [grupoMembros.grupoId], references: [gruposUsuarios.id] }),
+  user: one(users, { fields: [grupoMembros.userId], references: [users.id] }),
 }));

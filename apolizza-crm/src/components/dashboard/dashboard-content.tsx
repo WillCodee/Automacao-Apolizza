@@ -7,6 +7,7 @@ import { MonthlyChart } from "./monthly-chart";
 import { CotadoresTable } from "./cotadores-table";
 import { RecentCotacoes } from "./recent-cotacoes";
 import { MetasCard } from "./metas-card";
+import { MES_OPTIONS, ANO_OPTIONS } from "@/lib/constants";
 
 type DashboardData = {
   kpis: {
@@ -27,20 +28,27 @@ type DashboardData = {
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ano, setAno] = useState(String(new Date().getFullYear()));
+  const [mes, setMes] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (dateFrom) params.set("dateFrom", dateFrom);
-    if (dateTo) params.set("dateTo", dateTo);
+    if (dateFrom) {
+      params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+    } else {
+      if (ano) params.set("ano", ano);
+      if (mes) params.set("mes", mes);
+    }
 
     const res = await fetch(`/api/dashboard?${params}`);
     const json = await res.json();
     setData(json.data);
     setLoading(false);
-  }, [dateFrom, dateTo]);
+  }, [ano, mes, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchDashboard();
@@ -50,6 +58,30 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" }
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
+        {/* Ano / Mês */}
+        <select
+          value={ano}
+          onChange={(e) => { setAno(e.target.value); setDateFrom(""); setDateTo(""); }}
+          className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+        >
+          {ANO_OPTIONS.map((a) => (
+            <option key={a} value={String(a)}>{a}</option>
+          ))}
+        </select>
+        <select
+          value={mes}
+          onChange={(e) => { setMes(e.target.value); setDateFrom(""); setDateTo(""); }}
+          className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+        >
+          <option value="">Todos os meses</option>
+          {MES_OPTIONS.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+
+        <span className="text-xs text-slate-400 font-medium">|</span>
+
+        {/* Date range */}
         <span className="text-sm text-slate-500 font-medium whitespace-nowrap">De:</span>
         <input
           type="date"
@@ -96,7 +128,7 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" }
             <div className="space-y-6">
               <MetasCard
                 kpis={data.kpis}
-                ano={dateFrom ? new Date(dateFrom).getFullYear() : new Date().getFullYear()}
+                ano={dateFrom ? new Date(dateFrom).getFullYear() : (ano ? Number(ano) : new Date().getFullYear())}
                 isAdmin={userRole === "admin"}
               />
               <StatusBreakdown data={data.statusBreakdown} />

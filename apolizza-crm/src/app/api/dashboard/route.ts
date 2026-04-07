@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
     const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
+    const ano = searchParams.get("ano");           // e.g. "2026"
+    const mes = searchParams.get("mes");           // e.g. "JAN"
     const isCotador = user.role === "cotador";
 
     let anoFilter = sql``;
@@ -25,15 +27,16 @@ export async function GET(req: NextRequest) {
 
       if (dateTo) {
         const dTo = new Date(dateTo);
-        // Se dateFrom e dateTo estiverem em meses/anos diferentes, remove filtro de mês
         if (dFrom.getMonth() !== dTo.getMonth() || dFrom.getFullYear() !== dTo.getFullYear()) {
           mesFilter = sql``;
-          // Se anos diferentes, remove filtro de ano também
           if (dFrom.getFullYear() !== dTo.getFullYear()) {
             anoFilter = sql``;
           }
         }
       }
+    } else if (ano) {
+      anoFilter = sql`and ano = ${Number(ano)}`;
+      if (mes) mesFilter = sql`and mes = ${mes}`;
     }
 
     const userFilter = isCotador ? sql`and assignee_id = ${user.id}` : sql``;
