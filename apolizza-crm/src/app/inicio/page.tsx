@@ -18,6 +18,7 @@ export default async function InicioPage() {
         userName={session.user.name || ""}
         userRole={session.user.role}
         userImage={session.user.image ?? null}
+        userId={session.user.id}
       />
     </div>
   );

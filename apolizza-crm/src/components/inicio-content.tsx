@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { STATUS_BADGES } from "@/lib/status-config";
 import { STATUS_OPTIONS, PRODUTO_OPTIONS } from "@/lib/constants";
 
@@ -280,11 +282,18 @@ export function InicioContent({
   userName,
   userRole,
   userImage,
+  userId,
 }: {
   userName: string;
   userRole: "admin" | "cotador" | "proprietario";
   userImage?: string | null;
+  userId: string;
 }) {
+  const router = useRouter();
+  const { update: updateSession } = useSession();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentImage, setCurrentImage] = useState<string | null>(userImage ?? null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [data, setData] = useState<InicioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -310,6 +319,26 @@ export function InicioContent({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      const res = await fetch(`/api/users/${userId}/photo`, { method: "POST", body: form });
+      const data = await res.json();
+      if (data.data?.photoUrl) {
+        setCurrentImage(data.data.photoUrl);
+        await updateSession({ image: data.data.photoUrl });
+        router.refresh();
+      }
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleUpdateTarefaStatus = async (id: string, status: string) => {
     await fetch(`/api/tarefas/${id}`, {
@@ -339,16 +368,41 @@ export function InicioContent({
       {/* Greeting */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm bg-[#03a4ed]/10 flex items-center justify-center">
-            {userImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={userImage} alt={userName} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xl font-bold text-[#03a4ed]">
-                {userName.charAt(0).toUpperCase()}
-              </span>
-            )}
+          {/* Avatar clicável para trocar foto */}
+          <div className="relative group flex-shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              title="Clique para alterar sua foto"
+              className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white shadow-sm bg-[#03a4ed]/10 flex items-center justify-center relative focus:outline-none focus:ring-2 focus:ring-[#03a4ed]"
+            >
+              {uploadingPhoto ? (
+                <span className="w-5 h-5 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+              ) : currentImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={currentImage} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl font-bold text-[#03a4ed]">
+                  {userName.charAt(0).toUpperCase()}
+                </span>
+              )}
+              {/* Overlay ao hover */}
+              {!uploadingPhoto && (
+                <span className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </span>
+              )}
+            </button>
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{greeting(userName)}</h1>

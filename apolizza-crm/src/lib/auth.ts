@@ -53,11 +53,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: string }).role;
         token.image = user.image ?? null;
+      }
+      // Refresh photo from DB when session is updated
+      if (trigger === "update" && session?.image !== undefined) {
+        token.image = session.image;
       }
       return token;
     },
