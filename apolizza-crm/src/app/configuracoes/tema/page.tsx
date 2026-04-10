@@ -6,7 +6,7 @@ import { ThemeSelector } from "@/components/theme-selector";
 export default async function TemaPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "admin") redirect("/dashboard");
+  // Tema disponível para todos os usuários autenticados
 
   return (
     <div className="min-h-screen bg-slate-50">

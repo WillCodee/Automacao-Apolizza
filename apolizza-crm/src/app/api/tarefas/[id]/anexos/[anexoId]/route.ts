@@ -35,7 +35,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     }
 
     // Verificar permissão (apenas criador do anexo ou admin)
-    if (user.role !== "admin" && anexo.usuarioId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && anexo.usuarioId !== user.id) {
       return apiError(
         "Sem permissão para remover este anexo. Apenas o criador ou um administrador pode removê-lo.",
         403

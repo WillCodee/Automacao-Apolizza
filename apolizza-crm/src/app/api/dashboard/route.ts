@@ -81,9 +81,16 @@ export async function GET(req: NextRequest) {
           sum(total)::int as "total",
           sum(a_receber)::float as "aReceber"
         from vw_monthly_trend
-        where true ${userFilter}
+        where true ${anoFilter} ${userFilter}
         group by mes, ano
-        order by ano asc, mes asc
+        order by ano asc,
+          CASE mes
+            WHEN 'JAN' THEN 1  WHEN 'FEV' THEN 2  WHEN 'MAR' THEN 3
+            WHEN 'ABR' THEN 4  WHEN 'MAI' THEN 5  WHEN 'JUN' THEN 6
+            WHEN 'JUL' THEN 7  WHEN 'AGO' THEN 8  WHEN 'SET' THEN 9
+            WHEN 'OUT' THEN 10 WHEN 'NOV' THEN 11 WHEN 'DEZ' THEN 12
+            ELSE 99
+          END asc
       `),
       // Cotadores — todos ativos, com LEFT JOIN nos dados do período
       isCotador

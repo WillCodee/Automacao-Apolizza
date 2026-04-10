@@ -28,7 +28,7 @@ export async function GET(
     }
 
     // Cotador só pode ver briefings das suas tarefas
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id) {
       return apiError("Sem permissão para acessar esta tarefa", 403);
     }
 
@@ -79,7 +79,7 @@ export async function POST(
     }
 
     // Cotador só pode adicionar briefings às suas tarefas
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id) {
       return apiError(
         "Você só pode adicionar briefings às suas próprias tarefas",
         403

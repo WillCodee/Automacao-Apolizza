@@ -41,7 +41,7 @@ function getUrgencia(dias: number | null) {
   return { label: `${dias} dias`, key: "normal" };
 }
 
-export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
+export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const [renovacoes, setRenovacoes] = useState<Renovacao[]>([]);
   const [kpis, setKpis] = useState<RenovacoesKpis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +286,7 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Fim Vigencia</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Urgencia</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide text-right">A Receber</th>
-                    {userRole === "admin" && (
+                    {userRole !== "cotador" && (
                       <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Cotador</th>
                     )}
                   </tr>
@@ -319,7 +319,7 @@ export function RenovacoesList({ userRole }: { userRole: "admin" | "cotador" }) 
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-slate-900">{fmt(r.aReceber)}</td>
-                        {userRole === "admin" && (
+                        {userRole !== "cotador" && (
                           <td className="px-4 py-3 text-slate-600">{r.cotador || "—"}</td>
                         )}
                       </tr>

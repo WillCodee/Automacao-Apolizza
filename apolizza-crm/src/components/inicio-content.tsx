@@ -282,7 +282,7 @@ export function InicioContent({
   userImage,
 }: {
   userName: string;
-  userRole: "admin" | "cotador";
+  userRole: "admin" | "cotador" | "proprietario";
   userImage?: string | null;
 }) {
   const [data, setData] = useState<InicioData | null>(null);

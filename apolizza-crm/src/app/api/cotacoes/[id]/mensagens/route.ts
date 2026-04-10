@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { eq, asc } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
-import { cotacaoMensagens, users } from "@/lib/schema";
+import { cotacaoMensagens, users, cotacoes, cotacaoNotificacoes } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
@@ -76,10 +76,28 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!texto && !imageUrl) return apiError("Mensagem vazia", 400);
     if (texto.length > 2000) return apiError("Texto muito longo (max 2000 chars)", 400);
 
+    // Busca nome da cotação para notificação
+    const [cotacao] = await db
+      .select({ name: cotacoes.name })
+      .from(cotacoes)
+      .where(eq(cotacoes.id, id));
+
     const [nova] = await db
       .insert(cotacaoMensagens)
       .values({ cotacaoId: id, userId: user.id, texto, imageUrl })
       .returning();
+
+    // Cria notificação visível a admin e proprietário
+    if (texto && cotacao) {
+      await db.insert(cotacaoNotificacoes).values({
+        cotacaoId: id,
+        cotacaoNome: cotacao.name,
+        autorId: user.id,
+        autorNome: user.name,
+        tipo: "mensagem",
+        texto,
+      });
+    }
 
     const [comUser] = await db
       .select({

@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
 
     // Verificar permissão (cotador só vê atividades das suas tarefas)
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id) {
       return apiError("Sem permissão para acessar esta tarefa", 403);
     }
 

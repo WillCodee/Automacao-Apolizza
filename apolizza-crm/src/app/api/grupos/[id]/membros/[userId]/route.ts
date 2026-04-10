@@ -10,7 +10,7 @@ export async function DELETE(
 ) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return apiError("Não autenticado", 401);
-  if (currentUser.role !== "admin") return apiError("Acesso negado. Admin requerido.", 403);
+  if (currentUser.role !== "admin" && currentUser.role !== "proprietario") return apiError("Acesso negado.", 403);
 
   const { id: grupoId, userId } = await params;
 

@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
     const cotadorIdFilter = searchParams.get("cotadorId");
     const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
     const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
+    const mesFilter = searchParams.get("mes");     // 1-12
+    const anoFilter = searchParams.get("ano");     // YYYY
 
     const conditions = [];
 
@@ -29,7 +31,6 @@ export async function GET(req: NextRequest) {
     if (user.role === "cotador") {
       conditions.push(eq(tarefas.cotadorId, user.id));
     } else if (cotadorIdFilter) {
-      // Admin pode filtrar por cotador
       conditions.push(eq(tarefas.cotadorId, cotadorIdFilter));
     }
 
@@ -42,6 +43,12 @@ export async function GET(req: NextRequest) {
     }
     if (dateTo) {
       conditions.push(sql`${tarefas.dataVencimento}::date <= ${dateTo}::date`);
+    }
+    if (mesFilter) {
+      conditions.push(sql`EXTRACT(MONTH FROM ${tarefas.dataVencimento}) = ${Number(mesFilter)}`);
+    }
+    if (anoFilter) {
+      conditions.push(sql`EXTRACT(YEAR FROM ${tarefas.dataVencimento}) = ${Number(anoFilter)}`);
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -90,8 +97,8 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return apiError("Não autenticado", 401);
 
-    // Apenas admin pode criar tarefas
-    if (user.role !== "admin") {
+    // Apenas admin/proprietario pode criar tarefas
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiError("Apenas administradores podem criar tarefas", 403);
     }
 

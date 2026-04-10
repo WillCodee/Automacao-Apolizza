@@ -8,6 +8,7 @@ import { cotacoes, users } from "@/lib/schema";
 import { AppHeader } from "@/components/app-header";
 import { DocsUpload } from "@/components/docs-upload";
 import { AtividadePanel } from "@/components/atividade-panel";
+import { ObservacaoEditor } from "@/components/observacao-editor";
 import { STATUS_BADGES } from "@/lib/status-config";
 
 type Params = { params: Promise<{ id: string }> };
@@ -144,12 +145,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
                 </div>
               )}
 
-              {row.observacao && (
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Observacao</p>
-                  <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">{row.observacao}</p>
-                </div>
-              )}
+              <ObservacaoEditor cotacaoId={id} initialValue={row.observacao} />
 
               <div className="text-xs text-slate-400 pt-4 border-t border-slate-100">
                 Criado em {fmtDateTime(row.createdAt)} — Atualizado em {fmtDateTime(row.updatedAt)}

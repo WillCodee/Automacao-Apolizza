@@ -66,7 +66,7 @@ export async function PATCH(
     const { id } = await params;
 
     // Apenas admin pode editar tarefas
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiError("Apenas administradores podem editar tarefas", 403);
     }
 
@@ -126,7 +126,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Apenas admin pode deletar tarefas
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiError("Apenas administradores podem deletar tarefas", 403);
     }
 

@@ -21,7 +21,7 @@ interface AnexosListProps {
   tarefaId: string;
   refresh: number;
   currentUserId: string;
-  currentUserRole: "admin" | "cotador";
+  currentUserRole: "admin" | "cotador" | "proprietario";
 }
 
 export function AnexosList({

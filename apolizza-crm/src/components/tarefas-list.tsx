@@ -40,6 +40,19 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [filterMes, setFilterMes] = useState<string>("");
+  const [filterAno, setFilterAno] = useState<string>("");
+
+  const currentYear = new Date().getFullYear();
+  const ANOS = Array.from({ length: 4 }, (_, i) => String(currentYear - i));
+  const MESES = [
+    { value: "1", label: "Janeiro" }, { value: "2", label: "Fevereiro" },
+    { value: "3", label: "Março" }, { value: "4", label: "Abril" },
+    { value: "5", label: "Maio" }, { value: "6", label: "Junho" },
+    { value: "7", label: "Julho" }, { value: "8", label: "Agosto" },
+    { value: "9", label: "Setembro" }, { value: "10", label: "Outubro" },
+    { value: "11", label: "Novembro" }, { value: "12", label: "Dezembro" },
+  ];
 
   const fetchTarefas = async () => {
     try {
@@ -48,6 +61,8 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
       if (filterStatus) params.set("status", filterStatus);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (filterMes) params.set("mes", filterMes);
+      if (filterAno) params.set("ano", filterAno);
 
       const res = await fetch(`/api/tarefas?${params}`);
       const data = await res.json();
@@ -65,7 +80,7 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
   useEffect(() => {
     fetchTarefas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, dateFrom, dateTo]);
+  }, [filterStatus, dateFrom, dateTo, filterMes, filterAno]);
 
   const handleTarefaCriada = () => {
     setShowForm(false);
@@ -80,7 +95,7 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
     fetchTarefas();
   };
 
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "admin" || userRole === "proprietario";
 
   return (
     <div className="space-y-6">
@@ -130,6 +145,26 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filterMes}
+            onChange={(e) => setFilterMes(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
+          >
+            <option value="">Mês</option>
+            {MESES.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterAno}
+            onChange={(e) => setFilterAno(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
+          >
+            <option value="">Ano</option>
+            {ANOS.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
           <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Vencimento de:</span>
           <input
             type="date"
@@ -144,9 +179,9 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
             onChange={(e) => setDateTo(e.target.value)}
             className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition bg-white"
           />
-          {(dateFrom || dateTo) && (
+          {(dateFrom || dateTo || filterMes || filterAno) && (
             <button
-              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              onClick={() => { setDateFrom(""); setDateTo(""); setFilterMes(""); setFilterAno(""); }}
               className="text-xs text-slate-400 hover:text-slate-600"
             >
               ✕ Limpar

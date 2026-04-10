@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { id } = await params;
 
     // Admin pode alterar qualquer foto; usuário só a própria
-    if (currentUser.role !== "admin" && currentUser.id !== id) {
+    if (currentUser.role !== "admin" && currentUser.role !== "proprietario" && currentUser.id !== id) {
       return apiError("Sem permissão", 403);
     }
 
@@ -59,7 +59,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     const { id } = await params;
 
-    if (currentUser.role !== "admin" && currentUser.id !== id) {
+    if (currentUser.role !== "admin" && currentUser.role !== "proprietario" && currentUser.id !== id) {
       return apiError("Sem permissão", 403);
     }
 

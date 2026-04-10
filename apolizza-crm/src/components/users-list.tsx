@@ -7,7 +7,7 @@ type User = {
   name: string;
   email: string;
   username: string;
-  role: "admin" | "cotador";
+  role: "admin" | "cotador" | "proprietario";
   isActive: boolean;
   photoUrl: string | null;
   createdAt: string;
@@ -38,7 +38,7 @@ export function UsersList() {
     email: "",
     username: "",
     password: "",
-    role: "cotador" as "admin" | "cotador",
+    role: "cotador" as "admin" | "cotador" | "proprietario",
   });
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -249,11 +249,12 @@ export function UsersList() {
               <label className="text-xs text-slate-500 font-medium">Perfil</label>
               <select
                 value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as "admin" | "cotador" })}
+                onChange={(e) => setForm({ ...form, role: e.target.value as "admin" | "cotador" | "proprietario" })}
                 className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
               >
                 <option value="cotador">Cotador</option>
                 <option value="admin">Admin</option>
+                <option value="proprietario">Proprietário</option>
               </select>
             </div>
           </div>

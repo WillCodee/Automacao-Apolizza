@@ -19,7 +19,7 @@ import { relations } from "drizzle-orm";
 // ENUMS
 // ============================================================
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "cotador"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "cotador", "proprietario"]);
 
 export const tarefaStatusEnum = pgEnum("tarefa_status", [
   "Pendente",
@@ -396,6 +396,32 @@ export const tarefasChecklist = pgTable(
   (table) => [
     index("tarefas_checklist_tarefa_idx").on(table.tarefaId),
     index("tarefas_checklist_ordem_idx").on(table.tarefaId, table.ordem),
+  ]
+);
+
+// ============================================================
+// COTACAO_NOTIFICACOES (feed de notificações de alterações/mensagens)
+// ============================================================
+
+export const cotacaoNotificacoes = pgTable(
+  "cotacao_notificacoes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    cotacaoId: uuid("cotacao_id")
+      .notNull()
+      .references(() => cotacoes.id, { onDelete: "cascade" }),
+    cotacaoNome: varchar("cotacao_nome", { length: 500 }).notNull(),
+    autorId: uuid("autor_id").references(() => users.id, { onDelete: "set null" }),
+    autorNome: varchar("autor_nome", { length: 255 }),
+    tipo: varchar("tipo", { length: 20 }).notNull(), // 'mensagem' | 'observacao'
+    texto: text("texto").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("cotacao_notif_cotacao_idx").on(table.cotacaoId),
+    index("cotacao_notif_created_idx").on(table.createdAt),
   ]
 );
 

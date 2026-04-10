@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory, situacaoConfig } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory, situacaoConfig, cotacaoNotificacoes } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -23,11 +23,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
     if (!row) return apiError("Cotacao nao encontrada", 404);
 
-    // Cotador só vê suas próprias cotações
-    if (user.role === "cotador" && row.assigneeId !== user.id) {
-      return apiError("Acesso negado", 403);
-    }
-
     return apiSuccess(formatCotacao(row));
   } catch (error) {
     console.error("API GET /api/cotacoes/[id]:", error);
@@ -42,7 +37,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     const { id } = await params;
 
-    // Verify cotacao exists
     const [existing] = await db
       .select()
       .from(cotacoes)
@@ -50,6 +44,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     if (!existing) return apiError("Cotacao nao encontrada", 404);
 
+    // Cotador só edita suas próprias cotações
     if (user.role === "cotador" && existing.assigneeId !== user.id) {
       return apiError("Acesso negado", 403);
     }
@@ -75,7 +70,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.produto !== undefined) updateData.produto = input.produto;
     if (input.situacao !== undefined) {
       updateData.situacao = input.situacao;
-      // Auto-atribuição: se a situação tem um cotador padrão vinculado, aplica automaticamente
       if (input.situacao && input.situacao !== existing.situacao) {
         const [sitCfg] = await db
           .select({ defaultCotadorId: situacaoConfig.defaultCotadorId })
@@ -108,7 +102,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const newStatus = input.status ?? existing.status;
     if (input.status && input.status !== existing.status) {
       const rules = await db.select().from(statusConfig);
-      // Merge existing data with update to check final state
       const merged: Record<string, unknown> = { ...existing, ...updateData };
       const validation = validateStatusFields(merged, newStatus, rules);
 
@@ -123,6 +116,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     // Record changes for audit trail
     const historyEntries: { fieldName: string; oldValue: string | null; newValue: string | null }[] = [];
+    const observacaoChanged =
+      input.observacao !== undefined &&
+      String(input.observacao ?? "") !== String(existing.observacao ?? "");
+
     for (const [key, value] of Object.entries(updateData)) {
       const oldVal = (existing as Record<string, unknown>)[key];
       const newVal = value;
@@ -135,7 +132,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
-    // Story 10.4: Transaction wrapping update + history insert
     const updated = await db.transaction(async (tx) => {
       const [row] = await tx
         .update(cotacoes)
@@ -155,6 +151,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
         );
       }
 
+      // Notificação quando observação é alterada
+      if (observacaoChanged && input.observacao) {
+        await tx.insert(cotacaoNotificacoes).values({
+          cotacaoId: id,
+          cotacaoNome: existing.name,
+          autorId: user.id,
+          autorNome: user.name,
+          tipo: "observacao",
+          texto: input.observacao,
+        });
+      }
+
       return row;
     });
 
@@ -170,8 +178,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
 
-    if (user.role !== "admin") {
-      return apiError("Apenas admin pode excluir cotacoes", 403);
+    if (user.role !== "admin" && user.role !== "proprietario") {
+      return apiError("Apenas admin ou proprietario pode excluir cotacoes", 403);
     }
 
     const { id } = await params;

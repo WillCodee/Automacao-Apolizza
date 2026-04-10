@@ -9,7 +9,7 @@ import { eq, and } from "drizzle-orm";
 export default async function MetasAdminPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "admin") redirect("/dashboard");
+  if (session.user.role !== "proprietario") redirect("/dashboard");
 
   const cotadores = await db
     .select({ id: users.id, name: users.name, photoUrl: users.photoUrl })

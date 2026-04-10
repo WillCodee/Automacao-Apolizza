@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "admin") return apiError("Apenas admin", 403);
+    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode configurar status", 403);
 
     const { id } = await params;
     const body = await req.json();
@@ -60,7 +60,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "admin") return apiError("Apenas admin", 403);
+    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode configurar status", 403);
 
     const { id } = await params;
 

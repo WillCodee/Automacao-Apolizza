@@ -17,11 +17,12 @@ type ActivePage =
   | "tarefas"
   | "tema"
   | "metas-admin"
-  | "notificacoes";
+  | "notificacoes"
+  | "base-conhecimento";
 
 type AppHeaderProps = {
   userName: string;
-  userRole: "admin" | "cotador";
+  userRole: "admin" | "cotador" | "proprietario";
   activePage?: ActivePage;
 };
 
@@ -170,6 +171,11 @@ const IconBell = (
     <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
   </svg>
 );
+const IconBook = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  </svg>
+);
 
 // ─── Main Header ──────────────────────────────────────────────────────────────
 
@@ -201,17 +207,20 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
     },
   ];
 
-  if (userRole === "admin") {
-    groups.push({
-      label: "Administração",
-      key: "admin-group",
-      items: [
-        { href: "/relatorios", label: "Relatórios", key: "relatorios", icon: IconChart },
-        { href: "/administracao/metas", label: "Cadastro de Metas", key: "metas-admin", icon: IconTarget },
-        { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell },
-      ],
-    });
+  // Admin e Proprietário: Administração
+  if (userRole === "admin" || userRole === "proprietario") {
+    const adminItems: NavItem[] = [
+      { href: "/relatorios", label: "Relatórios", key: "relatorios", icon: IconChart },
+      { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell },
+    ];
+    if (userRole === "proprietario") {
+      adminItems.push({ href: "/administracao/metas", label: "Cadastro de Metas", key: "metas-admin", icon: IconTarget });
+    }
+    groups.push({ label: "Administração", key: "admin-group", items: adminItems });
+  }
 
+  // Proprietário: Configurações completas
+  if (userRole === "proprietario") {
     groups.push({
       label: "Configurações",
       key: "config-group",
@@ -254,6 +263,15 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
               >
                 Dashboard
               </Link>
+              <Link
+                href="/base-conhecimento"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {IconBook}
+                Base de Conhecimento
+              </Link>
               {groups.map((group) => (
                 <DropdownGroup
                   key={group.key}
@@ -264,6 +282,18 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
                   onClose={() => setOpenGroup(null)}
                 />
               ))}
+              {/* Tema: visível para cotador e admin (proprietário já tem no menu Configurações) */}
+              {userRole !== "proprietario" && (
+                <Link
+                  href="/configuracoes/tema"
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {IconPalette}
+                  Tema
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -275,7 +305,10 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-white leading-tight">{userName}</p>
-                <p className={`text-xs leading-tight ${userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"}`}>
+                <p className={`text-xs leading-tight ${
+                  userRole === "proprietario" ? "text-yellow-400" :
+                  userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"
+                }`}>
                   {userRole}
                 </p>
               </div>
@@ -319,6 +352,14 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
             >
               Dashboard
             </Link>
+            <Link href="/base-conhecimento" onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {IconBook}
+              Base de Conhecimento
+            </Link>
             {groups.map((group) => (
               <div key={group.key}>
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest">
@@ -339,6 +380,16 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
                 })}
               </div>
             ))}
+            {userRole !== "proprietario" && (
+              <Link href="/configuracoes/tema" onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                  activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {IconPalette}
+                Tema
+              </Link>
+            )}
           </nav>
         </div>
       )}

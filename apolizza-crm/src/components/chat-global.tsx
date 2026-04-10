@@ -164,7 +164,7 @@ export function ChatGlobal() {
       if (r.ok) {
         setTexto("");
         await fetchMensagens(conversaAtiva.id);
-        fetchConversas();
+        await fetchConversas();
         fetchNaoLidas();
       }
     } finally {

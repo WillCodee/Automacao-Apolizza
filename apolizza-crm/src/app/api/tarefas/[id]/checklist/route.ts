@@ -21,7 +21,7 @@ export async function GET(
     });
     if (!tarefa) return apiError("Tarefa não encontrada", 404);
 
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id && tarefa.criadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id && tarefa.criadorId !== user.id) {
       return apiError("Sem permissão", 403);
     }
 
@@ -56,7 +56,7 @@ export async function POST(
     const tarefa = await db.query.tarefas.findFirst({ where: eq(tarefas.id, id) });
     if (!tarefa) return apiError("Tarefa não encontrada", 404);
 
-    if (user.role !== "admin" && tarefa.criadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.criadorId !== user.id) {
       return apiError("Sem permissão", 403);
     }
 
@@ -89,7 +89,7 @@ export async function PATCH(
     const tarefa = await db.query.tarefas.findFirst({ where: eq(tarefas.id, id) });
     if (!tarefa) return apiError("Tarefa não encontrada", 404);
 
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id && tarefa.criadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id && tarefa.criadorId !== user.id) {
       return apiError("Sem permissão", 403);
     }
 

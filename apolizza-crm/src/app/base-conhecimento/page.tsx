@@ -1,23 +1,20 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
-import { UsuariosPageClient } from "@/components/usuarios-page-client";
+import { BaseConhecimentoContent } from "@/components/base-conhecimento-content";
 
-export default async function UsuariosPage() {
+export default async function BaseConhecimentoPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "proprietario") redirect("/dashboard");
 
   return (
     <div className="min-h-screen bg-slate-50">
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
-        activePage="usuarios"
+        activePage="base-conhecimento"
       />
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <UsuariosPageClient />
-      </main>
+      <BaseConhecimentoContent userRole={session.user.role} />
     </div>
   );
 }

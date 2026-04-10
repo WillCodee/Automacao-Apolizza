@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
 
     // Verificar permissão (cotador só vê anexos das suas tarefas)
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id) {
       return apiError("Sem permissão para acessar esta tarefa", 403);
     }
 
@@ -80,7 +80,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     // Verificar permissão (cotador só pode anexar nas suas tarefas, admin em qualquer)
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id) {
       return apiError("Sem permissão para adicionar anexos nesta tarefa", 403);
     }
 

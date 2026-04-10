@@ -43,7 +43,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return apiError("Não autenticado", 401);
-  if (currentUser.role !== "admin") return apiError("Acesso negado. Admin requerido.", 403);
+  if (currentUser.role !== "admin" && currentUser.role !== "proprietario") return apiError("Acesso negado.", 403);
 
   const body = await request.json();
   const parsed = createGrupoSchema.safeParse(body);

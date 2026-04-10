@@ -29,7 +29,7 @@ export async function PATCH(
 
     // Validação: cotador só pode atualizar suas próprias tarefas
     // Admin pode atualizar qualquer tarefa
-    if (user.role !== "admin" && tarefa.cotadorId !== user.id) {
+    if (user.role !== "admin" && user.role !== "proprietario" && tarefa.cotadorId !== user.id) {
       return apiError(
         "Você só pode atualizar o status das suas próprias tarefas",
         403

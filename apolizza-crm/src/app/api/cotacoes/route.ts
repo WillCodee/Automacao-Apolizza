@@ -46,10 +46,8 @@ export async function GET(req: NextRequest) {
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
-    // Cotador vê apenas suas cotações
-    if (user.role === "cotador") {
-      conditions.push(eq(cotacoes.assigneeId, user.id));
-    } else if (assignee) {
+    // Todos os perfis veem todas as cotações na lista; filtro de assignee é opcional
+    if (assignee) {
       conditions.push(eq(cotacoes.assigneeId, assignee));
     }
 

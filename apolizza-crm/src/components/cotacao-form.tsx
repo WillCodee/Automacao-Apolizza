@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   STATUS_OPTIONS,
@@ -86,7 +86,7 @@ const EMPTY: CotacaoData = {
 interface CotacaoFormProps {
   initialData?: Partial<CotacaoData>;
   cotacaoId?: string;
-  currentUser: { id: string; role: "admin" | "cotador" };
+  currentUser: { id: string; role: "admin" | "cotador" | "proprietario" };
 }
 
 export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoFormProps) {
@@ -281,6 +281,33 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const labelClass = "block text-sm font-medium text-slate-600 mb-1";
   const sectionClass = "space-y-4";
 
+  const requiredFormFields = useMemo(() => {
+    const rule = statusRules.find((r) => r.statusName === form.status);
+    if (!rule?.requiredFields) return new Set<string>();
+    const map: Record<string, string> = {
+      fim_vigencia: "fimVigencia",
+      inicio_vigencia: "inicioVigencia",
+      indicacao: "indicacao",
+      produto: "produto",
+      seguradora: "seguradora",
+      situacao: "situacao",
+      tipo_cliente: "tipoCliente",
+      comissao: "comissao",
+      primeiro_pagamento: "primeiroPagamento",
+      a_receber: "aReceber",
+      parcelado_em: "parceladoEm",
+      premio_sem_iof: "premioSemIof",
+      valor_perda: "valorPerda",
+      mes_referencia: "mesReferencia",
+      ano_referencia: "anoReferencia",
+    };
+    return new Set(rule.requiredFields.map((f) => map[f] || f));
+  }, [statusRules, form.status]);
+
+  const req = (field: string) => requiredFormFields.has(field)
+    ? <span className="text-red-500 ml-0.5">*</span>
+    : null;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Identificacao */}
@@ -363,7 +390,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="tipoCliente" className={labelClass}>Tipo Cliente</label>
+            <label htmlFor="tipoCliente" className={labelClass}>Tipo Cliente{req("tipoCliente")}</label>
             <select
               id="tipoCliente"
               value={form.tipoCliente}
@@ -388,7 +415,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="seguradora" className={labelClass}>Seguradora</label>
+            <label htmlFor="seguradora" className={labelClass}>Seguradora{req("seguradora")}</label>
             <input
               id="seguradora"
               type="text"
@@ -398,7 +425,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="produto" className={labelClass}>Produto</label>
+            <label htmlFor="produto" className={labelClass}>Produto{req("produto")}</label>
             <select
               id="produto"
               value={form.produto}
@@ -412,7 +439,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             </select>
           </div>
           <div>
-            <label htmlFor="situacao" className={labelClass}>Situacao</label>
+            <label htmlFor="situacao" className={labelClass}>Situacao{req("situacao")}</label>
             <select
               id="situacao"
               value={form.situacao}
@@ -426,7 +453,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             </select>
           </div>
           <div>
-            <label htmlFor="indicacao" className={labelClass}>Indicacao</label>
+            <label htmlFor="indicacao" className={labelClass}>Indicacao{req("indicacao")}</label>
             <input
               id="indicacao"
               type="text"
@@ -505,7 +532,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label htmlFor="inicioVigencia" className={labelClass}>Inicio Vigencia</label>
+            <label htmlFor="inicioVigencia" className={labelClass}>Inicio Vigencia{req("inicioVigencia")}</label>
             <input
               id="inicioVigencia"
               type="date"
@@ -515,7 +542,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="fimVigencia" className={labelClass}>Fim Vigencia</label>
+            <label htmlFor="fimVigencia" className={labelClass}>Fim Vigencia{req("fimVigencia")}</label>
             <input
               id="fimVigencia"
               type="date"
@@ -525,7 +552,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="primeiroPagamento" className={labelClass}>1o Pagamento</label>
+            <label htmlFor="primeiroPagamento" className={labelClass}>1o Pagamento{req("primeiroPagamento")}</label>
             <input
               id="primeiroPagamento"
               type="date"
@@ -560,7 +587,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="premioSemIof" className={labelClass}>Premio sem IOF (R$)</label>
+            <label htmlFor="premioSemIof" className={labelClass}>Premio sem IOF (R$){req("premioSemIof")}</label>
             <input
               id="premioSemIof"
               type="number"
@@ -573,7 +600,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="comissaoPercentual" className={labelClass}>Comissao (%)</label>
+            <label htmlFor="comissaoPercentual" className={labelClass}>Comissao (%){req("comissao")}</label>
             <input
               id="comissaoPercentual"
               type="number"
@@ -596,9 +623,9 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           </div>
           <div>
             <label htmlFor="aReceber" className={labelClass}>
-              A Receber (R$)
+              A Receber (R$){req("aReceber")}
               {!aReceberManual && comissaoPercentual && (
-                <span className="text-xs text-[#03a4ed] ml-1">auto</span>
+                <span className="text-xs text-[#03a4ed] ml-1">robô</span>
               )}
             </label>
             <input
@@ -616,7 +643,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="valorPerda" className={labelClass}>Valor em Perda (R$)</label>
+            <label htmlFor="valorPerda" className={labelClass}>Valor em Perda (R$){req("valorPerda")}</label>
             <input
               id="valorPerda"
               type="number"
@@ -629,7 +656,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="parceladoEm" className={labelClass}>Parcela do Cliente</label>
+            <label htmlFor="parceladoEm" className={labelClass}>Parcela do Cliente{req("parceladoEm")}</label>
             <input
               id="parceladoEm"
               type="text"
@@ -643,7 +670,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             <label htmlFor="valorParcelado" className={labelClass}>
               Valor Parcelado (R$/mês)
               {!valorParceladoManual && form.valorParcelado && (
-                <span className="text-xs text-[#03a4ed] ml-1">auto</span>
+                <span className="text-xs text-[#03a4ed] ml-1">robô</span>
               )}
             </label>
             <input
@@ -727,7 +754,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="mesReferencia" className={labelClass}>Mes</label>
+            <label htmlFor="mesReferencia" className={labelClass}>Mes{req("mesReferencia")}</label>
             <select
               id="mesReferencia"
               value={form.mesReferencia}
@@ -741,7 +768,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             </select>
           </div>
           <div>
-            <label htmlFor="anoReferencia" className={labelClass}>Ano</label>
+            <label htmlFor="anoReferencia" className={labelClass}>Ano{req("anoReferencia")}</label>
             <select
               id="anoReferencia"
               value={form.anoReferencia}

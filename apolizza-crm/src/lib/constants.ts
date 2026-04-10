@@ -28,7 +28,10 @@ export const MES_OPTIONS = [
   "JUL", "AGO", "SET", "OUT", "NOV", "DEZ",
 ] as const;
 
-export const ANO_OPTIONS = [2024, 2025, 2026, 2027] as const;
+export const ANO_OPTIONS = [
+  2024, 2025, 2026, 2027, 2028, 2029, 2030,
+  2031, 2032, 2033, 2034, 2035, 2040, 2044, 2048,
+] as const;
 
 export const PRODUTO_OPTIONS = [
   "AUTO",
