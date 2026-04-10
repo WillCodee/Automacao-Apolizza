@@ -6,7 +6,7 @@ import { RelatorioMensal } from "@/components/relatorio-mensal";
 export default async function RelatoriosPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "admin") redirect("/dashboard");
+  if (session.user.role !== "admin" && session.user.role !== "proprietario") redirect("/dashboard");
 
   return (
     <div className="min-h-screen bg-slate-50">

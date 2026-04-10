@@ -39,7 +39,11 @@ async function createViews() {
       assignee_id,
       status,
       count(*)::int AS count,
-      COALESCE(SUM(a_receber::numeric), 0)::float AS total
+      CASE
+        WHEN status = 'perda'
+        THEN COALESCE(SUM(valor_perda::numeric), 0)::float
+        ELSE COALESCE(SUM(a_receber::numeric), 0)::float
+      END AS total
     FROM cotacoes
     WHERE deleted_at IS NULL
     GROUP BY ano_referencia, mes_referencia, assignee_id, status

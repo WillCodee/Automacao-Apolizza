@@ -8,21 +8,33 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "admin") return apiError("Acesso negado", 403);
+    if (user.role !== "admin" && user.role !== "proprietario") return apiError("Acesso negado", 403);
 
     const { searchParams } = req.nextUrl;
     const ano = searchParams.get("ano") || String(new Date().getFullYear());
     const mes = searchParams.get("mes") || null;
+    const dateFrom = searchParams.get("dateFrom") || null; // YYYY-MM-DD
+    const dateTo = searchParams.get("dateTo") || null;     // YYYY-MM-DD
 
     if (!validateAno(ano)) return apiError("Ano invalido", 400);
     if (!validateMes(mes)) return apiError("Mes invalido", 400);
 
     const anoNum = Number(ano);
-    const anoFilter = sql`and c.ano_referencia = ${anoNum}`;
-    const mesFilter = mes ? sql`and c.mes_referencia = ${mes}` : sql``;
+
+    // Se dateFrom/dateTo fornecidos, filtra por created_at; senão mantém filtro por ano/mês referência
+    let anoFilter = sql`and c.ano_referencia = ${anoNum}`;
+    let mesFilter = mes ? sql`and c.mes_referencia = ${mes}` : sql``;
+    let dateFilter = sql``;
+
+    if (dateFrom || dateTo) {
+      anoFilter = sql``;
+      mesFilter = sql``;
+      if (dateFrom) dateFilter = sql`${dateFilter} and c.created_at >= ${dateFrom}::timestamp`;
+      if (dateTo) dateFilter = sql`${dateFilter} and c.created_at <= ${dateTo + " 23:59:59"}::timestamp`;
+    }
 
     // Previous period for comparison
-    const prevMesFilter = mes
+    const prevMesFilter = mes && !dateFrom && !dateTo
       ? (() => {
           const meses = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
           const idx = meses.indexOf(mes);
@@ -42,7 +54,7 @@ export async function GET(req: NextRequest) {
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "totalAReceber",
           coalesce(sum(case when c.status = 'perda' then cast(c.valor_perda as float) else 0 end), 0)::float as "totalValorPerda"
         from cotacoes c
-        where c.deleted_at is null ${anoFilter} ${mesFilter}
+        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
       `),
       // Previous period KPIs (for comparison)
       prevMesFilter
@@ -73,7 +85,7 @@ export async function GET(req: NextRequest) {
           )::float as "taxaConversao"
         from cotacoes c
         join users u on u.id = c.assignee_id
-        where c.deleted_at is null ${anoFilter} ${mesFilter}
+        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
         group by u.id, u.name, u.photo_url
         order by sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end) desc
       `),
@@ -85,7 +97,7 @@ export async function GET(req: NextRequest) {
           coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "valor"
         from cotacoes c
-        where c.deleted_at is null ${anoFilter} ${mesFilter}
+        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
         group by coalesce(c.seguradora, 'Nao informada')
         order by sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end) desc nulls last
         limit 20
@@ -98,7 +110,7 @@ export async function GET(req: NextRequest) {
           coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "valor"
         from cotacoes c
-        where c.deleted_at is null ${anoFilter} ${mesFilter}
+        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
         group by coalesce(c.produto, 'Nao informado')
         order by count(*) desc
         limit 20

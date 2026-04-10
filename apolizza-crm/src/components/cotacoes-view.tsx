@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { CotacoesList } from "./cotacoes-list";
 import { KanbanBoard } from "./kanban-board";
 
 type ViewMode = "lista" | "kanban";
 
-export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" }) {
+export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const [view, setView] = useState<ViewMode>("lista");
 
   // Persist preference
@@ -59,7 +59,13 @@ export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" }) {
       </div>
 
       {view === "lista" ? (
-        <CotacoesList userRole={userRole} />
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-16">
+            <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <CotacoesList userRole={userRole} />
+        </Suspense>
       ) : (
         <KanbanBoard userRole={userRole} />
       )}

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { TarefasList } from "@/components/tarefas-list";
+import { TarefasDashboard } from "@/components/tarefas-dashboard";
 
 export default async function TarefasPage() {
   const session = await auth();
@@ -25,7 +26,18 @@ export default async function TarefasPage() {
             </p>
           </div>
         </div>
-        <TarefasList userRole={session.user.role} userId={session.user.id} />
+
+        {/* Dashboard de Métricas */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-slate-900 mb-4">📊 Dashboard de Métricas</h2>
+          <TarefasDashboard />
+        </div>
+
+        {/* Lista de Tarefas */}
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-4">📋 Lista de Tarefas</h2>
+          <TarefasList userRole={session.user.role} userId={session.user.id} />
+        </div>
       </div>
     </div>
   );

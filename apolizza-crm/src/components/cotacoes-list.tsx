@@ -29,31 +29,74 @@ type Pagination = {
 import { STATUS_BADGES } from "@/lib/status-config";
 const STATUS_COLORS = STATUS_BADGES;
 
-export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
+const STORAGE_KEY = "cotacoes-filters-v1";
+
+type SavedFilters = {
+  search: string;
+  statusFilter: string;
+  mesFilter: string;
+  anoFilter: string;
+  produtoFilter: string;
+  seguradoraFilter: string;
+  prioridadeFilter: string;
+  renovacaoFilter: boolean;
+  dateFrom: string;
+  dateTo: string;
+  page: number;
+  showAdvanced: boolean;
+};
+
+function loadSaved(): Partial<SavedFilters> {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<SavedFilters>) : {};
+  } catch { return {}; }
+}
+
+export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
+  const canBulk = userRole === "admin" || userRole === "proprietario";
   const searchParams = useSearchParams();
   const router = useRouter();
-  const assigneeFilter = searchParams.get("assignee") || "";
+  const assigneeFilter = searchParams?.get("assignee") || "";
+
+  // Prioridade: URL → sessionStorage → vazio
+  const saved = loadSaved();
+  const sp = (key: string) => searchParams?.get(key) ?? null;
 
   const [cotacoes, setCotacoes] = useState<Cotacao[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [mesFilter, setMesFilter] = useState("");
-  const [produtoFilter, setProdutoFilter] = useState("");
-  const [seguradoraFilter, setSeguradoraFilter] = useState("");
-  const [prioridadeFilter, setPrioridadeFilter] = useState("");
-  const [renovacaoFilter, setRenovacaoFilter] = useState(false);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [page, setPage] = useState(1);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [search, setSearch] = useState(() => sp("search") ?? saved.search ?? "");
+  const [statusFilter, setStatusFilter] = useState(() => sp("status") ?? saved.statusFilter ?? "");
+  const [mesFilter, setMesFilter] = useState(() => sp("mes") ?? saved.mesFilter ?? "");
+  const [anoFilter, setAnoFilter] = useState(() => sp("ano") ?? saved.anoFilter ?? "");
+  const [produtoFilter, setProdutoFilter] = useState(() => sp("produto") ?? saved.produtoFilter ?? "");
+  const [seguradoraFilter, setSeguradoraFilter] = useState(() => sp("seguradora") ?? saved.seguradoraFilter ?? "");
+  const [prioridadeFilter, setPrioridadeFilter] = useState(() => sp("prioridade") ?? saved.prioridadeFilter ?? "");
+  const [renovacaoFilter, setRenovacaoFilter] = useState(() => sp("isRenovacao") === "true" || (saved.renovacaoFilter ?? false));
+  const [dateFrom, setDateFrom] = useState(() => sp("dateFrom") ?? saved.dateFrom ?? "");
+  const [dateTo, setDateTo] = useState(() => sp("dateTo") ?? saved.dateTo ?? "");
+  const [page, setPage] = useState(() => Math.max(1, Number(sp("page")) || saved.page || 1));
+  const [showAdvanced, setShowAdvanced] = useState(() =>
+    !!(sp("produto") || sp("seguradora") || sp("prioridade") || sp("isRenovacao") || sp("dateFrom") || sp("dateTo") ||
+      saved.produtoFilter || saved.seguradoraFilter || saved.prioridadeFilter || saved.renovacaoFilter || saved.dateFrom || saved.dateTo)
+  );
   const [seguradoras, setSeguradoras] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showImport, setShowImport] = useState(false);
+
+  // Persiste filtros no sessionStorage sempre que mudam
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+        search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter,
+        prioridadeFilter, renovacaoFilter, dateFrom, dateTo, page, showAdvanced,
+      } satisfies SavedFilters));
+    } catch { /* sessionStorage indisponível */ }
+  }, [search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo, page, showAdvanced]);
 
   // Fetch unique seguradoras for dropdown
   useEffect(() => {
@@ -68,6 +111,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
     if (search) params.set("search", search);
     if (statusFilter) params.set("status", statusFilter);
     if (mesFilter) params.set("mes", mesFilter);
+    if (anoFilter) params.set("ano", anoFilter);
     if (assigneeFilter) params.set("assignee", assigneeFilter);
     if (produtoFilter) params.set("produto", produtoFilter);
     if (seguradoraFilter) params.set("seguradora", seguradoraFilter);
@@ -76,7 +120,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     return params;
-  }, [search, statusFilter, mesFilter, assigneeFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
+  }, [search, statusFilter, mesFilter, anoFilter, assigneeFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
 
   // Sync filters to URL (AC10)
   useEffect(() => {
@@ -206,6 +250,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
     setSearch("");
     setStatusFilter("");
     setMesFilter("");
+    setAnoFilter("");
     setProdutoFilter("");
     setSeguradoraFilter("");
     setPrioridadeFilter("");
@@ -213,9 +258,13 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
     setDateFrom("");
     setDateTo("");
     setPage(1);
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }
 
-  const hasActiveFilters = statusFilter || mesFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || dateFrom || dateTo;
+  const hasActiveFilters = statusFilter || mesFilter || anoFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || dateFrom || dateTo;
+
+  const currentYear = new Date().getFullYear();
+  const ANO_OPTIONS = Array.from({ length: 6 }, (_, i) => String(currentYear - i));
 
   const fmt = (v: number | null) =>
     v != null
@@ -269,6 +318,16 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
+            <select
+              value={anoFilter}
+              onChange={(e) => { setAnoFilter(e.target.value); setPage(1); }}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+            >
+              <option value="">Todos os anos</option>
+              {ANO_OPTIONS.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm"
@@ -282,6 +341,18 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
             >
               {showAdvanced ? "Menos filtros" : "Mais filtros"}
             </button>
+            {(hasActiveFilters || search) && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="px-3 py-2 text-sm font-medium text-[#ff695f] border border-[#ff695f]/30 rounded-xl hover:bg-red-50 transition flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Limpar filtros
+              </button>
+            )}
           </div>
 
           {/* Advanced filters */}
@@ -342,22 +413,13 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
                   className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
                 />
               </div>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="px-3 py-2 text-sm font-medium text-[#ff695f] border border-[#ff695f]/30 rounded-xl hover:bg-red-50 transition"
-                >
-                  Limpar filtros
-                </button>
-              )}
             </div>
           )}
         </form>
 
         {/* Export + Import buttons */}
         <div className="flex flex-wrap justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
-          {userRole === "admin" && (
+          {canBulk && (
             <button
               onClick={() => setShowImport(true)}
               className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition flex items-center gap-2"
@@ -403,7 +465,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
       </div>
 
       {/* Bulk action bar */}
-      {userRole === "admin" && selectedIds.size > 0 && (
+      {canBulk && selectedIds.size > 0 && (
         <div className="bg-[#03a4ed]/5 border border-[#03a4ed]/20 rounded-xl p-4 flex flex-wrap items-center gap-3">
           <span className="text-sm font-semibold text-[#03a4ed]">
             {selectedIds.size} selecionada(s)
@@ -459,7 +521,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
               {cotacoes.map((c) => (
                 <div key={c.id} className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    {userRole === "admin" && (
+                    {canBulk && (
                       <input
                         type="checkbox"
                         checked={selectedIds.has(c.id)}
@@ -490,7 +552,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
                       >
                         Editar
                       </Link>
-                      {userRole === "admin" && (
+                      {canBulk && (
                         <button
                           onClick={() => handleDelete(c.id, c.name)}
                           className="text-[#ff695f] hover:text-[#e55a50] text-xs font-medium min-h-[44px] flex items-center"
@@ -509,7 +571,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-slate-500 text-left">
                   <tr>
-                    {userRole === "admin" && (
+                    {canBulk && (
                       <th className="px-4 py-3 w-10">
                         <input
                           type="checkbox"
@@ -531,7 +593,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
                 <tbody className="divide-y divide-slate-100">
                   {cotacoes.map((c) => (
                     <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(c.id) ? "bg-sky-50/50" : ""}`}>
-                      {userRole === "admin" && (
+                      {canBulk && (
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
@@ -567,7 +629,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" }) {
                           >
                             Editar
                           </Link>
-                          {userRole === "admin" && (
+                          {canBulk && (
                             <button
                               onClick={() => handleDelete(c.id, c.name)}
                               className="text-[#ff695f] hover:text-[#e55a50] text-xs font-medium"

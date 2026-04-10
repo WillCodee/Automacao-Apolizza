@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
-import { eq, and, sql, count } from "drizzle-orm";
+import { eq, and, count, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas } from "@/lib/schema";
+import { tarefas, tarefasChecklist } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaCreateSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
+import { logAtividade } from "@/lib/audit-log";
 
 // GET /api/tarefas - Listar tarefas
 export async function GET(req: NextRequest) {
@@ -19,6 +20,10 @@ export async function GET(req: NextRequest) {
 
     const statusFilter = searchParams.get("status");
     const cotadorIdFilter = searchParams.get("cotadorId");
+    const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
+    const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
+    const mesFilter = searchParams.get("mes");     // 1-12
+    const anoFilter = searchParams.get("ano");     // YYYY
 
     const conditions = [];
 
@@ -26,12 +31,24 @@ export async function GET(req: NextRequest) {
     if (user.role === "cotador") {
       conditions.push(eq(tarefas.cotadorId, user.id));
     } else if (cotadorIdFilter) {
-      // Admin pode filtrar por cotador
       conditions.push(eq(tarefas.cotadorId, cotadorIdFilter));
     }
 
     if (statusFilter) {
-      conditions.push(eq(tarefas.status, statusFilter as any));
+      conditions.push(eq(tarefas.status, statusFilter as "Pendente" | "Em Andamento" | "Concluída" | "Cancelada"));
+    }
+
+    if (dateFrom) {
+      conditions.push(sql`${tarefas.dataVencimento}::date >= ${dateFrom}::date`);
+    }
+    if (dateTo) {
+      conditions.push(sql`${tarefas.dataVencimento}::date <= ${dateTo}::date`);
+    }
+    if (mesFilter) {
+      conditions.push(sql`EXTRACT(MONTH FROM ${tarefas.dataVencimento}) = ${Number(mesFilter)}`);
+    }
+    if (anoFilter) {
+      conditions.push(sql`EXTRACT(YEAR FROM ${tarefas.dataVencimento}) = ${Number(anoFilter)}`);
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -68,9 +85,9 @@ export async function GET(req: NextRequest) {
     });
 
     return apiPaginated(rows, { page, limit, total });
-  } catch (error: any) {
+  } catch (error) {
     console.error("GET /api/tarefas error:", error);
-    return apiError(error.message || "Erro ao listar tarefas", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao listar tarefas", 500);
   }
 }
 
@@ -80,13 +97,14 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return apiError("Não autenticado", 401);
 
-    // Apenas admin pode criar tarefas
-    if (user.role !== "admin") {
+    // Apenas admin/proprietario pode criar tarefas
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiError("Apenas administradores podem criar tarefas", 403);
     }
 
     const body = await req.json();
-    const validated = tarefaCreateSchema.parse(body);
+    const { checklistItems, ...rest } = body;
+    const validated = tarefaCreateSchema.parse(rest);
 
     const [novaTarefa] = await db
       .insert(tarefas)
@@ -102,17 +120,44 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    // Salvar itens do checklist
+    if (Array.isArray(checklistItems) && checklistItems.length > 0) {
+      const items = checklistItems
+        .filter((t: string) => t?.trim())
+        .map((t: string, i: number) => ({
+          tarefaId: novaTarefa.id,
+          texto: t.trim(),
+          ordem: i,
+        }));
+      if (items.length > 0) {
+        await db.insert(tarefasChecklist).values(items);
+      }
+    }
+
+    // Registrar atividade
+    await logAtividade({
+      tarefaId: novaTarefa.id,
+      usuarioId: user.id,
+      tipoAcao: "CRIADA",
+      detalhes: {
+        titulo: novaTarefa.titulo,
+        cotadorId: novaTarefa.cotadorId,
+        status: novaTarefa.status,
+      },
+    });
+
     return apiSuccess(novaTarefa, 201);
-  } catch (error: any) {
+  } catch (error) {
     console.error("POST /api/tarefas error:", error);
 
-    if (error.name === "ZodError") {
+    if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
+      const zodError = error as unknown as { errors: Array<{ message: string }> };
       return apiError(
-        "Dados inválidos: " + error.errors.map((e: any) => e.message).join(", "),
+        "Dados inválidos: " + zodError.errors.map((e) => e.message).join(", "),
         400
       );
     }
 
-    return apiError(error.message || "Erro ao criar tarefa", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao criar tarefa", 500);
   }
 }

@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const assignee = searchParams.get("assignee");
     const urgencia = searchParams.get("urgencia"); // "15", "30", "60"
+    const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
+    const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
 
     if (!validateUuid(assignee)) return apiError("Assignee ID invalido", 400);
 
@@ -35,6 +37,13 @@ export async function GET(req: NextRequest) {
         conditions.push(sql`${cotacoes.fimVigencia}::date <= (CURRENT_DATE + ${dias}::int)`);
         conditions.push(sql`${cotacoes.fimVigencia}::date >= CURRENT_DATE`);
       }
+    }
+
+    if (dateFrom) {
+      conditions.push(sql`${cotacoes.fimVigencia}::date >= ${dateFrom}::date`);
+    }
+    if (dateTo) {
+      conditions.push(sql`${cotacoes.fimVigencia}::date <= ${dateTo}::date`);
     }
 
     const where = and(...conditions);

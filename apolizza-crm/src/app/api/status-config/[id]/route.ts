@@ -9,6 +9,7 @@ const VALID_FIELDS = [
   "fim_vigencia", "inicio_vigencia", "indicacao", "produto", "seguradora",
   "situacao", "tipo_cliente", "comissao", "primeiro_pagamento", "a_receber",
   "parcelado_em", "premio_sem_iof", "valor_perda", "proxima_tratativa", "observacao",
+  "mes_referencia", "ano_referencia",
 ];
 
 type Params = { params: Promise<{ id: string }> };
@@ -17,7 +18,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "admin") return apiError("Apenas admin", 403);
+    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode configurar status", 403);
 
     const { id } = await params;
     const body = await req.json();
@@ -52,5 +53,27 @@ export async function PUT(req: NextRequest, { params }: Params) {
   } catch (error) {
     console.error("API PUT /api/status-config/[id]:", error);
     return apiError("Erro ao atualizar configuracao de status", 500);
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return apiError("Nao autenticado", 401);
+    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode configurar status", 403);
+
+    const { id } = await params;
+
+    const [deleted] = await db
+      .delete(statusConfig)
+      .where(eq(statusConfig.id, id))
+      .returning({ id: statusConfig.id, statusName: statusConfig.statusName });
+
+    if (!deleted) return apiError("Status config nao encontrado", 404);
+
+    return apiSuccess(deleted);
+  } catch (error) {
+    console.error("API DELETE /api/status-config/[id]:", error);
+    return apiError("Erro ao excluir configuracao de status", 500);
   }
 }

@@ -48,9 +48,9 @@ export async function GET(
     }
 
     return apiSuccess(tarefa);
-  } catch (error: any) {
+  } catch (error) {
     console.error(`GET /api/tarefas/[id] error:`, error);
-    return apiError(error.message || "Erro ao buscar tarefa", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao buscar tarefa", 500);
   }
 }
 
@@ -66,7 +66,7 @@ export async function PATCH(
     const { id } = await params;
 
     // Apenas admin pode editar tarefas
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiError("Apenas administradores podem editar tarefas", 403);
     }
 
@@ -81,7 +81,7 @@ export async function PATCH(
     const body = await req.json();
     const validated = tarefaUpdateSchema.parse(body);
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (validated.titulo !== undefined) updateData.titulo = validated.titulo;
     if (validated.descricao !== undefined) updateData.descricao = validated.descricao;
     if (validated.dataVencimento !== undefined) {
@@ -99,17 +99,18 @@ export async function PATCH(
       .returning();
 
     return apiSuccess(tarefaAtualizada);
-  } catch (error: any) {
+  } catch (error) {
     console.error(`PATCH /api/tarefas/[id] error:`, error);
 
-    if (error.name === "ZodError") {
+    if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
+      const zodError = error as unknown as { errors: Array<{ message: string }> };
       return apiError(
-        "Dados inválidos: " + error.errors.map((e: any) => e.message).join(", "),
+        "Dados inválidos: " + zodError.errors.map((e) => e.message).join(", "),
         400
       );
     }
 
-    return apiError(error.message || "Erro ao atualizar tarefa", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao atualizar tarefa", 500);
   }
 }
 
@@ -125,7 +126,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Apenas admin pode deletar tarefas
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiError("Apenas administradores podem deletar tarefas", 403);
     }
 
@@ -140,8 +141,8 @@ export async function DELETE(
     await db.delete(tarefas).where(eq(tarefas.id, id));
 
     return apiSuccess({ message: "Tarefa deletada com sucesso" });
-  } catch (error: any) {
+  } catch (error) {
     console.error(`DELETE /api/tarefas/[id] error:`, error);
-    return apiError(error.message || "Erro ao deletar tarefa", 500);
+    return apiError(error instanceof Error ? error.message : "Erro ao deletar tarefa", 500);
   }
 }

@@ -13,14 +13,16 @@ dotenv.config({ path: ".env.local" });
 
 const STATUS_SEED = [
   {
-    statusName: "nao iniciado",
+    statusName: "não iniciado",
     displayLabel: "Não Iniciado",
     color: "#7f8c8d",
     icon: "⚪",
     orderIndex: 0,
     requiredFields: [
-      "fim_vigencia",
       "inicio_vigencia",
+      "fim_vigencia",
+      "ano_referencia",
+      "mes_referencia",
       "indicacao",
       "produto",
       "seguradora",

@@ -24,7 +24,7 @@ type KanbanCotacao = {
 };
 
 type KanbanBoardProps = {
-  userRole: "admin" | "cotador";
+  userRole: "admin" | "cotador" | "proprietario";
 };
 
 const PRIORITY_DOT: Record<string, string> = {
