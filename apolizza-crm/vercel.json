@@ -1,31 +1,14 @@
 {
   "crons": [
     {
-      "path": "/api/cron/atrasados",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/alertas",
-      "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/tarefas-notificacoes",
-      "schedule": "0 11 * * *"
-    },
-    {
-      "path": "/api/cron/auditoria",
+      "path": "/api/cron/manha",
       "schedule": "0 11 * * *",
-      "comment": "08:00 BRT - tratativas"
+      "comment": "08:00 BRT: atrasados + tratativas + alertas vigencia + notificacoes tarefas"
     },
     {
-      "path": "/api/cron/auditoria",
+      "path": "/api/cron/tarde",
       "schedule": "0 18 * * *",
-      "comment": "15:00 BRT - tarefas vencendo hoje"
-    },
-    {
-      "path": "/api/cron/auditoria",
-      "schedule": "0 21 * * *",
-      "comment": "18:00 BRT - tarefas nao finalizadas"
+      "comment": "15:00 BRT: tarefas vencendo hoje + tarefas nao finalizadas"
     }
   ]
 }
