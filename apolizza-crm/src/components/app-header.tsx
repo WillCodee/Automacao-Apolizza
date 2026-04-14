@@ -250,6 +250,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
     const adminItems: NavItem[] = [
       { href: "/relatorios", label: "Relatórios", key: "relatorios", icon: IconChart },
       { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell, badge: notifCount > 0 ? notifCount : undefined },
+      { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBell },
     ];
     if (userRole === "proprietario") {
       adminItems.push({ href: "/administracao/metas", label: "Cadastro de Metas", key: "metas-admin", icon: IconTarget });
@@ -257,20 +258,18 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
     groups.push({ label: "Administração", key: "admin-group", items: adminItems });
   }
 
-  // Admin e Proprietário: Configurações
-  if (userRole === "admin" || userRole === "proprietario") {
-    const configItems: NavItem[] = [
-      { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBell },
-    ];
-    if (userRole === "proprietario") {
-      configItems.unshift(
+  // Proprietário: Configurações
+  if (userRole === "proprietario") {
+    groups.push({
+      label: "Configurações",
+      key: "config-group",
+      items: [
         { href: "/situacao-config", label: "Config. Situação", key: "situacao-config", icon: IconTag },
         { href: "/status-config", label: "Config. Status", key: "status-config", icon: IconGear },
         { href: "/usuarios", label: "Usuários", key: "usuarios", icon: IconUsers },
-      );
-      configItems.push({ href: "/configuracoes/tema", label: "Tema", key: "tema", icon: IconPalette });
-    }
-    groups.push({ label: "Configurações", key: "config-group", items: configItems });
+        { href: "/configuracoes/tema", label: "Tema", key: "tema", icon: IconPalette },
+      ],
+    });
   }
 
   return (
