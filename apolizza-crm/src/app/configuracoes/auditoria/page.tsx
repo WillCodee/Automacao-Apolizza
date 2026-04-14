@@ -451,13 +451,13 @@ export default function AuditoriaPage() {
   }
 
   if (status === "loading") return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0b0914" }}>
+    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
       <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "#0b0914" }}>
+    <div className="min-h-screen" style={{ background: "#eeedf2" }}>
       {session?.user && (
         <AppHeader
           userName={session.user.name || ""}
@@ -471,8 +471,8 @@ export default function AuditoriaPage() {
         {/* Title bar */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold" style={{ color: "#e2d9f3" }}>Sala do Auditor</h1>
-            <p className="text-xs mt-0.5" style={{ color: "#7c6fa0" }}>Consultas e notificações via Telegram</p>
+            <h1 className="text-xl font-bold text-[var(--foreground)]">Sala do Auditor</h1>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">Consultas e notificações via Telegram</p>
           </div>
           <div className="flex gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -482,7 +482,7 @@ export default function AuditoriaPage() {
         </div>
 
         {/* Canvas scene — mantém o estilo pixel art independente do tema */}
-        <div className="rounded-2xl overflow-hidden shadow-lg" style={{ border: "2px solid #2a2240" }}>
+        <div className="rounded-2xl overflow-hidden shadow-lg border-2 border-[var(--border)]">
           <canvas
             ref={canvasRef}
             width={GW * PX}
@@ -494,8 +494,8 @@ export default function AuditoriaPage() {
 
         {/* Log bar */}
         <div
-          className="rounded-xl px-3 py-2 text-[11px] space-y-0.5 font-mono border"
-          style={{ background: "#13101f", borderColor: "#2a2240", color: "#7c6fa0" }}
+          className="rounded-xl px-3 py-2 text-[11px] space-y-0.5 font-mono border border-[var(--border)]"
+          style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
         >
           {dialogLog.map((l, i) => (
             <div
@@ -509,18 +509,18 @@ export default function AuditoriaPage() {
 
         {/* Options grid */}
         <div
-          className="rounded-2xl overflow-hidden shadow-sm"
-          style={{ background: "#13101f", border: "1px solid #2a2240" }}
+          className="rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm"
+          style={{ background: "var(--surface)" }}
         >
           <div
-            className="px-4 py-3 flex items-center gap-2"
-            style={{ background: "#1a1628", borderBottom: "1px solid #2a2240" }}
+            className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-2"
+            style={{ background: "var(--surface-2)" }}
           >
             <span className="text-xs font-bold tracking-wider" style={{ color: "var(--primary)" }}>
               ❯ O QUE VOCÊ DESEJA CONSULTAR?
             </span>
             {loading && (
-              <span className="text-[10px] animate-pulse" style={{ color: "#7c6fa0" }}>
+              <span className="text-[10px] animate-pulse" style={{ color: "var(--text-muted)" }}>
                 carregando...
               </span>
             )}
@@ -536,9 +536,9 @@ export default function AuditoriaPage() {
                   className="text-left px-3 py-2.5 rounded-xl text-xs transition-all border disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
                     fontFamily: "monospace",
-                    background: isSelected ? "var(--primary)" : "#1a1628",
-                    borderColor: isSelected ? "var(--primary)" : "#2a2240",
-                    color: isSelected ? "#fff" : "#c8b8e8",
+                    background: isSelected ? "var(--primary)" : "var(--surface-2)",
+                    borderColor: isSelected ? "var(--primary)" : "var(--border)",
+                    color: isSelected ? "#fff" : "var(--foreground)",
                   }}
                 >
                   <div className="font-bold text-[10px] mb-0.5 opacity-60">[ {i + 1} ]</div>
@@ -553,18 +553,18 @@ export default function AuditoriaPage() {
         {/* Result box */}
         {(typeText || loading) && (
           <div
-            className="rounded-2xl overflow-hidden shadow-sm"
-            style={{ background: "#13101f", border: "1px solid #2a2240" }}
+            className="rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm"
+            style={{ background: "var(--surface)" }}
           >
             <div
-              className="px-4 py-3 flex items-center justify-between flex-wrap gap-2"
-              style={{ background: "#1a1628", borderBottom: "1px solid #2a2240" }}
+              className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between flex-wrap gap-2"
+              style={{ background: "var(--surface-2)" }}
             >
               <span className="text-xs font-bold tracking-wider" style={{ color: "var(--primary)" }}>
                 ❯ RESULTADO
               </span>
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: "#7c6fa0" }}>
+                <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: "var(--text-muted)" }}>
                   <input
                     type="checkbox"
                     checked={sendTelegram}
@@ -577,21 +577,17 @@ export default function AuditoriaPage() {
                   onClick={handleSendTelegram}
                   disabled={!resultado}
                   className="px-3 py-1 text-[11px] font-semibold rounded-lg border transition disabled:opacity-30"
-                  style={{
-                    borderColor: "var(--primary)",
-                    color: "var(--primary)",
-                    background: "transparent",
-                  }}
+                  style={{ borderColor: "var(--primary)", color: "var(--primary)", background: "transparent" }}
                 >
                   📨 Enviar Telegram
                 </button>
                 {telegramStatus === "ok" && <span className="text-green-500 text-[11px] font-semibold">✓ Enviado!</span>}
-                {telegramStatus === "fail" && <span className="text-red-400 text-[11px] font-semibold">✗ Falhou</span>}
+                {telegramStatus === "fail" && <span className="text-[var(--accent)] text-[11px] font-semibold">✗ Falhou</span>}
               </div>
             </div>
             <pre
               className="p-4 text-xs whitespace-pre-wrap break-words leading-relaxed font-mono max-h-52 overflow-y-auto"
-              style={{ color: "#c8b8e8" }}
+              style={{ color: "var(--foreground)" }}
             >
               {loading && !typeText ? "..." : typeText}
               {!loading && typeText && <span className="animate-pulse" style={{ color: "var(--primary)" }}>▌</span>}
@@ -604,12 +600,12 @@ export default function AuditoriaPage() {
 
           {/* Telegram config */}
           <div
-            className="rounded-2xl overflow-hidden shadow-sm"
-            style={{ background: "#13101f", border: "1px solid #2a2240" }}
+            className="rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm"
+            style={{ background: "var(--surface)" }}
           >
             <div
-              className="px-4 py-3"
-              style={{ background: "#1a1628", borderBottom: "1px solid #2a2240" }}
+              className="px-4 py-3 border-b border-[var(--border)]"
+              style={{ background: "var(--surface-2)" }}
             >
               <span className="text-xs font-bold tracking-wider" style={{ color: "var(--primary)" }}>
                 ⚙ CONFIG TELEGRAM
@@ -617,14 +613,14 @@ export default function AuditoriaPage() {
             </div>
             <div className="p-4 space-y-3 text-xs font-mono">
               <div>
-                <p className="text-[10px] font-semibold mb-1" style={{ color: "#7c6fa0" }}>BOT TOKEN</p>
-                <p className="truncate text-[10px]" style={{ color: "#3d3558" }}>
+                <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--text-muted)" }}>BOT TOKEN</p>
+                <p className="truncate text-[10px]" style={{ color: "var(--text-subtle)" }}>
                   ●●●●●●●●●●●●●●●●●●●●●●●●●
                 </p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold mb-1" style={{ color: "#7c6fa0" }}>CHAT ID</p>
-                <p className="text-[10px]" style={{ color: "#c8b8e8" }}>-1003995781173</p>
+                <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--text-muted)" }}>CHAT ID</p>
+                <p className="text-[10px]" style={{ color: "var(--foreground)" }}>-1003995781173</p>
               </div>
               <div className="flex flex-col gap-2 pt-1">
                 <button
@@ -649,12 +645,12 @@ export default function AuditoriaPage() {
 
           {/* Notification rules */}
           <div
-            className="rounded-2xl overflow-hidden shadow-sm"
-            style={{ background: "#13101f", border: "1px solid #2a2240" }}
+            className="rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm"
+            style={{ background: "var(--surface)" }}
           >
             <div
-              className="px-4 py-3"
-              style={{ background: "#1a1628", borderBottom: "1px solid #2a2240" }}
+              className="px-4 py-3 border-b border-[var(--border)]"
+              style={{ background: "var(--surface-2)" }}
             >
               <span className="text-xs font-bold tracking-wider" style={{ color: "var(--primary)" }}>
                 📋 REGRAS AUTOMÁTICAS
@@ -669,7 +665,7 @@ export default function AuditoriaPage() {
                 { label: "📋 Tarefas pendentes → 15:00 BRT",       time: "15:00" },
               ].map((r, i) => (
                 <div key={i} className="flex items-center justify-between gap-2">
-                  <span style={{ color: "#c8b8e8" }}>▶ {r.label}</span>
+                  <span style={{ color: "var(--foreground)" }}>▶ {r.label}</span>
                   <span
                     className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0"
                     style={{ background: "var(--primary)", color: "#fff" }}
@@ -684,12 +680,12 @@ export default function AuditoriaPage() {
 
         {/* Bot commands reference */}
         <div
-          className="rounded-2xl overflow-hidden shadow-sm"
-          style={{ background: "#13101f", border: "1px solid #2a2240" }}
+          className="rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm"
+          style={{ background: "var(--surface)" }}
         >
           <div
-            className="px-4 py-3"
-            style={{ background: "#1a1628", borderBottom: "1px solid #2a2240" }}
+            className="px-4 py-3 border-b border-[var(--border)]"
+            style={{ background: "var(--surface-2)" }}
           >
             <span className="text-xs font-bold tracking-wider" style={{ color: "var(--primary)" }}>
               🤖 COMANDOS DO BOT — TELEGRAM
@@ -707,7 +703,7 @@ export default function AuditoriaPage() {
             ].map(([cmd, desc]) => (
               <div key={cmd} className="flex gap-2 items-baseline">
                 <span className="font-bold shrink-0" style={{ color: "var(--primary)" }}>{cmd}</span>
-                <span style={{ color: "#7c6fa0" }}>{desc}</span>
+                <span style={{ color: "var(--text-muted)" }}>{desc}</span>
               </div>
             ))}
           </div>
