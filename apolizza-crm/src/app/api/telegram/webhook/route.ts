@@ -156,12 +156,12 @@ async function getResumo() {
   `).then((r) => r.rows) as [{ hoje: number; pendentes: number }];
 
   return (
-    `📊 *RESUMO DO DIA — ${new Date().toLocaleDateString("pt-BR")}*\n\n` +
-    `🚨 Cotações atrasadas: *${counts?.atrasadas ?? 0}*\n` +
-    `📞 Tratativas hoje: *${counts?.tratativas_hoje ?? 0}*\n` +
-    `📅 Tratativas amanhã: *${counts?.tratativas_amanha ?? 0}*\n` +
-    `⏰ Tarefas para hoje: *${tarefas?.hoje ?? 0}*\n` +
-    `📋 Tarefas pendentes: *${tarefas?.pendentes ?? 0}*\n\n` +
+    `📊 <b>RESUMO DO DIA — ${new Date().toLocaleDateString("pt-BR")}</b>\n\n` +
+    `🚨 Cotações atrasadas: <b>${counts?.atrasadas ?? 0}</b>\n` +
+    `📞 Tratativas hoje: <b>${counts?.tratativas_hoje ?? 0}</b>\n` +
+    `📅 Tratativas amanhã: <b>${counts?.tratativas_amanha ?? 0}</b>\n` +
+    `⏰ Tarefas para hoje: <b>${tarefas?.hoje ?? 0}</b>\n` +
+    `📋 Tarefas pendentes: <b>${tarefas?.pendentes ?? 0}</b>\n\n` +
     `Use /consulta para mais comandos.`
   );
 }

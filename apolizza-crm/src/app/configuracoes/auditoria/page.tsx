@@ -317,6 +317,8 @@ export default function AuditoriaPage() {
   const [telegramStatus, setTelegramStatus] = useState<"idle" | "ok" | "fail">("idle");
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [webhookStatus, setWebhookStatus] = useState<"idle" | "loading" | "ok" | "fail">("idle");
+  const [diagData, setDiagData] = useState<Record<string, unknown> | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
   const [dialogLog, setDialogLog] = useState<string[]>([
     "> Auditor pronto para servir.",
     "> Selecione uma consulta abaixo.",
@@ -494,6 +496,24 @@ export default function AuditoriaPage() {
     const json = await res.json();
     setTelegramStatus(json.data?.telegramOk ? "ok" : "fail");
     addLog(json.data?.telegramOk ? "> Telegram: enviado ✓" : "> Telegram: falhou ✗");
+  }
+
+  async function handleDiagnostico() {
+    setDiagLoading(true);
+    setDiagData(null);
+    try {
+      const res = await fetch("/api/telegram/diagnostico");
+      const json = await res.json();
+      setDiagData(json);
+      const webhookOk = (json.webhook?.ok as string)?.startsWith("✅");
+      const botOk = json.bot?.ok;
+      addLog(botOk ? "> Bot: OK ✓" : `> Bot: ${json.bot?.error} ✗`);
+      addLog(webhookOk ? "> Webhook: registrado ✓" : "> Webhook: NÃO registrado ✗");
+    } catch {
+      addLog("> Diagnóstico: erro ✗");
+    } finally {
+      setDiagLoading(false);
+    }
   }
 
   async function handleTest(action: "test" | "register_webhook") {
@@ -693,6 +713,14 @@ export default function AuditoriaPage() {
               </div>
               <div className="flex flex-col gap-2 pt-1">
                 <button
+                  onClick={handleDiagnostico}
+                  disabled={diagLoading}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition disabled:opacity-40"
+                  style={{ borderColor: "#F59E0B", color: "#F59E0B", background: "transparent" }}
+                >
+                  {diagLoading ? "Verificando..." : "🔍 Diagnóstico"}
+                </button>
+                <button
                   onClick={() => handleTest("test")}
                   disabled={testStatus === "testing"}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition disabled:opacity-40"
@@ -709,6 +737,17 @@ export default function AuditoriaPage() {
                   {webhookStatus === "loading" ? "Registrando..." : webhookStatus === "ok" ? "✓ Webhook OK" : webhookStatus === "fail" ? "✗ Falhou" : "Registrar Webhook"}
                 </button>
               </div>
+              {diagData && (
+                <div className="mt-2 p-2 rounded-lg text-[10px] font-mono space-y-1" style={{ background: "var(--surface-2)", color: "var(--foreground)" }}>
+                  <div><span style={{ color: "var(--text-muted)" }}>TOKEN:</span> {String((diagData.env as Record<string,unknown>)?.TELEGRAM_BOT_TOKEN)}</div>
+                  <div><span style={{ color: "var(--text-muted)" }}>BOT:</span> {(diagData.bot as Record<string,unknown>)?.ok ? `✅ @${(diagData.bot as Record<string,unknown>).username}` : `❌ ${(diagData.bot as Record<string,unknown>).error}`}</div>
+                  <div><span style={{ color: "var(--text-muted)" }}>WEBHOOK:</span> {String((diagData.webhook as Record<string,unknown>)?.ok)}</div>
+                  <div className="break-all" style={{ color: "var(--text-muted)" }}>{String((diagData.webhook as Record<string,unknown>)?.atual)}</div>
+                  {!!(diagData.webhook as Record<string,unknown>)?.lastError && (
+                    <div className="text-red-400">Último erro: {String((diagData.webhook as Record<string,unknown>).lastError)}</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
