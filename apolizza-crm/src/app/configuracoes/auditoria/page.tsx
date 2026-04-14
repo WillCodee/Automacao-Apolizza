@@ -90,6 +90,61 @@ const SPRITE_COLORS: Record<number, string | null> = {
   4: C.coatI, 5: C.pants, 6: C.shoes, 7: C.paper, 8: C.glass,
 };
 
+// ─── NPC sprites (8×10, back-facing workers at desks) ────────────────────────
+// 0=transparent,1=hair,2=skin,3=shirt,4=pants,5=shoes
+const NPC_SPRITE = [
+  [0,0,1,1,1,1,0,0],
+  [0,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,0],
+  [0,3,3,3,3,3,3,0],
+  [3,2,3,3,3,3,2,3],
+  [3,2,3,3,3,3,2,3],
+  [0,3,3,3,3,3,3,0],
+  [0,0,4,4,4,4,0,0],
+  [0,0,4,4,4,4,0,0],
+  [0,0,5,5,5,5,0,0],
+];
+
+type NpcKey = "relatorios" | "cotacoes" | "tarefas" | "tratativas";
+const NPC_DEFS: Record<NpcKey, { x: number; y: number; hair: string; shirt: string; role: string }> = {
+  relatorios: { x: 31,  y: 24, hair: "#5C3317", shirt: "#27AE60", role: "Analista"  },
+  cotacoes:   { x: 174, y: 24, hair: "#1A1A1A", shirt: "#E67E22", role: "Vendedor"  },
+  tarefas:    { x: 31,  y: 79, hair: "#D4A017", shirt: "#2980B9", role: "Gestor"    },
+  tratativas: { x: 174, y: 79, hair: "#B22222", shirt: "#8E44AD", role: "Corretor"  },
+};
+
+function drawNPC(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  hairColor: string, shirtColor: string,
+  bobY = 0,
+  active = false,
+) {
+  const colorMap: Record<number, string | null> = {
+    0: null, 1: hairColor, 2: C.skin, 3: shirtColor, 4: C.pants, 5: C.shoes,
+  };
+  NPC_SPRITE.forEach((row, r) => {
+    row.forEach((p, c) => {
+      const col = colorMap[p];
+      if (!col) return;
+      ctx.fillStyle = col;
+      ctx.fillRect((x + c) * PX, (y + r + bobY) * PX, PX, PX);
+    });
+  });
+
+  // Balão "..." quando está consultando
+  if (active) {
+    ctx.fillStyle = C.paper;
+    ctx.fillRect((x + 1) * PX, (y - 6) * PX, 8 * PX, 5 * PX);
+    ctx.fillStyle = C.deskD;
+    ctx.fillRect((x + 1) * PX, (y - 1) * PX, PX * 2, PX);
+    ctx.fillStyle = C.clockH;
+    ctx.font = `bold ${PX * 2}px monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("...", (x + 5) * PX, (y - 3) * PX);
+  }
+}
+
 // ─── Walking legs animation ───────────────────────────────────────────────────
 const WALK_LEGS = [
   [[0,0,5,0,0,0,5,5,0,0],[0,0,5,5,0,0,5,0,0,0],[0,0,6,5,0,0,6,0,0,0],[0,0,6,6,0,0,6,0,0,0]],
@@ -307,6 +362,15 @@ export default function AuditoriaPage() {
         drawDesk(ctx, st.x, st.y, st.label, isActive);
       });
 
+      // NPCs at satellite desks
+      const t = Date.now();
+      (Object.entries(NPC_DEFS) as [NpcKey, typeof NPC_DEFS[NpcKey]][]).forEach(([key, npc]) => {
+        const isActive = activeStation === key;
+        const freq = isActive ? 280 : 1600;
+        const bobY = Math.round(Math.sin(t / freq) * 0.8);
+        drawNPC(ctx, npc.x, npc.y, npc.hair, npc.shirt, bobY, isActive);
+      });
+
       // Main desk (auditor's)
       ctx.fillStyle = activeStation === "main" ? C.deskA : "#9B6820";
       ctx.fillRect(STATIONS.main.x * PX, (STATIONS.main.y - 2) * PX, 40 * PX, 14 * PX);
@@ -361,9 +425,14 @@ export default function AuditoriaPage() {
     setLoading(true);
     addLog(`> Consultando: ${opcao.label}...`);
 
-    // Move to station
-    const st = STATIONS[opcao.station];
-    targetPos.current = { x: st.x, y: st.y + 4 };
+    // Caminha até o funcionário da bancada
+    const npc = NPC_DEFS[opcao.station as NpcKey];
+    if (npc) {
+      targetPos.current = { x: npc.x + 10, y: npc.y + 2 };
+    } else {
+      const st = STATIONS[opcao.station];
+      targetPos.current = { x: st.x, y: st.y + 4 };
+    }
     setActiveStation(opcao.station);
 
     // Wait for walk (~1.2s)

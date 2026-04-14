@@ -10,7 +10,8 @@ import {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const message = body?.message;
+    // Suporta grupos (message) e canais/supergrupos (channel_post)
+    const message = body?.message || body?.channel_post;
     if (!message) return new Response("ok");
 
     const chatId = String(message.chat?.id);
