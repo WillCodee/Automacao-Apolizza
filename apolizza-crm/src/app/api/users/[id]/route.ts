@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { users } from "@/lib/schema";
+import { users, cotacoes } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
@@ -50,31 +50,36 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 }
 
-// DELETE /api/users/:id (deactivate)
+// DELETE /api/users/:id — exclusão permanente
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode gerenciar usuários", 403);
+    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode excluir usuários", 403);
 
     const { id } = await params;
 
-    // Prevent admin from deactivating themselves
     if (id === user.id) {
-      return apiError("Nao pode desativar a si mesmo", 400);
+      return apiError("Nao pode excluir a si mesmo", 400);
     }
 
-    const [deactivated] = await db
-      .update(users)
-      .set({ isActive: false })
+    // Conta cotações vinculadas (assignee_id será NULL após exclusão pelo ON DELETE SET NULL)
+    const [{ cotacoesCount }] = await db
+      .select({ cotacoesCount: count() })
+      .from(cotacoes)
+      .where(eq(cotacoes.assigneeId, id));
+
+    // Exclui o usuário — cotações terão assignee_id = NULL (ON DELETE SET NULL)
+    const [deleted] = await db
+      .delete(users)
       .where(eq(users.id, id))
-      .returning({ id: users.id, name: users.name, isActive: users.isActive });
+      .returning({ id: users.id, name: users.name });
 
-    if (!deactivated) return apiError("Usuario nao encontrado", 404);
+    if (!deleted) return apiError("Usuario nao encontrado", 404);
 
-    return apiSuccess(deactivated);
+    return apiSuccess({ ...deleted, cotacoesDesvinculadas: Number(cotacoesCount) });
   } catch (error) {
     console.error("API DELETE /api/users/[id]:", error);
-    return apiError("Erro ao desativar usuario", 500);
+    return apiError("Erro ao excluir usuario", 500);
   }
 }

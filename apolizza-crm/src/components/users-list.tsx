@@ -41,6 +41,7 @@ export function UsersList() {
     role: "cotador" as "admin" | "cotador" | "proprietario",
   });
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingPhotoUserId, setPendingPhotoUserId] = useState<string | null>(null);
 
@@ -84,16 +85,24 @@ export function UsersList() {
   }
 
   async function toggleActive(userId: string, isActive: boolean) {
-    if (isActive) {
-      if (!confirm("Desativar este usuario?")) return;
-      await fetch(`/api/users/${userId}`, { method: "DELETE" });
-    } else {
-      await fetch(`/api/users/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
+    await fetch(`/api/users/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: !isActive }),
+    });
+    fetchUsers();
+  }
+
+  async function handleDelete(userId: string) {
+    const res = await fetch(`/api/users/${userId}`, { method: "DELETE" });
+    const json = await res.json();
+    setConfirmDeleteId(null);
+    if (!res.ok) {
+      alert(json.error || "Erro ao excluir usuário");
+      return;
     }
+    const n = json.data?.cotacoesDesvinculadas;
+    if (n > 0) alert(`Usuário excluído. ${n} cotação(ões) ficaram sem responsável.`);
     fetchUsers();
   }
 
@@ -321,10 +330,37 @@ export function UsersList() {
                 </button>
                 <button
                   onClick={() => toggleActive(u.id, u.isActive)}
-                  className={`text-xs font-medium min-h-[44px] flex items-center ${u.isActive ? "text-[#ff695f] hover:text-[#e55a50]" : "text-emerald-600 hover:text-emerald-800"}`}
+                  className={`text-xs font-medium min-h-[44px] flex items-center ${u.isActive ? "text-amber-500 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-800"}`}
                 >
                   {u.isActive ? "Desativar" : "Reativar"}
                 </button>
+                {confirmDeleteId === u.id ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-500">Confirmar?</span>
+                    <button
+                      onClick={() => handleDelete(u.id)}
+                      className="text-xs font-semibold text-white bg-[#ff695f] hover:bg-[#e55a50] px-2 py-1 rounded-lg transition"
+                    >
+                      Sim
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+                    >
+                      Não
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(u.id)}
+                    className="text-xs font-medium text-[#ff695f] hover:text-[#e55a50] min-h-[44px] flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Excluir
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -338,7 +374,7 @@ export function UsersList() {
               <th className="px-5 py-3 font-medium text-xs uppercase tracking-wide">Email</th>
               <th className="px-5 py-3 font-medium text-xs uppercase tracking-wide">Perfil</th>
               <th className="px-5 py-3 font-medium text-xs uppercase tracking-wide text-center">Status</th>
-              <th className="px-5 py-3 font-medium text-xs uppercase tracking-wide text-right">Acoes</th>
+              <th className="px-5 py-3 font-medium text-xs uppercase tracking-wide text-right w-[220px]">Acoes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -382,19 +418,48 @@ export function UsersList() {
                     {u.isActive ? "Ativo" : "Inativo"}
                   </span>
                 </td>
-                <td className="px-5 py-3 text-right space-x-2">
-                  <button
-                    onClick={() => startEdit(u)}
-                    className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => toggleActive(u.id, u.isActive)}
-                    className={`text-xs font-medium ${u.isActive ? "text-[#ff695f] hover:text-[#e55a50]" : "text-emerald-600 hover:text-emerald-800"}`}
-                  >
-                    {u.isActive ? "Desativar" : "Reativar"}
-                  </button>
+                <td className="px-5 py-3 text-right whitespace-nowrap min-w-[230px]">
+                  <div className="flex items-center justify-end gap-3">
+                    <button
+                      onClick={() => startEdit(u)}
+                      className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => toggleActive(u.id, u.isActive)}
+                      className={`text-xs font-medium ${u.isActive ? "text-amber-500 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-800"}`}
+                    >
+                      {u.isActive ? "Desativar" : "Reativar"}
+                    </button>
+                    {confirmDeleteId === u.id ? (
+                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="text-xs text-slate-500">Confirmar?</span>
+                        <button
+                          onClick={() => handleDelete(u.id)}
+                          className="text-xs font-semibold text-white bg-[#ff695f] hover:bg-[#e55a50] px-2 py-1 rounded-lg transition"
+                        >
+                          Sim
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-xs text-slate-500 hover:text-slate-700 px-1"
+                        >
+                          Não
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(u.id)}
+                        className="text-xs font-medium text-[#ff695f] hover:text-[#e55a50] flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Excluir
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

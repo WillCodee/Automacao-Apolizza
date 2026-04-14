@@ -76,9 +76,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!texto && !imageUrl) return apiError("Mensagem vazia", 400);
     if (texto.length > 2000) return apiError("Texto muito longo (max 2000 chars)", 400);
 
-    // Busca nome da cotação para notificação
+    // Busca nome da cotação e cotador responsável para notificação
     const [cotacao] = await db
-      .select({ name: cotacoes.name })
+      .select({ name: cotacoes.name, assigneeId: cotacoes.assigneeId })
       .from(cotacoes)
       .where(eq(cotacoes.id, id));
 
@@ -87,16 +87,36 @@ export async function POST(req: NextRequest, { params }: Params) {
       .values({ cotacaoId: id, userId: user.id, texto, imageUrl })
       .returning();
 
-    // Cria notificação visível a admin e proprietário
     if (texto && cotacao) {
-      await db.insert(cotacaoNotificacoes).values({
+      const notifsToInsert = [];
+
+      // 1. Notificação global para admins/proprietários (destinatarioId = null)
+      notifsToInsert.push({
         cotacaoId: id,
         cotacaoNome: cotacao.name,
         autorId: user.id,
         autorNome: user.name,
         tipo: "mensagem",
         texto,
+        destinatarioId: null as string | null,
+        lida: false,
       });
+
+      // 2. Se o remetente NÃO é o cotador responsável, notifica o cotador
+      if (cotacao.assigneeId && cotacao.assigneeId !== user.id) {
+        notifsToInsert.push({
+          cotacaoId: id,
+          cotacaoNome: cotacao.name,
+          autorId: user.id,
+          autorNome: user.name,
+          tipo: "mensagem",
+          texto,
+          destinatarioId: cotacao.assigneeId,
+          lida: false,
+        });
+      }
+
+      await db.insert(cotacaoNotificacoes).values(notifsToInsert);
     }
 
     const [comUser] = await db

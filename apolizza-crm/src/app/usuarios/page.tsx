@@ -15,7 +15,7 @@ export default async function UsuariosPage() {
         userRole={session.user.role}
         activePage="usuarios"
       />
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6">
         <UsuariosPageClient />
       </main>
     </div>

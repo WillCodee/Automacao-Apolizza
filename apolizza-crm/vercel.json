@@ -11,6 +11,21 @@
     {
       "path": "/api/cron/tarefas-notificacoes",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/auditoria",
+      "schedule": "0 11 * * *",
+      "comment": "08:00 BRT - tratativas"
+    },
+    {
+      "path": "/api/cron/auditoria",
+      "schedule": "0 18 * * *",
+      "comment": "15:00 BRT - tarefas vencendo hoje"
+    },
+    {
+      "path": "/api/cron/auditoria",
+      "schedule": "0 21 * * *",
+      "comment": "18:00 BRT - tarefas nao finalizadas"
     }
   ]
 }

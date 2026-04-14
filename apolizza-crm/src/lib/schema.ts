@@ -413,8 +413,11 @@ export const cotacaoNotificacoes = pgTable(
     cotacaoNome: varchar("cotacao_nome", { length: 500 }).notNull(),
     autorId: uuid("autor_id").references(() => users.id, { onDelete: "set null" }),
     autorNome: varchar("autor_nome", { length: 255 }),
-    tipo: varchar("tipo", { length: 20 }).notNull(), // 'mensagem' | 'observacao'
+    tipo: varchar("tipo", { length: 20 }).notNull(), // 'mensagem' | 'observacao' | 'atrasado'
     texto: text("texto").notNull(),
+    // destinatarioId = NULL → visível a admin/proprietario; set → visível ao cotador específico
+    destinatarioId: uuid("destinatario_id").references(() => users.id, { onDelete: "cascade" }),
+    lida: boolean("lida").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -422,6 +425,8 @@ export const cotacaoNotificacoes = pgTable(
   (table) => [
     index("cotacao_notif_cotacao_idx").on(table.cotacaoId),
     index("cotacao_notif_created_idx").on(table.createdAt),
+    index("cotacao_notif_dest_idx").on(table.destinatarioId),
+    index("cotacao_notif_lida_idx").on(table.lida),
   ]
 );
 

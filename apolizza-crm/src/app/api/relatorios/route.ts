@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { apiError, apiSuccess, validateMes, validateAno } from "@/lib/api-helpers";
+import { apiError, apiSuccess, validateAno } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,39 +12,16 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = req.nextUrl;
     const ano = searchParams.get("ano") || String(new Date().getFullYear());
-    const mes = searchParams.get("mes") || null;
-    const dateFrom = searchParams.get("dateFrom") || null; // YYYY-MM-DD
-    const dateTo = searchParams.get("dateTo") || null;     // YYYY-MM-DD
 
     if (!validateAno(ano)) return apiError("Ano invalido", 400);
-    if (!validateMes(mes)) return apiError("Mes invalido", 400);
 
     const anoNum = Number(ano);
+    const anoAnterior = anoNum - 1;
 
-    // Se dateFrom/dateTo fornecidos, filtra por created_at; senão mantém filtro por ano/mês referência
-    let anoFilter = sql`and c.ano_referencia = ${anoNum}`;
-    let mesFilter = mes ? sql`and c.mes_referencia = ${mes}` : sql``;
-    let dateFilter = sql``;
-
-    if (dateFrom || dateTo) {
-      anoFilter = sql``;
-      mesFilter = sql``;
-      if (dateFrom) dateFilter = sql`${dateFilter} and c.created_at >= ${dateFrom}::timestamp`;
-      if (dateTo) dateFilter = sql`${dateFilter} and c.created_at <= ${dateTo + " 23:59:59"}::timestamp`;
-    }
-
-    // Previous period for comparison
-    const prevMesFilter = mes && !dateFrom && !dateTo
-      ? (() => {
-          const meses = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
-          const idx = meses.indexOf(mes);
-          if (idx <= 0) return { ano: anoNum - 1, mes: "DEZ" };
-          return { ano: anoNum, mes: meses[idx - 1] };
-        })()
-      : null;
+    const anoFilter = sql`and c.ano_referencia = ${anoNum}`;
 
     const [kpisResult, prevKpisResult, rankingResult, seguradoraResult, produtoResult, evolucaoResult] = await Promise.all([
-      // Current period KPIs
+      // KPIs do ano selecionado
       db.execute(sql`
         select
           count(*)::int as "totalCotacoes",
@@ -54,22 +31,19 @@ export async function GET(req: NextRequest) {
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "totalAReceber",
           coalesce(sum(case when c.status = 'perda' then cast(c.valor_perda as float) else 0 end), 0)::float as "totalValorPerda"
         from cotacoes c
-        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
+        where c.deleted_at is null ${anoFilter}
       `),
-      // Previous period KPIs (for comparison)
-      prevMesFilter
-        ? db.execute(sql`
-            select
-              count(*)::int as "totalCotacoes",
-              coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
-              coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "totalAReceber",
-              coalesce(sum(case when c.status = 'perda' then cast(c.valor_perda as float) else 0 end), 0)::float as "totalValorPerda"
-            from cotacoes c
-            where c.deleted_at is null
-              and c.ano_referencia = ${prevMesFilter.ano}
-              and c.mes_referencia = ${prevMesFilter.mes}
-          `)
-        : Promise.resolve({ rows: [{ totalCotacoes: 0, fechadas: 0, totalAReceber: 0, totalValorPerda: 0 }] }),
+      // KPIs do ano anterior (comparacao)
+      db.execute(sql`
+        select
+          count(*)::int as "totalCotacoes",
+          coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
+          coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "totalAReceber",
+          coalesce(sum(case when c.status = 'perda' then cast(c.valor_perda as float) else 0 end), 0)::float as "totalValorPerda"
+        from cotacoes c
+        where c.deleted_at is null
+          and c.ano_referencia = ${anoAnterior}
+      `),
       // Ranking cotadores
       db.execute(sql`
         select
@@ -85,7 +59,7 @@ export async function GET(req: NextRequest) {
           )::float as "taxaConversao"
         from cotacoes c
         join users u on u.id = c.assignee_id
-        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
+        where c.deleted_at is null ${anoFilter}
         group by u.id, u.name, u.photo_url
         order by sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end) desc
       `),
@@ -97,7 +71,7 @@ export async function GET(req: NextRequest) {
           coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "valor"
         from cotacoes c
-        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
+        where c.deleted_at is null ${anoFilter}
         group by coalesce(c.seguradora, 'Nao informada')
         order by sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end) desc nulls last
         limit 20
@@ -110,25 +84,23 @@ export async function GET(req: NextRequest) {
           coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "valor"
         from cotacoes c
-        where c.deleted_at is null ${anoFilter} ${mesFilter} ${dateFilter}
+        where c.deleted_at is null ${anoFilter}
         group by coalesce(c.produto, 'Nao informado')
         order by count(*) desc
         limit 20
       `),
-      // Evolucao 12 meses
+      // Evolucao mensal — apenas o ano selecionado, todos os meses com dados
       db.execute(sql`
         select
           c.mes_referencia as "mes",
-          c.ano_referencia as "ano",
           count(*)::int as "total",
           coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int as "fechadas",
           coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "faturamento"
         from cotacoes c
         where c.deleted_at is null
-          and c.ano_referencia is not null
+          and c.ano_referencia = ${anoNum}
           and c.mes_referencia is not null
-        group by c.mes_referencia, c.ano_referencia
-        order by c.ano_referencia asc, c.mes_referencia asc
+        group by c.mes_referencia
       `),
     ]);
 

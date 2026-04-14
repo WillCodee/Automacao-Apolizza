@@ -4,6 +4,27 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SignOutButton } from "./sign-out-button";
 
+function useNotifCount() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchCount() {
+      try {
+        const res = await fetch("/api/notificacoes/count");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setCount(json.data?.count ?? 0);
+      } catch {}
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 60_000); // atualiza a cada 1 min
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  return count;
+}
+
 type ActivePage =
   | "inicio"
   | "dashboard"
@@ -18,7 +39,8 @@ type ActivePage =
   | "tema"
   | "metas-admin"
   | "notificacoes"
-  | "base-conhecimento";
+  | "base-conhecimento"
+  | "auditoria";
 
 type AppHeaderProps = {
   userName: string;
@@ -26,7 +48,7 @@ type AppHeaderProps = {
   activePage?: ActivePage;
 };
 
-type NavItem = { href: string; label: string; key: string; icon: React.ReactNode };
+type NavItem = { href: string; label: string; key: string; icon: React.ReactNode; badge?: number };
 type NavGroup = { label: string; key: string; items: NavItem[] };
 
 function DropdownGroup({
@@ -44,6 +66,7 @@ function DropdownGroup({
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const isGroupActive = group.items.some((i) => i.key === activePage);
+  const groupBadgeTotal = group.items.reduce((s, i) => s + (i.badge ?? 0), 0);
 
   const handleOutside = useCallback(
     (e: MouseEvent) => {
@@ -70,6 +93,11 @@ function DropdownGroup({
         }`}
       >
         {group.label}
+        {groupBadgeTotal > 0 && (
+          <span className="ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff695f] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+            {groupBadgeTotal > 99 ? "99+" : groupBadgeTotal}
+          </span>
+        )}
         <svg
           className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
@@ -96,7 +124,12 @@ function DropdownGroup({
                 <span className={`flex-shrink-0 ${isActive ? "text-[#03a4ed]" : "text-slate-400"}`}>
                   {item.icon}
                 </span>
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {(item.badge ?? 0) > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff695f] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {(item.badge ?? 0) > 99 ? "99+" : item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -182,6 +215,7 @@ const IconBook = (
 export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const notifCount = useNotifCount();
 
   function toggleGroup(key: string) {
     setOpenGroup((prev) => (prev === key ? null : key));
@@ -203,6 +237,10 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
       items: [
         { href: "/tarefas", label: "Tarefas", key: "tarefas", icon: IconTasks },
         { href: "/calendario", label: "Calendário", key: "calendario", icon: IconCalendar },
+        // Cotadores também recebem notificações de mensagens
+        ...(userRole === "cotador"
+          ? [{ href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes" as ActivePage, icon: IconBell, badge: notifCount > 0 ? notifCount : undefined }]
+          : []),
       ],
     },
   ];
@@ -211,7 +249,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
   if (userRole === "admin" || userRole === "proprietario") {
     const adminItems: NavItem[] = [
       { href: "/relatorios", label: "Relatórios", key: "relatorios", icon: IconChart },
-      { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell },
+      { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell, badge: notifCount > 0 ? notifCount : undefined },
     ];
     if (userRole === "proprietario") {
       adminItems.push({ href: "/administracao/metas", label: "Cadastro de Metas", key: "metas-admin", icon: IconTarget });
@@ -228,6 +266,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
         { href: "/situacao-config", label: "Config. Situação", key: "situacao-config", icon: IconTag },
         { href: "/status-config", label: "Config. Status", key: "status-config", icon: IconGear },
         { href: "/usuarios", label: "Usuários", key: "usuarios", icon: IconUsers },
+        { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBell },
         { href: "/configuracoes/tema", label: "Tema", key: "tema", icon: IconPalette },
       ],
     });

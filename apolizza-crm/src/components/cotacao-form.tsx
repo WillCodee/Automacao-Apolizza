@@ -100,7 +100,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [comissaoPercentual, setComissaoPercentual] = useState("");
+  const [comissaoPercentual, setComissaoPercentual] = useState(initialData?.comissao ?? "");
   const [aReceberManual, setAReceberManual] = useState(false);
   const [valorParceladoManual, setValorParceladoManual] = useState(false);
   const [showMaisInfo, setShowMaisInfo] = useState(false);
@@ -172,16 +172,15 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     }
   }, [form.premioSemIof, form.parceladoEm]);
 
-  // Auto-calculate comissao (guardado silenciosamente) e aReceber a partir de Premio × %
+  // comissao salva a porcentagem (ex: "21"); aReceber = premioSemIof * (comissao% / 100)
   useEffect(() => {
-    const premio = parseFloat(form.premioSemIof);
     const pct = parseFloat(comissaoPercentual);
-    if (!isNaN(premio) && !isNaN(pct) && pct > 0 && premio > 0) {
-      const calculated = (premio * pct / 100).toFixed(2);
-      setForm((prev) => ({ ...prev, comissao: calculated }));
-      if (!aReceberManual) {
-        setForm((prev) => ({ ...prev, aReceber: calculated }));
-      }
+    if (!isNaN(pct) && pct > 0) {
+      setForm((prev) => ({ ...prev, comissao: comissaoPercentual }));
+    }
+    const premio = parseFloat(form.premioSemIof);
+    if (!isNaN(premio) && !isNaN(pct) && pct > 0 && premio > 0 && !aReceberManual) {
+      setForm((prev) => ({ ...prev, aReceber: (premio * pct / 100).toFixed(2) }));
     }
   }, [form.premioSemIof, comissaoPercentual]);
 
