@@ -33,9 +33,9 @@ export function linkCotacao(id: string, nome: string) {
 export function fmtAtrasado(rows: { id: string; name: string; due_date: string; assignee_name: string | null }[]) {
   if (rows.length === 0) return "✅ Nenhuma cotação atrasada no momento.";
   const lines = rows.map(
-    (r) => `• *${r.name}*\n  👤 ${r.assignee_name || "Sem responsável"} | 📅 ${fmtDate(r.due_date)}`
+    (r) => `• ${linkCotacao(r.id, r.name)}\n  👤 ${r.assignee_name || "Sem responsável"} | 📅 ${fmtDate(r.due_date)}`
   );
-  return `🚨 *SEGUROS ATRASADOS (${rows.length})*\n\n${lines.join("\n\n")}\n\n🔗 ${APP_URL}/cotacoes`;
+  return `🚨 *SEGUROS ATRASADOS (${rows.length})*\n\n${lines.join("\n\n")}`;
 }
 
 export function fmtTarefasHoje(rows: { id: string; titulo: string; cotador_name: string }[]) {
@@ -49,9 +49,9 @@ export function fmtTratativas(rows: { id: string; name: string; proxima_tratativ
   const emoji = quando === "hoje" ? "📞" : "📅";
   const label = quando === "hoje" ? "HOJE" : "AMANHÃ";
   const lines = rows.map(
-    (r) => `• *${r.name}*\n  👤 ${r.assignee_name || "Sem responsável"} | 📅 ${fmtDate(r.proxima_tratativa)}`
+    (r) => `• ${linkCotacao(r.id, r.name)}\n  👤 ${r.assignee_name || "Sem responsável"} | 📅 ${fmtDate(r.proxima_tratativa)}`
   );
-  return `${emoji} *TRATATIVAS DE ${label} (${rows.length})*\n\n${lines.join("\n\n")}\n\n🔗 ${APP_URL}/cotacoes`;
+  return `${emoji} *TRATATIVAS DE ${label} (${rows.length})*\n\n${lines.join("\n\n")}`;
 }
 
 export function fmtTarefasPendentes(rows: { titulo: string; cotador_name: string; data_vencimento: string | null }[]) {

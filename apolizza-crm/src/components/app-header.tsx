@@ -257,19 +257,20 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
     groups.push({ label: "Administração", key: "admin-group", items: adminItems });
   }
 
-  // Proprietário: Configurações completas
-  if (userRole === "proprietario") {
-    groups.push({
-      label: "Configurações",
-      key: "config-group",
-      items: [
+  // Admin e Proprietário: Configurações
+  if (userRole === "admin" || userRole === "proprietario") {
+    const configItems: NavItem[] = [
+      { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBell },
+    ];
+    if (userRole === "proprietario") {
+      configItems.unshift(
         { href: "/situacao-config", label: "Config. Situação", key: "situacao-config", icon: IconTag },
         { href: "/status-config", label: "Config. Status", key: "status-config", icon: IconGear },
         { href: "/usuarios", label: "Usuários", key: "usuarios", icon: IconUsers },
-        { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBell },
-        { href: "/configuracoes/tema", label: "Tema", key: "tema", icon: IconPalette },
-      ],
-    });
+      );
+      configItems.push({ href: "/configuracoes/tema", label: "Tema", key: "tema", icon: IconPalette });
+    }
+    groups.push({ label: "Configurações", key: "config-group", items: configItems });
   }
 
   return (
