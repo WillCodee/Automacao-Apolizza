@@ -7,7 +7,9 @@ export default auth((req) => {
   // Public routes — no auth required
   const isPublic =
     pathname.startsWith("/login") ||
-    pathname.startsWith("/api/auth");
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/telegram/") ||   // Telegram webhook (sem sessão)
+    pathname.startsWith("/api/cron/");          // Cron jobs (autenticados por CRON_SECRET)
 
   if (isPublic) return NextResponse.next();
 
@@ -22,5 +24,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg|.*\\.ico|.*\\.webp).*)"],
 };

@@ -25,8 +25,8 @@ export async function GET() {
       .from(users)
       .orderBy(users.name);
 
-    // Non-admin only see active users (basic info)
-    if (user.role !== "admin") {
+    // Non-admin/proprietario only see active users (basic info)
+    if (user.role !== "admin" && user.role !== "proprietario") {
       return apiSuccess(rows.filter((r) => r.isActive));
     }
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "admin") return apiError("Apenas admin", 403);
+    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode criar usuários", 403);
 
     const body = await req.json();
     const { name, email, username, password, role } = body;

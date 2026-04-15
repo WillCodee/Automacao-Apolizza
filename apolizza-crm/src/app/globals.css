@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
-:root {
+/* ============================================================
+   TEMA: Oceano (padrão)
+   ============================================================ */
+:root,
+[data-theme="oceano"] {
+  --primary: #03a4ed;
+  --primary-dark: #0288d1;
+  --accent: #ff695f;
+  --accent-dark: #e55a50;
+  --header-from: #1e293b;
+  --header-to: #0f172a;
   --background: #f8fafc;
-  --foreground: #1e1e1e;
+  --foreground: #1e293b;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
   --apolizza-blue: #03a4ed;
   --apolizza-blue-dark: #0288d1;
   --apolizza-coral: #ff695f;
@@ -12,6 +27,89 @@
   --apolizza-dark: #2a2a2a;
 }
 
+/* ============================================================
+   TEMA: Esmeralda
+   ============================================================ */
+[data-theme="esmeralda"] {
+  --primary: #10b981;
+  --primary-dark: #059669;
+  --accent: #f59e0b;
+  --accent-dark: #d97706;
+  --header-from: #064e3b;
+  --header-to: #022c22;
+  --apolizza-blue: #10b981;
+  --apolizza-blue-dark: #059669;
+  --apolizza-coral: #f59e0b;
+  --apolizza-coral-dark: #d97706;
+}
+
+/* ============================================================
+   TEMA: Violeta
+   ============================================================ */
+[data-theme="violeta"] {
+  --primary: #8b5cf6;
+  --primary-dark: #7c3aed;
+  --accent: #ec4899;
+  --accent-dark: #db2777;
+  --header-from: #2e1065;
+  --header-to: #1e0a45;
+  --apolizza-blue: #8b5cf6;
+  --apolizza-blue-dark: #7c3aed;
+  --apolizza-coral: #ec4899;
+  --apolizza-coral-dark: #db2777;
+}
+
+/* ============================================================
+   TEMA: Pôr do Sol
+   ============================================================ */
+[data-theme="pordosol"] {
+  --primary: #f97316;
+  --primary-dark: #ea6c0a;
+  --accent: #ef4444;
+  --accent-dark: #dc2626;
+  --header-from: #431407;
+  --header-to: #2a0c04;
+  --apolizza-blue: #f97316;
+  --apolizza-blue-dark: #ea6c0a;
+  --apolizza-coral: #ef4444;
+  --apolizza-coral-dark: #dc2626;
+}
+
+/* ============================================================
+   TEMA: Meia-Noite
+   ============================================================ */
+[data-theme="meianoite"] {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --accent: #14b8a6;
+  --accent-dark: #0d9488;
+  --header-from: #1e1b4b;
+  --header-to: #0f0e2e;
+  --apolizza-blue: #6366f1;
+  --apolizza-blue-dark: #4f46e5;
+  --apolizza-coral: #14b8a6;
+  --apolizza-coral-dark: #0d9488;
+}
+
+/* ============================================================
+   MODO ESCURO
+   ============================================================ */
+[data-mode="dark"] {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --border: #334155;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --apolizza-gray-light: #1e293b;
+  --apolizza-gray: #94a3b8;
+  --apolizza-dark: #f1f5f9;
+}
+
+/* ============================================================
+   APLICAÇÃO DAS VARIÁVEIS
+   ============================================================ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -26,19 +124,54 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-poppins), 'Poppins', sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Gradient utilities */
 .bg-apolizza-gradient {
-  background: linear-gradient(105deg, rgba(255,104,95,1) 0%, rgba(255,144,104,1) 100%);
+  background: linear-gradient(105deg, var(--accent) 0%, var(--accent-dark) 100%);
 }
 
 .bg-apolizza-blue-gradient {
-  background: linear-gradient(135deg, #03a4ed 0%, #0288d1 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
 }
 
 .bg-apolizza-header {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, var(--header-from) 0%, var(--header-to) 100%);
+  transition: background 0.3s ease;
+}
+
+/* Dark mode surface overrides */
+[data-mode="dark"] .bg-white {
+  background-color: var(--surface) !important;
+}
+[data-mode="dark"] .bg-slate-50 {
+  background-color: var(--surface-2) !important;
+}
+[data-mode="dark"] .bg-slate-100 {
+  background-color: #334155 !important;
+}
+[data-mode="dark"] .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+[data-mode="dark"] .text-slate-800 {
+  color: #e2e8f0 !important;
+}
+[data-mode="dark"] .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+[data-mode="dark"] .text-slate-600 {
+  color: #94a3b8 !important;
+}
+[data-mode="dark"] .text-slate-500 {
+  color: #64748b !important;
+}
+[data-mode="dark"] .border-slate-100,
+[data-mode="dark"] .border-slate-200 {
+  border-color: #334155 !important;
+}
+[data-mode="dark"] .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.4) !important;
 }
 
 /* Scrollbar styling */
@@ -47,12 +180,12 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--surface-2, #f1f5f9);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border, #cbd5e1);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-subtle, #94a3b8);
 }

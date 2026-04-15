@@ -30,9 +30,7 @@ export async function GET(req: NextRequest) {
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
-    if (user.role === "cotador") {
-      conditions.push(eq(cotacoes.assigneeId, user.id));
-    } else if (assignee) {
+    if (assignee) {
       conditions.push(eq(cotacoes.assigneeId, assignee));
     }
 
@@ -54,9 +52,12 @@ export async function GET(req: NextRequest) {
 
     const where = and(...conditions);
 
+    const baseUrl = req.nextUrl.origin;
+
     // Fetch all matching rows (max 10.000) with user names
     const rows = await db
       .select({
+        id: cotacoes.id,
         name: cotacoes.name,
         status: cotacoes.status,
         priority: cotacoes.priority,
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
     // Build CSV with BOM for Excel PT-BR
     const BOM = "\ufeff";
     const headers = [
-      "Nome", "Status", "Prioridade", "Produto", "Seguradora",
+      "Nome", "Link", "Status", "Prioridade", "Produto", "Seguradora",
       "A Receber", "Valor Perda", "Comissao", "Premio s/ IOF",
       "Tipo Cliente", "Situacao", "Mes", "Ano", "Cotador", "Criado Em",
     ];
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
     for (const r of rows) {
       const line = [
         csvEscape(r.name),
+        `${baseUrl}/cotacoes/${r.id}`,
         csvEscape(r.status),
         csvEscape(r.priority),
         csvEscape(r.produto),

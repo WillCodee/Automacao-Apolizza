@@ -1,5 +1,8 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
+import { CardFilter } from "./card-filter";
+
 type KpiData = {
   totalCotacoes: number;
   fechadas: number;
@@ -11,10 +14,55 @@ type KpiData = {
   taxaConversao: number;
 };
 
+const MES_OPTIONS_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+
 const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export function KpiCards({ kpis }: { kpis: KpiData }) {
+function KpiCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 opacity-50 animate-pulse">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="bg-white rounded-xl border-l-4 border-l-slate-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-4 w-24 bg-slate-100 rounded" />
+            <div className="w-9 h-9 bg-slate-100 rounded-lg" />
+          </div>
+          <div className="h-8 w-32 bg-slate-100 rounded mb-2" />
+          <div className="h-3 w-24 bg-slate-100 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function KpiCards() {
+  const currentYear = String(new Date().getFullYear());
+  const currentMes = MES_OPTIONS_ARR[new Date().getMonth()];
+
+  const [ano, setAno] = useState(currentYear);
+  const [mes, setMes] = useState(currentMes);
+  const [kpis, setKpis] = useState<KpiData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set("ano", ano);
+    if (mes) params.set("mes", mes);
+    const res = await fetch(`/api/dashboard?${params}`);
+    const json = await res.json();
+    setKpis(json.data?.kpis ?? null);
+    setLoading(false);
+  }, [ano, mes]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) return <KpiCardsSkeleton />;
+  if (!kpis) return null;
+
   const cards = [
     {
       label: "Total Cotacoes",
@@ -71,24 +119,30 @@ export function KpiCards({ kpis }: { kpis: KpiData }) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className={`bg-white rounded-xl border-l-4 ${card.accent} p-5 shadow-sm hover:shadow-md transition-shadow`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-slate-500">{card.label}</p>
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.iconBg}`}>
-              {card.icon}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-sm font-semibold text-slate-900">Indicadores</h3>
+        <CardFilter ano={ano} mes={mes} onChange={({ ano: a, mes: m }) => { setAno(a); setMes(m); }} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map((card) => (
+          <div
+            key={card.label}
+            className={`bg-white rounded-xl border-l-4 ${card.accent} p-5 shadow-sm hover:shadow-md transition-shadow`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-slate-500">{card.label}</p>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.iconBg}`}>
+                {card.icon}
+              </div>
             </div>
+            <p className={`text-2xl font-bold ${card.valueColor}`}>
+              {card.value}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">{card.sub}</p>
           </div>
-          <p className={`text-2xl font-bold ${card.valueColor}`}>
-            {card.value}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">{card.sub}</p>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

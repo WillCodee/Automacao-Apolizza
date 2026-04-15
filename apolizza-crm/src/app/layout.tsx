@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { NextAuthSessionProvider } from "@/components/session-provider";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -20,7 +22,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${poppins.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <NextAuthSessionProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </NextAuthSessionProvider>
+      </body>
     </html>
   );
 }

@@ -7,7 +7,8 @@ import { db } from "@/lib/db";
 import { cotacoes, users } from "@/lib/schema";
 import { AppHeader } from "@/components/app-header";
 import { DocsUpload } from "@/components/docs-upload";
-import { CotacaoHistory } from "@/components/cotacao-history";
+import { AtividadePanel } from "@/components/atividade-panel";
+import { ObservacaoEditor } from "@/components/observacao-editor";
 import { STATUS_BADGES } from "@/lib/status-config";
 
 type Params = { params: Promise<{ id: string }> };
@@ -46,6 +47,14 @@ export default async function CotacaoDetailPage({ params }: Params) {
   const fmtDate = (v: string | Date | null) =>
     v ? new Date(v).toLocaleDateString("pt-BR") : "—";
 
+  const fmtDateTime = (v: string | Date | null) =>
+    v
+      ? new Date(v).toLocaleString("pt-BR", {
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        })
+      : "—";
+
   return (
     <div className="min-h-screen bg-slate-50">
       <AppHeader
@@ -53,7 +62,8 @@ export default async function CotacaoDetailPage({ params }: Params) {
         userRole={session.user.role}
         activePage="cotacoes"
       />
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <Link href="/cotacoes" className="text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium">
@@ -69,63 +79,92 @@ export default async function CotacaoDetailPage({ params }: Params) {
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8 space-y-6 border border-slate-100">
-          {/* Status badges */}
-          <div className="flex flex-wrap gap-2">
-            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold capitalize ${STATUS_BADGE[row.status] || "bg-slate-100 text-slate-600"}`}>
-              {row.status}
-            </span>
-            <span className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg text-sm capitalize">
-              {row.priority}
-            </span>
-            {row.isRenovacao && (
-              <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium">
-                Renovacao
-              </span>
-            )}
+        {/* Layout duas colunas */}
+        <div className="flex gap-6 items-start">
+          {/* Coluna principal */}
+          <div className="flex-1 min-w-0 space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8 space-y-6 border border-slate-100">
+              {/* Status badges */}
+              <div className="flex flex-wrap gap-2">
+                <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold capitalize ${STATUS_BADGE[row.status] || "bg-slate-100 text-slate-600"}`}>
+                  {row.status}
+                </span>
+                <span className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg text-sm capitalize">
+                  {row.priority}
+                </span>
+                {row.isRenovacao && (
+                  <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium">
+                    Renovacao
+                  </span>
+                )}
+              </div>
+
+              {/* Details grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <Detail label="Responsavel" value={assigneeName} />
+                <Detail label="Tipo Cliente" value={row.tipoCliente} />
+                <Detail label="Contato" value={row.contatoCliente} />
+                <Detail label="Seguradora" value={row.seguradora} />
+                <Detail label="Produto" value={row.produto} />
+                <Detail label="Situacao" value={row.situacao} />
+                <Detail label="Indicacao" value={row.indicacao} />
+                <Detail label="Inicio Vigencia" value={fmtDate(row.inicioVigencia)} />
+                <Detail label="Fim Vigencia" value={fmtDate(row.fimVigencia)} />
+                <Detail label="1o Pagamento" value={fmtDate(row.primeiroPagamento)} />
+                <Detail label="Data Contato com Cliente" value={fmtDate(row.proximaTratativa)} />
+                <Detail label="Data de Entrega" value={fmtDate(row.dueDate)} />
+                <Detail label="Premio sem IOF" value={fmt(row.premioSemIof)} highlight />
+                <Detail label="Comissao" value={fmt(row.comissao)} highlight />
+                <Detail label="A Receber" value={fmt(row.aReceber)} highlight />
+                <Detail label="Valor Perda" value={fmt(row.valorPerda)} />
+                <Detail label="Parcela do Cliente" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />
+                <Detail label="Valor Parcelado (R$/mes)" value={fmt(row.valorParcelado)} highlight />
+                <Detail
+                  label="Referencia"
+                  value={row.mesReferencia && row.anoReferencia ? `${row.mesReferencia}/${row.anoReferencia}` : "—"}
+                />
+              </div>
+
+              {/* Comissionamento parcelado */}
+              {row.comissaoParcelada && (
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                    Data de Comissionamento ({(row.comissaoParcelada as { parcelas: number; percentuais: number[] }).parcelas} parcelas)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(row.comissaoParcelada as { parcelas: number; percentuais: number[] }).percentuais.map((pct, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex flex-col items-center bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm"
+                      >
+                        <span className="text-[10px] text-slate-400 font-medium">Parcela {i + 1}</span>
+                        <span className="font-semibold text-slate-800">{pct}%</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <ObservacaoEditor cotacaoId={id} initialValue={row.observacao} />
+
+              <div className="text-xs text-slate-400 pt-4 border-t border-slate-100">
+                Criado em {fmtDateTime(row.createdAt)} — Atualizado em {fmtDateTime(row.updatedAt)}
+                {row.clickupId && ` — ClickUp #${row.clickupId}`}
+              </div>
+            </div>
+
+            <DocsUpload cotacaoId={id} />
           </div>
 
-          {/* Details grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <Detail label="Responsavel" value={assigneeName} />
-            <Detail label="Tipo Cliente" value={row.tipoCliente} />
-            <Detail label="Contato" value={row.contatoCliente} />
-            <Detail label="Seguradora" value={row.seguradora} />
-            <Detail label="Produto" value={row.produto} />
-            <Detail label="Situacao" value={row.situacao} />
-            <Detail label="Indicacao" value={row.indicacao} />
-            <Detail label="Inicio Vigencia" value={fmtDate(row.inicioVigencia)} />
-            <Detail label="Fim Vigencia" value={fmtDate(row.fimVigencia)} />
-            <Detail label="1o Pagamento" value={fmtDate(row.primeiroPagamento)} />
-            <Detail label="Proxima Tratativa" value={fmtDate(row.proximaTratativa)} />
-            <Detail label="Data Limite" value={fmtDate(row.dueDate)} />
-            <Detail label="Premio sem IOF" value={fmt(row.premioSemIof)} highlight />
-            <Detail label="Comissao" value={fmt(row.comissao)} highlight />
-            <Detail label="A Receber" value={fmt(row.aReceber)} highlight />
-            <Detail label="Valor Perda" value={fmt(row.valorPerda)} />
-            <Detail label="Parcelado Em" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />
-            <Detail
-              label="Referencia"
-              value={row.mesReferencia && row.anoReferencia ? `${row.mesReferencia}/${row.anoReferencia}` : "—"}
+          {/* Sidebar — Atividade */}
+          <div className="w-80 xl:w-96 shrink-0">
+            <AtividadePanel
+              cotacaoId={id}
+              currentUserId={session.user.id}
+              currentUserName={session.user.name || ""}
+              currentUserPhoto={session.user.image}
             />
           </div>
-
-          {row.observacao && (
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Observacao</p>
-              <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">{row.observacao}</p>
-            </div>
-          )}
-
-          <div className="text-xs text-slate-400 pt-4 border-t border-slate-100">
-            Criado em {fmtDate(row.createdAt)} — Atualizado em {fmtDate(row.updatedAt)}
-            {row.clickupId && ` — ClickUp #${row.clickupId}`}
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-6">
-          <DocsUpload cotacaoId={id} />
-          <CotacaoHistory cotacaoId={id} />
         </div>
       </div>
     </div>

@@ -44,13 +44,15 @@ export default function LoginPage() {
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
           {/* Logo area */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-apolizza-gradient mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900">Apolizza CRM</h1>
-            <p className="text-slate-500 mt-1 text-sm">Gestao de Cotacoes de Seguros</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-apolizza.png"
+              alt="Apolizza"
+              className="mx-auto mb-4 h-40 w-auto object-contain rounded-3xl"
+              style={{boxShadow: '0 8px 48px 0 rgba(255, 105, 95, 0.25), 0 2px 16px 0 rgba(255, 105, 95, 0.12)'}}
+            />
+            <h1 className="text-2xl font-bold text-slate-800 tracking-wide mb-1">CRM APOLIZZA</h1>
+            <p className="text-slate-500 text-sm">Gestao de Cotacoes de Seguros</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">

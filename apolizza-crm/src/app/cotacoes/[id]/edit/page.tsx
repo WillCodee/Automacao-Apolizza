@@ -51,6 +51,7 @@ export default async function EditCotacaoPage({ params }: Params) {
     mesReferencia: row.mesReferencia || "",
     anoReferencia: row.anoReferencia ? String(row.anoReferencia) : "",
     isRenovacao: row.isRenovacao,
+    comissaoParcelada: (row.comissaoParcelada as { parcelas: number; percentuais: number[] } | null) ?? null,
   };
 
   return (

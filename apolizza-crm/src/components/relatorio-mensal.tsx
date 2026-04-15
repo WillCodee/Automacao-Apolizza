@@ -13,7 +13,22 @@ import {
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import { MES_OPTIONS, ANO_OPTIONS } from "@/lib/constants";
+import { ANO_OPTIONS } from "@/lib/constants";
+
+const MESES_ORDEM = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+
+// Paleta de cores por ano — até 8 anos simultâneos
+const ANO_COLORS: Record<number, { bg: string; border: string }> = {
+  2020: { bg: "rgba(139,92,246,0.75)",  border: "#7c3aed" },
+  2021: { bg: "rgba(249,115,22,0.75)",  border: "#ea580c" },
+  2022: { bg: "rgba(234,179,8,0.75)",   border: "#ca8a04" },
+  2023: { bg: "rgba(239,68,68,0.75)",   border: "#dc2626" },
+  2024: { bg: "rgba(3,164,237,0.75)",   border: "#0288d1" },
+  2025: { bg: "rgba(34,197,94,0.75)",   border: "#16a34a" },
+  2026: { bg: "rgba(255,105,95,0.75)",  border: "#e55a50" },
+  2027: { bg: "rgba(20,184,166,0.75)",  border: "#0d9488" },
+};
+const DEFAULT_COLOR = { bg: "rgba(100,116,139,0.75)", border: "#475569" };
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
 
@@ -52,7 +67,14 @@ type PipelineItem = {
 
 type EvolucaoItem = {
   mes: string;
+  total: number;
+  fechadas: number;
+  faturamento: number;
+};
+
+type EvolucaoMultiItem = {
   ano: number;
+  mes: string;
   total: number;
   fechadas: number;
   faturamento: number;
@@ -79,25 +101,46 @@ function pctChange(curr: number, prev: number): { value: string; positive: boole
 }
 
 export function RelatorioMensal() {
+  const currentYear = String(new Date().getFullYear());
+
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [ano, setAno] = useState(String(new Date().getFullYear()));
-  const [mes, setMes] = useState(MES_OPTIONS[new Date().getMonth()] as string);
+  const [ano, setAno] = useState(currentYear);
+
+  // Anos selecionados para o gráfico de evolução (independente do filtro de KPIs)
+  const [anosEvolucao, setAnosEvolucao] = useState<string[]>([currentYear]);
+  const [evolucaoMulti, setEvolucaoMulti] = useState<EvolucaoMultiItem[]>([]);
+  const [loadingEvolucao, setLoadingEvolucao] = useState(false);
+
   const printRef = useRef<HTMLDivElement>(null);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ ano });
-    if (mes) params.set("mes", mes);
-    const res = await fetch(`/api/relatorios?${params}`);
+    const res = await fetch(`/api/relatorios?ano=${ano}`);
     const json = await res.json();
     setData(json.data);
     setLoading(false);
-  }, [ano, mes]);
+  }, [ano]);
 
-  useEffect(() => {
-    fetchReport();
-  }, [fetchReport]);
+  const fetchEvolucao = useCallback(async () => {
+    if (anosEvolucao.length === 0) { setEvolucaoMulti([]); return; }
+    setLoadingEvolucao(true);
+    const res = await fetch(`/api/relatorios/evolucao?anos=${anosEvolucao.join(",")}`);
+    const json = await res.json();
+    setEvolucaoMulti(json.data?.evolucao ?? []);
+    setLoadingEvolucao(false);
+  }, [anosEvolucao]);
+
+  useEffect(() => { fetchReport(); }, [fetchReport]);
+  useEffect(() => { fetchEvolucao(); }, [fetchEvolucao]);
+
+  function toggleAnoEvolucao(a: string) {
+    setAnosEvolucao((prev) =>
+      prev.includes(a)
+        ? prev.length > 1 ? prev.filter((x) => x !== a) : prev  // mínimo 1 ano
+        : [...prev, a].sort()
+    );
+  }
 
   function handlePrint() {
     window.print();
@@ -116,38 +159,59 @@ export function RelatorioMensal() {
     return <div className="text-center py-16 text-[#ff695f]">Erro ao carregar relatorio.</div>;
   }
 
-  const { kpis, ranking, pipelineSeguradora, pipelineProduto, evolucao } = data;
+  const { kpis, ranking, pipelineSeguradora, pipelineProduto } = data;
 
-  const evolLabels = evolucao.map((e) => `${e.mes}/${e.ano}`);
+  // Agrupa dados de evolução por ano → por mês
+  const anosOrdenados = [...anosEvolucao].sort();
   const chartData = {
-    labels: evolLabels,
-    datasets: [
-      {
-        label: "Faturamento",
-        data: evolucao.map((e) => e.faturamento),
-        backgroundColor: "#22c55e",
-        borderRadius: 6,
-      },
-      {
-        label: "Fechadas",
-        data: evolucao.map((e) => e.fechadas),
-        backgroundColor: "#03a4ed",
-        borderRadius: 6,
-      },
-    ],
+    labels: MESES_ORDEM,
+    datasets: anosOrdenados.map((anoStr) => {
+      const anoN = Number(anoStr);
+      const cor = ANO_COLORS[anoN] ?? DEFAULT_COLOR;
+      const byMes = new Map(
+        evolucaoMulti.filter((e) => e.ano === anoN).map((e) => [e.mes, e])
+      );
+      return {
+        label: String(anoN),
+        data: MESES_ORDEM.map((m) => byMes.get(m)?.faturamento ?? 0),
+        backgroundColor: cor.bg,
+        borderColor: cor.border,
+        borderWidth: 1,
+        borderRadius: 5,
+      };
+    }),
   };
 
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11, family: "Poppins" }, usePointStyle: true, pointStyle: "circle" as const } },
+      legend: {
+        position: "top" as const,
+        labels: { boxWidth: 12, font: { size: 11, family: "Poppins" }, usePointStyle: true, pointStyle: "circle" as const },
+      },
+      tooltip: {
+        callbacks: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          label: (ctx: any) =>
+            ` ${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        },
+      },
     },
     scales: {
-      y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { font: { size: 11, family: "Poppins" } } },
+      y: {
+        beginAtZero: true,
+        grid: { color: "#f1f5f9" },
+        ticks: {
+          font: { size: 11, family: "Poppins" },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          callback: (v: any) =>
+            `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`,
+        },
+      },
       x: { grid: { display: false }, ticks: { font: { size: 10, family: "Poppins" } } },
     },
-  };
+  } as Parameters<typeof Bar>[0]["options"];
 
   const medals = ["🥇", "🥈", "🥉"];
 
@@ -155,28 +219,21 @@ export function RelatorioMensal() {
     <div className="space-y-6 print:space-y-4" ref={printRef}>
       {/* Filters + Print */}
       <div className="flex flex-wrap gap-3 items-center print:hidden">
-        <select
-          value={ano}
-          onChange={(e) => setAno(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
-        >
-          {ANO_OPTIONS.map((a) => (
-            <option key={a} value={String(a)}>{a}</option>
-          ))}
-        </select>
-        <select
-          value={mes}
-          onChange={(e) => setMes(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
-        >
-          <option value="">Ano inteiro</option>
-          {MES_OPTIONS.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-slate-600 whitespace-nowrap">Ano:</label>
+          <select
+            value={ano}
+            onChange={(e) => setAno(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+          >
+            {ANO_OPTIONS.map((a) => (
+              <option key={a} value={String(a)}>{a}</option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={handlePrint}
-          className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-apolizza-gradient hover:opacity-90 transition-all shadow-sm flex items-center gap-2"
+          className="ml-auto px-4 py-2 text-sm font-medium text-white rounded-xl bg-apolizza-gradient hover:opacity-90 transition-all shadow-sm flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -204,7 +261,7 @@ export function RelatorioMensal() {
                 <span className={`text-xs font-semibold ${change.positive ? "text-emerald-600" : "text-[#ff695f]"}`}>
                   {change.positive ? "���" : "↓"} {change.value}
                 </span>
-                <span className="text-xs text-slate-400">vs mes anterior</span>
+                <span className="text-xs text-slate-400">vs {Number(ano) - 1}</span>
               </div>
             </div>
           );
@@ -306,15 +363,49 @@ export function RelatorioMensal() {
         </div>
       </div>
 
-      {/* Evolução 12 meses */}
+      {/* Evolução Mensal Multi-Ano */}
       <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
-        <h3 className="text-sm font-semibold text-slate-900 mb-4">Evolucao Mensal</h3>
-        {evolucao.length > 0 ? (
-          <div className="h-[300px]">
-            <Bar data={chartData} options={chartOptions} />
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Evolução Mensal — Faturamento (R$)</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Jan → Dez · selecione os anos para comparar</p>
+          </div>
+          {/* Pills de seleção de ano */}
+          <div className="flex flex-wrap gap-2">
+            {ANO_OPTIONS.map((a) => {
+              const aStr = String(a);
+              const ativo = anosEvolucao.includes(aStr);
+              const cor = ANO_COLORS[a] ?? DEFAULT_COLOR;
+              return (
+                <button
+                  key={a}
+                  onClick={() => toggleAnoEvolucao(aStr)}
+                  style={ativo ? { backgroundColor: cor.border, borderColor: cor.border, color: "#fff" } : {}}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
+                    ativo
+                      ? "shadow-sm"
+                      : "border-slate-200 text-slate-500 bg-white hover:border-slate-400 hover:text-slate-700"
+                  }`}
+                >
+                  {a}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {loadingEvolucao ? (
+          <div className="h-[320px] flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : evolucaoMulti.length === 0 ? (
+          <div className="h-[320px] flex items-center justify-center">
+            <p className="text-sm text-slate-400">Sem dados para os anos selecionados</p>
           </div>
         ) : (
-          <p className="text-sm text-slate-400 text-center py-8">Sem dados de evolucao</p>
+          <div className="h-[320px]">
+            <Bar data={chartData} options={chartOptions} />
+          </div>
         )}
       </div>
     </div>
