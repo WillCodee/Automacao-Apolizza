@@ -51,3 +51,7 @@ next-env.d.ts
 /scripts/count-*.ts
 /scripts/analyze-*.ts
 /scripts/inspect-*.ts
+/scripts/check-data.ts
+
+# Backups do banco de dados
+/backups/

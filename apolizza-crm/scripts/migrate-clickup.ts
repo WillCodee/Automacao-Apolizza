@@ -33,7 +33,8 @@ const API_BASE = "https://api.clickup.com/api/v2";
 const FIELDS = {
   A_RECEBER: "cecaeb66-e057-4032-a296-27232581f4d7",
   VALOR_PERDA: "7d482fab-02e0-4e61-9563-b07a5565cf8f",
-  ANO: "abd866e7-15da-4b11-be2a-4d20491032d5",
+  ANO: "95fcbbf2-23cd-45dd-a9e3-dcad386e05e9",
+  OBSERVACAO: "a8d0ccc1-c30b-4fe4-8514-7ce1841d8b16",
   SITUACAO: "787d9f83-2373-4adb-b709-8ca0da833af1",
   TIPO_CLIENTE: "003939fb-a195-4b62-8239-921442041174",
   PRIMEIRO_PAGAMENTO: "22697a67-9b28-4da0-b5d7-4143632c7a0c",
@@ -50,12 +51,10 @@ const FIELDS = {
 
 // ANO dropdown: orderindex → year
 const ANO_MAP: Record<number, number> = {
-  0: 2023,
-  1: 2024,
-  2: 2025,
-  3: 2026,
-  4: 2027,
-  5: 2028,
+  0: 2026,
+  1: 2025,
+  2: 2027,
+  3: 2024,
 };
 
 // Parse CLI args
@@ -88,6 +87,7 @@ interface ClickUpTask {
   status: { status: string };
   priority: { priority: string } | null;
   due_date: string | null;
+  start_date: string | null;
   date_created: string;
   assignees: Array<{ id: number; username: string; email?: string; profilePicture?: string }>;
   custom_fields: ClickUpCustomField[];
@@ -326,18 +326,30 @@ function normalizePriority(priority: string | null): string {
   return map[priority.toLowerCase()] || "normal";
 }
 
-/** Get ANO from custom field */
+/** Get ANO from custom field with fallback chain */
 function getAnoReferencia(task: ClickUpTask): number | null {
+  // 1. Campo ANO dropdown
   const field = getCustomField(task, FIELDS.ANO);
-  if (!field || field.value === null || field.value === undefined) {
-    // Fallback: try due_date year
-    if (task.due_date) {
-      return new Date(Number(task.due_date)).getFullYear();
-    }
-    return null;
+  if (field?.value !== null && field?.value !== undefined) {
+    const idx = Number(field.value);
+    if (ANO_MAP[idx]) return ANO_MAP[idx];
   }
-  const idx = Number(field.value);
-  return ANO_MAP[idx] || null;
+  // 2. start_date (campo nativo ClickUp)
+  if (task.start_date) {
+    const d = new Date(Number(task.start_date));
+    if (!isNaN(d.getTime())) return d.getFullYear();
+  }
+  // 3. due_date
+  if (task.due_date) {
+    const d = new Date(Number(task.due_date));
+    if (!isNaN(d.getTime())) return d.getFullYear();
+  }
+  // 4. date_created (última opção)
+  if (task.date_created) {
+    const d = new Date(Number(task.date_created));
+    if (!isNaN(d.getTime())) return d.getFullYear();
+  }
+  return null;
 }
 
 /** Get MES from due_date */
@@ -473,7 +485,7 @@ function mapTaskToCotacao(
     // Meta
     tags: task.tags?.map((t) => t.name) || [],
     isRenovacao,
-    observacao: task.description?.substring(0, 5000) || null,
+    observacao: getTextValue(getCustomField(task, FIELDS.OBSERVACAO)) || task.description?.substring(0, 5000) || null,
   };
 }
 
@@ -505,7 +517,7 @@ async function upsertCotacao(
         seguradora: data.seguradora,
         produto: data.produto,
         indicacao: data.indicacao,
-        contatoCliente: data.contatoCliente,
+        // contatoCliente: preservado — campo exclusivo do CRM
         inicioVigencia: data.inicioVigencia,
         fimVigencia: data.fimVigencia,
         primeiroPagamento: data.primeiroPagamento,
