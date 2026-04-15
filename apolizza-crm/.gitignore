@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Arquivos de dados/backup grandes
+/data/*.json
+/dados/*.txt
+/dados/*.csv
+/scripts/*-errors.ts
+/scripts/test-*.ts
+/scripts/verify-*.ts
+/scripts/import-*.ts
+/scripts/count-*.ts
+/scripts/analyze-*.ts
+/scripts/inspect-*.ts

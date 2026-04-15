@@ -23,34 +23,62 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [usersError, setUsersError] = useState("");
+  const [loadingAttempt, setLoadingAttempt] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checklistItems, setChecklistItems] = useState<string[]>([""]);
 
   const fetchUsers = async (attempt = 1) => {
     setLoadingUsers(true);
+    setLoadingAttempt(attempt);
     setUsersError("");
     try {
-      const res = await fetch("/api/users");
+      // Timeout de 15s para cold start do Neon
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const res = await fetch("/api/users", {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
       const data = await res.json();
       if (data.success) {
         setUsers(data.data.filter((u: User) => u.isActive));
         setLoadingUsers(false);
+        setLoadingAttempt(0);
         return;
       }
-      if (attempt < 3) {
-        setTimeout(() => fetchUsers(attempt + 1), 1500);
+
+      // Retry com intervalo progressivo
+      if (attempt < 5) {
+        const delay = attempt * 2000; // 2s, 4s, 6s, 8s
+        setTimeout(() => fetchUsers(attempt + 1), delay);
         return;
       }
-      setUsersError("Não foi possível carregar os usuários.");
-    } catch {
-      if (attempt < 3) {
-        setTimeout(() => fetchUsers(attempt + 1), 1500);
+      setUsersError("Não foi possível carregar os usuários após 5 tentativas.");
+    } catch (error) {
+      console.error(`[TarefaForm] Erro ao carregar usuários (tentativa ${attempt}/5):`, error);
+
+      // Retry com intervalo progressivo
+      if (attempt < 5) {
+        const delay = attempt * 2000;
+        setTimeout(() => fetchUsers(attempt + 1), delay);
         return;
       }
-      setUsersError("Erro ao conectar. Verifique sua conexão.");
+
+      const errorMsg = error instanceof Error && error.name === 'AbortError'
+        ? "Tempo limite excedido. O servidor está demorando para responder."
+        : "Erro ao conectar. Verifique sua conexão.";
+      setUsersError(errorMsg);
     }
     setLoadingUsers(false);
+    setLoadingAttempt(0);
   };
 
   useEffect(() => {
@@ -158,7 +186,9 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                 </svg>
-                Carregando usuários...
+                {loadingAttempt > 1
+                  ? `Tentativa ${loadingAttempt}/5... (aguarde, pode levar até 15s)`
+                  : "Carregando usuários... (pode levar até 15s na 1ª vez)"}
               </div>
             ) : usersError ? (
               <div className="space-y-1">
