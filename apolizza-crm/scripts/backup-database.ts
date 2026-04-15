@@ -40,7 +40,7 @@ async function createBackup(tipo: BackupType = "daily") {
     metadata: {
       tipo,
       timestamp: new Date().toISOString(),
-      database_url: dbUrl.split("@")[1], // Apenas host, sem credenciais
+      database_url: dbUrl?.split("@")[1] || "unknown", // Apenas host, sem credenciais
       version: "1.0.0"
     },
     data: {}
