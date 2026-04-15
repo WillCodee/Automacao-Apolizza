@@ -111,10 +111,10 @@ export default async function CotacaoDetailPage({ params }: Params) {
                 <Detail label="Inicio Vigencia" value={fmtDate(row.inicioVigencia)} />
                 <Detail label="Fim Vigencia" value={fmtDate(row.fimVigencia)} />
                 <Detail label="1o Pagamento" value={fmtDate(row.primeiroPagamento)} />
-                <Detail label="Data Contato com Cliente" value={fmtDate(row.proximaTratativa)} />
+                <Detail label="Próxima Tratativa" value={fmtDate(row.proximaTratativa)} />
                 <Detail label="Data de Entrega" value={fmtDate(row.dueDate)} />
                 <Detail label="Premio sem IOF" value={fmt(row.premioSemIof)} highlight />
-                <Detail label="Comissao" value={fmt(row.comissao)} highlight />
+                <Detail label="Comissao" value={row.comissao ? `${parseFloat(row.comissao)}%` : "—"} highlight />
                 <Detail label="A Receber" value={fmt(row.aReceber)} highlight />
                 <Detail label="Valor Perda" value={fmt(row.valorPerda)} />
                 <Detail label="Parcela do Cliente" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />

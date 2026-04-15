@@ -10,6 +10,7 @@ type CotadorData = {
   photoUrl?: string;
   totalCotacoes: number;
   fechadas: number;
+  perdas: number;
   faturamento: number;
   taxaConversao: number;
 };
@@ -104,18 +105,24 @@ export function CotadoresTable() {
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
-                    <p className="text-xs text-slate-500">Total</p>
+                    <p className="text-xs text-slate-500">Cotacoes</p>
                     <p className="text-lg font-bold text-slate-900">
                       {c.totalCotacoes}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500">Fechadas</p>
+                    <p className="text-xs text-slate-500">Fechados</p>
                     <p className="text-lg font-bold text-emerald-600">
                       {c.fechadas}
                     </p>
                   </div>
-                  <div className="col-span-2">
+                  <div>
+                    <p className="text-xs text-slate-500">Perda</p>
+                    <p className="text-lg font-bold text-[#ff695f]">
+                      {c.perdas}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-xs text-slate-500">Faturamento</p>
                     <p className="text-lg font-bold text-slate-900">
                       {fmt(c.faturamento)}

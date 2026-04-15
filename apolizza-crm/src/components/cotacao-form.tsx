@@ -211,7 +211,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     // Validação: Data Contato com Cliente não pode ser superior à Data de Entrega
     if (form.proximaTratativa && form.dueDate) {
       if (new Date(form.proximaTratativa) > new Date(form.dueDate)) {
-        setError("Data Contato com Cliente não pode ser superior à Data de Entrega.");
+        setError("Próxima Tratativa não pode ser superior à Data de Entrega.");
         setLoading(false);
         return;
       }
@@ -561,7 +561,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             />
           </div>
           <div>
-            <label htmlFor="proximaTratativa" className={labelClass}>Data Contato com Cliente</label>
+            <label htmlFor="proximaTratativa" className={labelClass}>Próxima Tratativa</label>
             <input
               id="proximaTratativa"
               type="date"
@@ -793,7 +793,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           </div>
         </div>
         <div>
-          <label htmlFor="observacao" className={labelClass}>Observacao</label>
+          <label htmlFor="observacao" className={labelClass}>Observacao / Quadro Fixo</label>
           <textarea
             id="observacao"
             rows={3}

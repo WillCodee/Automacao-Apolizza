@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
     const isRenovacao = searchParams.get("isRenovacao");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
+    const situacao = searchParams.get("situacao");
 
     // Param validation (Story 10.2)
     if (!validateStatus(status)) return apiError("Status invalido", 400);
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
     if (isRenovacao === "true") conditions.push(eq(cotacoes.isRenovacao, true));
     if (dateFrom) conditions.push(gte(cotacoes.createdAt, new Date(dateFrom)));
     if (dateTo) conditions.push(lte(cotacoes.createdAt, new Date(dateTo + "T23:59:59")));
+    if (situacao) conditions.push(sql`LOWER(${cotacoes.situacao}) = LOWER(${situacao})`);
 
     const where = and(...conditions);
 

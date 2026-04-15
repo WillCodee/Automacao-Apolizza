@@ -22,6 +22,7 @@ type CotadorData = {
   name: string;
   totalCotacoes: number;
   fechadas: number;
+  perdas: number;
   faturamento: number;
   taxaConversao: number;
 };
@@ -156,11 +157,11 @@ export function FilteredChart({ userRole }: Props) {
       const c = cotadores[index];
       if (!c) return;
 
-      const datasetLabels = ["Total", "Fechadas", "Perdas"];
-      const statusMap: Record<number, string> = { 1: "fechado", 2: "perda" };
+      const datasetLabels = ["Total", "Fechados", "Perdas"];
       const label = `${c.name.split(" ")[0]} — ${datasetLabels[datasetIndex] ?? "Total"}`;
       const extra: Record<string, string> = { assignee: c.userId };
-      if (statusMap[datasetIndex]) extra.status = statusMap[datasetIndex];
+      if (datasetIndex === 1) extra.situacao = "fechado";
+      if (datasetIndex === 2) extra.situacao = "perda";
       fetchDrillDown(label, extra);
     },
     [cotadores, fetchDrillDown]
@@ -190,7 +191,7 @@ export function FilteredChart({ userRole }: Props) {
       },
       {
         label: "Perdas",
-        data: cotadores.map((c) => c.totalCotacoes - c.fechadas),
+        data: cotadores.map((c) => c.perdas),
         backgroundColor: cotadores.map(() => "rgba(255,105,95,0.65)"),
         borderColor: cotadores.map(() => "#ff695f"),
         borderWidth: 1.5,

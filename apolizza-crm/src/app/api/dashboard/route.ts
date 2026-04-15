@@ -102,6 +102,7 @@ export async function GET(req: NextRequest) {
               u.photo_url as "photoUrl",
               coalesce(v.total_cotacoes, 0)::int as "totalCotacoes",
               coalesce(v.fechadas, 0)::int as "fechadas",
+              coalesce(v.perdas, 0)::int as "perdas",
               coalesce(v.faturamento, 0)::float as "faturamento",
               coalesce(v.taxa_conversao, 0)::float as "taxaConversao"
             from users u

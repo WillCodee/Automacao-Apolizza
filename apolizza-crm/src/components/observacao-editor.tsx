@@ -42,7 +42,7 @@ export function ObservacaoEditor({ cotacaoId, initialValue }: Props) {
   return (
     <div className="bg-slate-50 rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Observacao</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Observacao / Quadro Fixo</p>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
