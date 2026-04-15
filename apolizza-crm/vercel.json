@@ -2,13 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/manha",
-      "schedule": "0 11 * * *",
-      "comment": "08:00 BRT: atrasados + tratativas + alertas vigencia + notificacoes tarefas"
+      "schedule": "0 11 * * *"
     },
     {
       "path": "/api/cron/tarde",
-      "schedule": "0 18 * * *",
-      "comment": "15:00 BRT: tarefas vencendo hoje + tarefas nao finalizadas"
+      "schedule": "0 18 * * *"
     }
   ]
 }
