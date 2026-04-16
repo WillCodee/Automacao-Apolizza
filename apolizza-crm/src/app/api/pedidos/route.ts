@@ -10,6 +10,8 @@ import { put } from "@vercel/blob";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://apolizza-crm.vercel.app";
 
+const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -109,17 +111,17 @@ export async function POST(req: NextRequest) {
     const telegramMsg = [
       `📋 <b>NOVO PEDIDO DE COTAÇÃO</b>`,
       ``,
-      `👤 <b>Cliente:</b> ${nomeCliente}`,
-      `📞 <b>Contato:</b> ${contatoCliente}`,
-      `🎯 <b>Prioridade:</b> ${prioridade}`,
-      `📦 <b>Produto:</b> ${produto}`,
-      `📅 <b>Referência:</b> ${mes}/${ano}`,
-      `💡 <b>Indicação:</b> ${indicacao || "—"}`,
-      `🔖 <b>Situação:</b> ${situacao}`,
+      `👤 <b>Cliente:</b> ${esc(nomeCliente)}`,
+      `📞 <b>Contato:</b> ${esc(contatoCliente)}`,
+      `🎯 <b>Prioridade:</b> ${esc(prioridade)}`,
+      `📦 <b>Produto:</b> ${esc(produto)}`,
+      `📅 <b>Referência:</b> ${esc(mes)}/${esc(ano)}`,
+      `💡 <b>Indicação:</b> ${esc(indicacao || "—")}`,
+      `🔖 <b>Situação:</b> ${esc(situacao)}`,
       ``,
-      `👷 <b>Responsável:</b> ${responsavel?.name || responsavelId}`,
+      `👷 <b>Responsável:</b> ${esc(responsavel?.name || responsavelId)}`,
       ``,
-      `📝 ${descricao}`,
+      `📝 ${esc(descricao)}`,
       ``,
       `🔗 <a href="${cotacaoUrl}">Ver Cotação</a>`,
     ].join("\n");
