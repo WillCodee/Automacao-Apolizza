@@ -97,14 +97,9 @@ export function calcularDataEntrega(
   const isRenovacao = tipoCliente === "RENOVAÇÃO";
   const isBeneficio = BENEFICIOS_PF.has(produto) || BENEFICIOS_PJ.has(produto);
 
-  // Regra especial: Benefícios com situação IMPLANTAÇÃO → 20 dias a partir de hoje
-  if (isBeneficio && situacao === "IMPLANTAÇÃO") {
-    return addDays(now, 20);
-  }
-
+  // RENOVAÇÃO: regras fixas independente da situação
   if (isRenovacao) {
     if (RAMOS_ELEMENTAR.has(produto) || produto === "FROTAS") {
-      // 10 úteis antes do fim da vigência (se informada) ou a partir de hoje
       return base
         ? subtractWorkingDays(base, 10)
         : addWorkingDays(now, 10);
@@ -113,10 +108,15 @@ export function calcularDataEntrega(
       return base ? subtractDays(base, 10) : addDays(now, 10);
     }
     if (BENEFICIOS_PF.has(produto)) {
+      // PF acima de 100 vidas → 60 dias; senão 30 dias
+      if (quantidadeVidas != null && quantidadeVidas > 100) {
+        return base ? subtractDays(base, 60) : addDays(now, 60);
+      }
       return base ? subtractDays(base, 30) : addDays(now, 30);
     }
     if (BENEFICIOS_PJ.has(produto)) {
-      if (quantidadeVidas != null && quantidadeVidas > 99) {
+      // PJ acima de 100 vidas → 60 dias; senão 30 dias
+      if (quantidadeVidas != null && quantidadeVidas > 100) {
         return base ? subtractDays(base, 60) : addDays(now, 60);
       }
       return base ? subtractDays(base, 30) : addDays(now, 30);
@@ -124,6 +124,10 @@ export function calcularDataEntrega(
   }
 
   if (isNovo) {
+    // IMPLANTAÇÃO para NOVO/NOVO-CASA → 20 dias corridos
+    if (isBeneficio && situacao === "IMPLANTAÇÃO") {
+      return addDays(now, 20);
+    }
     if (GARANTIA_GROUP.has(produto)) {
       return addDays(now, 2);
     }

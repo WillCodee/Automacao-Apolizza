@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { calcularDataEntrega, toDateInput, precisaMaisInfo } from "@/lib/prazo-utils";
 import { validateStatusFields, type StatusRule } from "@/lib/status-validation";
+import { STATUS_COLORS, SITUACAO_COLORS } from "@/lib/status-config";
 
 type User = { id: string; name: string; role: string };
 
@@ -344,16 +345,22 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           </div>
           <div>
             <label htmlFor="status" className={labelClass}>Status</label>
-            <select
-              id="status"
-              value={form.status}
-              onChange={(e) => set("status", e.target.value)}
-              className={inputClass()}
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            <div className="relative flex items-center">
+              <span
+                className="absolute left-3 w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none"
+                style={{ background: STATUS_COLORS[form.status] || "#87909e" }}
+              />
+              <select
+                id="status"
+                value={form.status}
+                onChange={(e) => set("status", e.target.value)}
+                className={`${inputClass()} pl-8`}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label htmlFor="priority" className={labelClass}>Prioridade</label>
@@ -452,17 +459,23 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           </div>
           <div>
             <label htmlFor="situacao" className={labelClass}>Situacao{req("situacao")}</label>
-            <select
-              id="situacao"
-              value={form.situacao}
-              onChange={(e) => { skipDueDateCalc.current = false; set("situacao", e.target.value); }}
-              className={inputClass("situacao")}
-            >
-              <option value="">Selecione...</option>
-              {situacoes.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            <div className="relative flex items-center">
+              <span
+                className="absolute left-3 w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none"
+                style={{ background: form.situacao ? (SITUACAO_COLORS[form.situacao] || "#94a3b8") : "#e2e8f0" }}
+              />
+              <select
+                id="situacao"
+                value={form.situacao}
+                onChange={(e) => { skipDueDateCalc.current = false; set("situacao", e.target.value); }}
+                className={`${inputClass("situacao")} pl-8`}
+              >
+                <option value="">Selecione...</option>
+                {situacoes.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label htmlFor="indicacao" className={labelClass}>Indicacao{req("indicacao")}</label>
@@ -794,17 +807,6 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
                 <option key={a} value={String(a)}>{a}</option>
               ))}
             </select>
-          </div>
-          <div className="flex items-end pb-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.isRenovacao}
-                onChange={(e) => set("isRenovacao", e.target.checked)}
-                className="w-4 h-4 text-[#03a4ed] rounded border-slate-300 focus:ring-[#03a4ed]"
-              />
-              <span className="text-sm text-slate-700">Renovacao</span>
-            </label>
           </div>
         </div>
         <div>

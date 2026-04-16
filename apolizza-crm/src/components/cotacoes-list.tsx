@@ -10,6 +10,7 @@ type Cotacao = {
   id: string;
   name: string;
   status: string;
+  situacao: string | null;
   produto: string | null;
   seguradora: string | null;
   aReceber: number | null;
@@ -26,7 +27,7 @@ type Pagination = {
   totalPages: number;
 };
 
-import { STATUS_BADGES } from "@/lib/status-config";
+import { STATUS_BADGES, SITUACAO_BADGES } from "@/lib/status-config";
 const STATUS_COLORS = STATUS_BADGES;
 
 const STORAGE_KEY = "cotacoes-filters-v1";
@@ -536,6 +537,13 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                       {c.status}
                     </span>
                   </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.situacao && (
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${SITUACAO_BADGES[c.situacao] || "bg-slate-100 text-slate-500"}`}>
+                        {c.situacao}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                     {c.seguradora && <span>{c.seguradora}</span>}
                     {c.produto && <span>{c.produto}</span>}
@@ -583,6 +591,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                     )}
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Nome</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Situação</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Produto</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Seguradora</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide text-right">A Receber</th>
@@ -612,6 +621,13 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                         <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${STATUS_COLORS[c.status] || "bg-slate-100 text-slate-600"}`}>
                           {c.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {c.situacao ? (
+                          <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${SITUACAO_BADGES[c.situacao] || "bg-slate-100 text-slate-500"}`}>
+                            {c.situacao}
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{c.produto || "—"}</td>
                       <td className="px-4 py-3 text-slate-600">{c.seguradora || "—"}</td>
