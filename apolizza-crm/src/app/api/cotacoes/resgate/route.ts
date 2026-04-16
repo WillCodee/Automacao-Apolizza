@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
         contatoCliente: cotacoes.contatoCliente,
         mesReferencia: cotacoes.mesReferencia,
         anoReferencia: cotacoes.anoReferencia,
+        premioSemIof: cotacoes.premioSemIof,
+        aReceber: cotacoes.aReceber,
         valorPerda: cotacoes.valorPerda,
         observacao: cotacoes.observacao,
         createdAt: cotacoes.createdAt,
@@ -64,9 +66,13 @@ export async function GET(req: NextRequest) {
       .where(and(...conditions))
       .orderBy(sql`${cotacoes.createdAt} DESC`);
 
+    const toNum = (v: unknown) => (v != null && v !== "" ? Number(v) : null);
+
     const data = rows.map((r) => ({
       ...r,
-      valorPerda: r.valorPerda ? Number(r.valorPerda) : null,
+      premioSemIof: toNum(r.premioSemIof),
+      aReceber: toNum(r.aReceber),
+      valorPerda: toNum(r.valorPerda),
     }));
 
     return apiSuccess(data);
