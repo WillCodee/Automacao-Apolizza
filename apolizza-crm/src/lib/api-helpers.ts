@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { MES_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 
 export function apiSuccess<T>(data: T, status = 200) {
-  return NextResponse.json({ data, error: null }, { status });
+  return NextResponse.json({ success: true, data, error: null }, { status });
 }
 
 export function apiError(error: string, status = 400) {
-  return NextResponse.json({ data: null, error }, { status });
+  return NextResponse.json({ success: false, data: null, error }, { status });
 }
 
 export function apiPaginated<T>(
@@ -14,6 +14,7 @@ export function apiPaginated<T>(
   pagination: { page: number; limit: number; total: number }
 ) {
   return NextResponse.json({
+    success: true,
     data,
     error: null,
     pagination: {
