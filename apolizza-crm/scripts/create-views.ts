@@ -15,10 +15,10 @@ async function createViews() {
       assignee_id,
       count(*)::int AS total_cotacoes,
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
-      count(*) FILTER (WHERE LOWER(situacao) = 'perda')::int AS perdas,
-      count(*) FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda') OR situacao IS NULL)::int AS em_andamento,
+      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
+      count(*) FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL)::int AS em_andamento,
       COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS total_a_receber,
-      COALESCE(SUM(valor_perda::numeric) FILTER (WHERE LOWER(situacao) = 'perda'), 0)::float AS total_valor_perda,
+      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate')), 0)::float AS total_valor_perda,
       COALESCE(SUM(premio_sem_iof::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS total_premio,
       ROUND(
         count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::numeric
@@ -62,7 +62,7 @@ async function createViews() {
       c.mes_referencia AS mes,
       count(c.id)::int AS total_cotacoes,
       count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-      count(c.id) FILTER (WHERE LOWER(c.situacao) = 'perda')::int AS perdas,
+      count(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
       COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS faturamento,
       ROUND(
         count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
@@ -83,7 +83,7 @@ async function createViews() {
       mes_referencia AS mes,
       assignee_id,
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
-      count(*) FILTER (WHERE LOWER(situacao) = 'perda')::int AS perdas,
+      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
       count(*)::int AS total,
       COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS a_receber
     FROM cotacoes

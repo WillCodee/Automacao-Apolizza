@@ -9,6 +9,8 @@ import { FilteredChart } from "./filtered-chart";
 import { MetasCard } from "./metas-card";
 import { ProximasTratativas } from "./proximas-tratativas";
 import { AdminKanban } from "./admin-kanban";
+import { AnálisePanel } from "./analise-panel";
+import { MetasDashboard } from "./metas-dashboard";
 
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const isAdminOrProprietario = userRole === "admin" || userRole === "proprietario";
@@ -21,7 +23,7 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
       {/* Próximas Tratativas — apenas cotador */}
       {isCotador && <ProximasTratativas />}
 
-      {/* Row 2: Evolucao + Metas + Status */}
+      {/* Row 2: Evolucao + Metas (compacto) + Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <MonthlyChart />
@@ -44,12 +46,18 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
         )}
       </div>
 
-      {/* Row 4: Cards de cotadores (admin/proprietario) */}
+      {/* Row 4: Análise de Cotações (por cotador/grupo e por status/situação) */}
+      <AnálisePanel userRole={userRole} />
+
+      {/* Row 5: Metas & Desempenho detalhado */}
+      <MetasDashboard isAdmin={isAdminOrProprietario} />
+
+      {/* Row 6: Cards de cotadores (admin/proprietario) */}
       {isAdminOrProprietario && (
         <CotadoresTable />
       )}
 
-      {/* Row 5: Kanban por usuário e grupo (admin/proprietario) */}
+      {/* Row 7: Kanban por usuário e grupo (admin/proprietario) */}
       {isAdminOrProprietario && (
         <AdminKanban />
       )}
