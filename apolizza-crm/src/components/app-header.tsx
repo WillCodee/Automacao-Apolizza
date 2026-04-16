@@ -29,6 +29,7 @@ type ActivePage =
   | "inicio"
   | "dashboard"
   | "cotacoes"
+  | "pedidos"
   | "usuarios"
   | "status-config"
   | "situacao-config"
@@ -215,12 +216,19 @@ const IconBook = (
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
   </svg>
 );
+const IconShoppingCart = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6H19" />
+  </svg>
+);
 
 // ─── Main Header ──────────────────────────────────────────────────────────────
 
 export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // null = main mobile menu; string = drilled into this group key
+  const [mobileSubMenu, setMobileSubMenu] = useState<string | null>(null);
   const notifCount = useNotifCount();
 
   function toggleGroup(key: string) {
@@ -234,6 +242,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
       items: [
         { href: "/cotacoes", label: "Lista de Cotações", key: "cotacoes", icon: IconList },
         { href: "/cotacoes/new", label: "Nova Cotação", key: "new", icon: IconPlus },
+        { href: "/cotacoes/pedidos", label: "Novo Pedido", key: "pedidos", icon: IconShoppingCart },
         { href: "/renovacoes", label: "Renovações", key: "renovacoes", icon: IconRefresh },
       ],
     },
@@ -361,7 +370,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
             <SignOutButton />
 
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => { setMobileMenuOpen((v) => !v); setMobileSubMenu(null); }}
               className="md:hidden p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Menu"
             >
@@ -383,57 +392,105 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-white/10">
           <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
-            <Link href="/inicio" onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              Início
-            </Link>
-            <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              Dashboard
-            </Link>
-            <Link href="/base-conhecimento" onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {IconBook}
-              Base de Conhecimento
-            </Link>
-            {groups.map((group) => (
-              <div key={group.key}>
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest">
-                  {group.label}
-                </p>
-                {group.items.map((item) => {
-                  const isActive = activePage === item.key;
+            {/* Drilled into a group — show back button + group items */}
+            {mobileSubMenu !== null ? (() => {
+              const group = groups.find((g) => g.key === mobileSubMenu);
+              if (!group) return null;
+              return (
+                <>
+                  {/* Back button */}
+                  <button
+                    onClick={() => setMobileSubMenu(null)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all min-h-[44px] w-full"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Voltar
+                  </button>
+                  <p className="px-3 pt-1 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest">
+                    {group.label}
+                  </p>
+                  {group.items.map((item) => {
+                    const isActive = activePage === item.key;
+                    return (
+                      <Link key={item.href} href={item.href}
+                        onClick={() => { setMobileMenuOpen(false); setMobileSubMenu(null); }}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                          isActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {item.icon}
+                        <span className="flex-1">{item.label}</span>
+                        {(item.badge ?? 0) > 0 && (
+                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff695f] text-white text-[10px] font-bold flex items-center justify-center">
+                            {(item.badge ?? 0) > 99 ? "99+" : item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </>
+              );
+            })() : (
+              /* Main mobile menu */
+              <>
+                <Link href="/inicio" onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                    activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  Início
+                </Link>
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                    activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  Dashboard
+                </Link>
+                <Link href="/base-conhecimento" onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                    activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {IconBook}
+                  Base de Conhecimento
+                </Link>
+                {groups.map((group) => {
+                  const isGroupActive = group.items.some((i) => i.key === activePage);
+                  const groupBadge = group.items.reduce((s, i) => s + (i.badge ?? 0), 0);
                   return (
-                    <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                        isActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    <button
+                      key={group.key}
+                      onClick={() => setMobileSubMenu(group.key)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] w-full ${
+                        isGroupActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                       }`}
                     >
-                      {item.icon}
-                      {item.label}
-                    </Link>
+                      <span className="flex-1 text-left">{group.label}</span>
+                      {groupBadge > 0 && (
+                        <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff695f] text-white text-[10px] font-bold flex items-center justify-center">
+                          {groupBadge > 99 ? "99+" : groupBadge}
+                        </span>
+                      )}
+                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                   );
                 })}
-              </div>
-            ))}
-            {userRole !== "proprietario" && (
-              <Link href="/configuracoes/tema" onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                  activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {IconPalette}
-                Tema
-              </Link>
+                {userRole !== "proprietario" && (
+                  <Link href="/configuracoes/tema" onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                      activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {IconPalette}
+                    Tema
+                  </Link>
+                )}
+              </>
             )}
           </nav>
         </div>

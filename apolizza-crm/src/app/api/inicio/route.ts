@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
         SELECT
           COUNT(*)::int                                                 AS qtd_cotacoes,
           COUNT(*) FILTER (WHERE status = 'fechado')::int              AS qtd_fechadas,
+          COUNT(*) FILTER (WHERE status = 'perda')::int                AS qtd_perdas,
           COALESCE(SUM(a_receber::numeric), 0)::numeric                AS valor_a_receber,
           COALESCE(SUM(premio_sem_iof::numeric), 0)::numeric           AS valor_premio
         FROM cotacoes
@@ -107,6 +108,7 @@ export async function GET(req: NextRequest) {
       produtividade: {
         qtdCotacoes: Number(prod?.qtd_cotacoes ?? 0),
         qtdFechadas: Number(prod?.qtd_fechadas ?? 0),
+        qtdPerdas: Number(prod?.qtd_perdas ?? 0),
         valorAReceber: Number(prod?.valor_a_receber ?? 0),
         valorPremio: Number(prod?.valor_premio ?? 0),
       },

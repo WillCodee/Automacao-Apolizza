@@ -43,6 +43,7 @@ export default async function EditCotacaoPage({ params }: Params) {
     primeiroPagamento: row.primeiroPagamento || "",
     proximaTratativa: row.proximaTratativa || "",
     parceladoEm: row.parceladoEm ? String(row.parceladoEm) : "",
+    valorParcelado: row.valorParcelado || "",
     premioSemIof: row.premioSemIof || "",
     comissao: row.comissao || "",
     aReceber: row.aReceber || "",

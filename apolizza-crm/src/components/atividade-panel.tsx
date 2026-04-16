@@ -42,7 +42,7 @@ const FIELD_LABELS: Record<string, string> = {
   comissao: "Comissao",
   aReceber: "A Receber",
   valorPerda: "Valor Perda",
-  proximaTratativa: "Data Contato com Cliente",
+  proximaTratativa: "Próxima Tratativa",
   observacao: "Observacao",
   mesReferencia: "Mes Ref",
   anoReferencia: "Ano Ref",

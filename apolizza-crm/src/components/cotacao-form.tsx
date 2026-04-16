@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   STATUS_OPTIONS,
@@ -106,6 +106,8 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const [showMaisInfo, setShowMaisInfo] = useState(false);
   const [quantidadeVeiculos, setQuantidadeVeiculos] = useState("");
   const [quantidadeVidas, setQuantidadeVidas] = useState("");
+  // Impede recálculo automático da data de entrega ao carregar form em modo edição
+  const skipDueDateCalc = useRef(isEdit);
 
   useEffect(() => {
     fetch("/api/status-config")
@@ -146,7 +148,9 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   }, [form.seguradora, form.produto]);
 
   // Auto-cálculo da Data de Entrega com base em Produto + Tipo Cliente + Situação + infos extras
+  // Em modo edição, NÃO recalcula ao carregar (apenas quando usuário altera os campos)
   useEffect(() => {
+    if (skipDueDateCalc.current) return;
     if (!form.produto || !form.tipoCliente) return;
     const qtdVeiculos = quantidadeVeiculos ? Number(quantidadeVeiculos) : null;
     const qtdVidas = quantidadeVidas ? Number(quantidadeVidas) : null;
@@ -308,7 +312,16 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     : null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => {
+        // Impede Enter de submeter o form (apenas inputs de texto)
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+          e.preventDefault();
+        }
+      }}
+      className="space-y-8"
+    >
       {/* Identificacao */}
       <fieldset className={sectionClass}>
         <legend className="text-lg font-semibold text-slate-900 mb-3">
@@ -393,7 +406,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             <select
               id="tipoCliente"
               value={form.tipoCliente}
-              onChange={(e) => set("tipoCliente", e.target.value)}
+              onChange={(e) => { skipDueDateCalc.current = false; set("tipoCliente", e.target.value); }}
               className={inputClass("tipoCliente")}
             >
               <option value="">Selecione...</option>
@@ -428,7 +441,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             <select
               id="produto"
               value={form.produto}
-              onChange={(e) => set("produto", e.target.value)}
+              onChange={(e) => { skipDueDateCalc.current = false; set("produto", e.target.value); }}
               className={inputClass("produto")}
             >
               <option value="">Selecione...</option>
@@ -442,7 +455,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             <select
               id="situacao"
               value={form.situacao}
-              onChange={(e) => set("situacao", e.target.value)}
+              onChange={(e) => { skipDueDateCalc.current = false; set("situacao", e.target.value); }}
               className={inputClass("situacao")}
             >
               <option value="">Selecione...</option>
@@ -505,13 +518,15 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
                       <label className="block text-xs font-medium text-slate-600 mb-1">
                         Quantidade de Vidas
                         <span className="text-slate-400 font-normal ml-1">
-                          (≤ 99 = 30 dias &nbsp;·&nbsp; &gt; 99 = 60 dias)
+                          {info.isNovoPJ
+                            ? "(≤ 100 = 2 dias úteis · > 100 = 5 dias úteis)"
+                            : "(≤ 99 = 30 dias · > 99 = 60 dias)"}
                         </span>
                       </label>
                       <input
                         type="text"
                         value={quantidadeVidas}
-                        onChange={(e) => setQuantidadeVidas(e.target.value)}
+                        onChange={(e) => { skipDueDateCalc.current = false; setQuantidadeVidas(e.target.value); }}
                         placeholder="Ex: 50"
                         className="w-48 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none bg-white"
                       />
@@ -546,7 +561,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               id="fimVigencia"
               type="date"
               value={form.fimVigencia}
-              onChange={(e) => set("fimVigencia", e.target.value)}
+              onChange={(e) => { skipDueDateCalc.current = false; set("fimVigencia", e.target.value); }}
               className={inputClass("fimVigencia")}
             />
           </div>

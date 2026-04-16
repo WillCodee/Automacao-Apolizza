@@ -37,10 +37,13 @@ type UserOption = {
   photoUrl: string | null;
 };
 
-function MemberAvatar({ member, size = "sm" }: { member: MembroBasico; size?: "sm" | "xs" }) {
-  const dim = size === "xs" ? "w-6 h-6 text-xs" : "w-8 h-8 text-sm";
+function MemberAvatar({ member, size = "sm" }: { member: MembroBasico; size?: "sm" | "xs" | "md" }) {
+  const dim =
+    size === "xs" ? "w-6 h-6 text-xs" : size === "md" ? "w-10 h-10 text-sm" : "w-8 h-8 text-sm";
   return (
-    <div className={`${dim} rounded-full overflow-hidden bg-[#03a4ed]/10 flex items-center justify-center flex-shrink-0 border-2 border-white`}>
+    <div
+      className={`${dim} rounded-full overflow-hidden bg-[#03a4ed]/10 flex items-center justify-center flex-shrink-0 border-2 border-white`}
+    >
       {member.photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover" />
@@ -53,79 +56,18 @@ function MemberAvatar({ member, size = "sm" }: { member: MembroBasico; size?: "s
   );
 }
 
+/* ─── Card na lista ─────────────────────────────────────────────────── */
 function GrupoCard({
   grupo,
   onEdit,
   onDelete,
-  onRefresh,
 }: {
   grupo: Grupo;
   onEdit: (g: Grupo) => void;
   onDelete: (id: string) => void;
-  onRefresh: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [allUsers, setAllUsers] = useState<UserOption[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  async function fetchUsers() {
-    setLoadingUsers(true);
-    try {
-      const res = await fetch("/api/users");
-      const json = await res.json();
-      setAllUsers(json.data || []);
-    } finally {
-      setLoadingUsers(false);
-    }
-  }
-
-  async function handleExpand() {
-    const next = !expanded;
-    setExpanded(next);
-    if (next && allUsers.length === 0) {
-      await fetchUsers();
-    }
-  }
-
-  async function handleAddMember(userId: string) {
-    setAddingId(userId);
-    try {
-      await fetch(`/api/grupos/${grupo.id}/membros`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      setSearchTerm("");
-      onRefresh();
-    } finally {
-      setAddingId(null);
-    }
-  }
-
-  async function handleRemoveMember(userId: string) {
-    setRemovingId(userId);
-    try {
-      await fetch(`/api/grupos/${grupo.id}/membros/${userId}`, { method: "DELETE" });
-      onRefresh();
-    } finally {
-      setRemovingId(null);
-    }
-  }
-
-  const memberIds = new Set(grupo.membros.map((m) => m.id));
-  const nonMembers = allUsers.filter(
-    (u) =>
-      !memberIds.has(u.id) &&
-      (searchTerm === "" ||
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow">
       {/* Color bar */}
       <div className="h-1.5 w-full" style={{ backgroundColor: grupo.cor }} />
 
@@ -148,13 +90,13 @@ function GrupoCard({
           <div className="flex gap-1.5 flex-shrink-0">
             <button
               onClick={() => onEdit(grupo)}
-              className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium px-2 py-1"
+              className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors"
             >
               Editar
             </button>
             <button
               onClick={() => onDelete(grupo.id)}
-              className="text-xs text-[#ff695f] hover:text-[#e55a50] font-medium px-2 py-1"
+              className="text-xs text-[#ff695f] hover:text-[#e55a50] font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
             >
               Excluir
             </button>
@@ -162,7 +104,7 @@ function GrupoCard({
         </div>
 
         {/* Member avatars preview */}
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center gap-2">
           <div className="flex items-center">
             {grupo.membros.slice(0, 5).map((m, i) => (
               <div key={m.id} style={{ marginLeft: i === 0 ? 0 : -8 }}>
@@ -174,45 +116,263 @@ function GrupoCard({
                 <span className="text-xs text-slate-500 font-medium">+{grupo.totalMembros - 5}</span>
               </div>
             )}
-            {grupo.totalMembros === 0 && (
-              <span className="text-xs text-slate-400">Sem membros</span>
-            )}
           </div>
-          <button
-            onClick={handleExpand}
-            className="text-xs text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1 transition-colors"
-          >
-            Gerenciar Membros
-            <svg
-              className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+          <span className="text-xs text-slate-400">
+            {grupo.totalMembros === 0
+              ? "Sem membros"
+              : `${grupo.totalMembros} membro${grupo.totalMembros > 1 ? "s" : ""}`}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Detalhe / edição do grupo ─────────────────────────────────────── */
+function GrupoDetalhe({
+  grupo,
+  onBack,
+  onSaved,
+  onDeleted,
+}: {
+  grupo: Grupo;
+  onBack: () => void;
+  onSaved: () => void;
+  onDeleted: () => void;
+}) {
+  const [form, setForm] = useState({
+    nome: grupo.nome,
+    descricao: grupo.descricao ?? "",
+    cor: grupo.cor,
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveOk, setSaveOk] = useState(false);
+
+  // Membros
+  const [membros, setMembros] = useState<MembroBasico[]>(grupo.membros);
+  const [allUsers, setAllUsers] = useState<UserOption[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    setLoadingUsers(true);
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((d) => setAllUsers(d.data || []))
+      .finally(() => setLoadingUsers(false));
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setSaveOk(false);
+    try {
+      await fetch(`/api/grupos/${grupo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: form.nome,
+          descricao: form.descricao || undefined,
+          cor: form.cor,
+        }),
+      });
+      setSaveOk(true);
+      onSaved();
+      setTimeout(() => setSaveOk(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Excluir este grupo? Esta ação removerá todos os membros.")) return;
+    await fetch(`/api/grupos/${grupo.id}`, { method: "DELETE" });
+    onDeleted();
+  }
+
+  async function handleAddMember(userId: string) {
+    setAddingId(userId);
+    try {
+      await fetch(`/api/grupos/${grupo.id}/membros`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const user = allUsers.find((u) => u.id === userId);
+      if (user) {
+        setMembros((prev) => [...prev, { id: user.id, name: user.name, photoUrl: user.photoUrl }]);
+      }
+      setSearchTerm("");
+      onSaved();
+    } finally {
+      setAddingId(null);
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    setRemovingId(userId);
+    try {
+      await fetch(`/api/grupos/${grupo.id}/membros/${userId}`, { method: "DELETE" });
+      setMembros((prev) => prev.filter((m) => m.id !== userId));
+      onSaved();
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
+  const memberIds = new Set(membros.map((m) => m.id));
+  const nonMembers = allUsers.filter(
+    (u) =>
+      !memberIds.has(u.id) &&
+      (searchTerm === "" ||
+        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header com voltar */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Voltar
+        </button>
+        <span className="text-slate-300">/</span>
+        <span className="text-sm text-slate-500">Grupos</span>
+        <span className="text-slate-300">/</span>
+        <span className="text-sm font-semibold text-slate-900 truncate">{grupo.nome}</span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Coluna esquerda: formulário de edição */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            {/* Color bar animada */}
+            <div className="h-2 w-full transition-colors duration-300" style={{ backgroundColor: form.cor }} />
+            <form onSubmit={handleSave} className="p-6 space-y-5">
+              <h3 className="font-semibold text-slate-900">Informações do Grupo</h3>
+
+              <div>
+                <label className="text-xs text-slate-500 font-medium">
+                  Nome <span className="text-[#ff695f]">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  placeholder="Ex: Equipe Comercial"
+                  className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-500 font-medium">Descrição</label>
+                <textarea
+                  value={form.descricao}
+                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                  placeholder="Descrição opcional..."
+                  rows={3}
+                  className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-500 font-medium">Cor do grupo</label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CORES_PREDEFINIDAS.map((cor) => (
+                    <button
+                      key={cor}
+                      type="button"
+                      onClick={() => setForm({ ...form, cor })}
+                      className="w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center"
+                      style={{
+                        backgroundColor: cor,
+                        borderColor: form.cor === cor ? "#1e293b" : "transparent",
+                        transform: form.cor === cor ? "scale(1.15)" : "scale(1)",
+                      }}
+                    >
+                      {form.cor === cor && (
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 text-white text-sm rounded-xl font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm disabled:opacity-60"
+                >
+                  {saving ? "Salvando..." : "Salvar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="px-4 py-2 text-slate-600 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+                >
+                  Cancelar
+                </button>
+                {saveOk && (
+                  <span className="text-xs text-emerald-600 font-medium">Salvo!</span>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Zona de perigo */}
+          <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
+            <h4 className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-3">Zona de Perigo</h4>
+            <p className="text-xs text-slate-500 mb-3">
+              Excluir o grupo remove todos os membros permanentemente.
+            </p>
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 text-[#ff695f] text-sm border border-red-200 rounded-xl hover:bg-red-50 transition font-medium"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+              Excluir Grupo
+            </button>
+          </div>
         </div>
 
-        {/* Expanded member management */}
-        {expanded && (
-          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
-            {/* Current members */}
-            {grupo.membros.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Membros atuais</p>
+        {/* Coluna direita: membros */}
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900">Membros</h3>
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
+                {membros.length}
+              </span>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Lista de membros atuais */}
+              {membros.length > 0 ? (
                 <div className="space-y-1">
-                  {grupo.membros.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-50 group">
-                      <div className="flex items-center gap-2">
+                  {membros.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-slate-50 group transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
                         <MemberAvatar member={m} size="sm" />
-                        <span className="text-sm text-slate-700">{m.name}</span>
+                        <span className="text-sm text-slate-700 font-medium">{m.name}</span>
                       </div>
                       <button
                         onClick={() => handleRemoveMember(m.id)}
                         disabled={removingId === m.id}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[#ff695f] hover:text-[#e55a50] disabled:opacity-50"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-[#ff695f] disabled:opacity-50 p-1 rounded-lg hover:bg-red-50"
                         title="Remover membro"
                       >
                         {removingId === m.id ? (
@@ -226,94 +386,204 @@ function GrupoCard({
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 text-center py-2">Nenhum membro ainda</p>
-            )}
-
-            {/* Add new member */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Adicionar membro</p>
-              {loadingUsers ? (
-                <div className="flex items-center justify-center py-3">
-                  <div className="w-4 h-4 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
-                </div>
               ) : (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Buscar usuário..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
-                  />
-                  {nonMembers.length > 0 ? (
-                    <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-slate-100">
-                      {nonMembers.slice(0, 8).map((u) => (
-                        <button
-                          key={u.id}
-                          onClick={() => handleAddMember(u.id)}
-                          disabled={addingId === u.id}
-                          className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition-colors disabled:opacity-50"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-[#03a4ed]/10 flex items-center justify-center flex-shrink-0">
-                              {u.photoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={u.photoUrl} alt={u.name} className="w-full h-full rounded-full object-cover" />
-                              ) : (
-                                <span className="text-xs font-semibold text-[#03a4ed]">
-                                  {u.name.charAt(0).toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm text-slate-800 font-medium">{u.name}</p>
-                              <p className="text-xs text-slate-400">{u.email}</p>
-                            </div>
-                          </div>
-                          {addingId === u.id ? (
-                            <div className="w-4 h-4 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <svg className="w-4 h-4 text-[#03a4ed]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ) : searchTerm !== "" ? (
-                    <p className="text-xs text-slate-400 text-center py-2">Nenhum usuário encontrado</p>
-                  ) : allUsers.length === memberIds.size ? (
-                    <p className="text-xs text-slate-400 text-center py-2">Todos os usuários já são membros</p>
-                  ) : null}
-                </>
+                <p className="text-sm text-slate-400 text-center py-4">Nenhum membro ainda</p>
               )}
+
+              {/* Adicionar membro */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Adicionar membro
+                </p>
+                {loadingUsers ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="w-4 h-4 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Buscar usuário..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+                    />
+                    {nonMembers.length > 0 ? (
+                      <div className="max-h-52 overflow-y-auto space-y-0.5 rounded-xl border border-slate-100">
+                        {nonMembers.slice(0, 10).map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => handleAddMember(u.id)}
+                            disabled={addingId === u.id}
+                            className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition-colors disabled:opacity-50"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-[#03a4ed]/10 flex items-center justify-center flex-shrink-0">
+                                {u.photoUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={u.photoUrl} alt={u.name} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                  <span className="text-xs font-semibold text-[#03a4ed]">
+                                    {u.name.charAt(0).toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm text-slate-800 font-medium">{u.name}</p>
+                                <p className="text-xs text-slate-400">{u.email}</p>
+                              </div>
+                            </div>
+                            {addingId === u.id ? (
+                              <div className="w-4 h-4 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <svg className="w-4 h-4 text-[#03a4ed]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : searchTerm !== "" ? (
+                      <p className="text-xs text-slate-400 text-center py-2">Nenhum usuário encontrado</p>
+                    ) : allUsers.length === memberIds.size ? (
+                      <p className="text-xs text-slate-400 text-center py-2">Todos os usuários já são membros</p>
+                    ) : null}
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
+/* ─── Formulário de criação ──────────────────────────────────────────── */
+function GrupoCreateForm({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void;
+  onCreated: () => void;
+}) {
+  const [form, setForm] = useState({ nome: "", descricao: "", cor: "#03a4ed" });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await fetch("/api/grupos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: form.nome,
+          descricao: form.descricao || undefined,
+          cor: form.cor,
+        }),
+      });
+      onCreated();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="h-2 w-full transition-colors duration-300" style={{ backgroundColor: form.cor }} />
+      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <h3 className="font-semibold text-slate-900">Novo Grupo</h3>
+
+        <div>
+          <label className="text-xs text-slate-500 font-medium">
+            Nome <span className="text-[#ff695f]">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={form.nome}
+            onChange={(e) => setForm({ ...form, nome: e.target.value })}
+            placeholder="Ex: Equipe Comercial"
+            className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-slate-500 font-medium">Descrição</label>
+          <textarea
+            value={form.descricao}
+            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+            placeholder="Descrição opcional..."
+            rows={2}
+            className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-slate-500 font-medium">Cor</label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {CORES_PREDEFINIDAS.map((cor) => (
+              <button
+                key={cor}
+                type="button"
+                onClick={() => setForm({ ...form, cor })}
+                className="w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center"
+                style={{
+                  backgroundColor: cor,
+                  borderColor: form.cor === cor ? "#1e293b" : "transparent",
+                  transform: form.cor === cor ? "scale(1.15)" : "scale(1)",
+                }}
+              >
+                {form.cor === cor && (
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 text-white text-sm rounded-xl font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm disabled:opacity-60"
+          >
+            {saving ? "Criando..." : "Criar Grupo"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-slate-600 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ─── Container principal ────────────────────────────────────────────── */
 export function GruposUsuarios() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingGrupo, setEditingGrupo] = useState<Grupo | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    nome: "",
-    descricao: "",
-    cor: "#03a4ed",
-  });
+  const [view, setView] = useState<"list" | "detail" | "create">("list");
+  const [selectedGrupo, setSelectedGrupo] = useState<Grupo | null>(null);
 
   async function fetchGrupos() {
     try {
       const res = await fetch("/api/grupos");
       const json = await res.json();
-      setGrupos(json.data || []);
+      const data: Grupo[] = json.data || [];
+      setGrupos(data);
+      // Atualiza o grupo selecionado se estiver no detalhe
+      if (selectedGrupo) {
+        const updated = data.find((g) => g.id === selectedGrupo.id);
+        if (updated) setSelectedGrupo(updated);
+      }
     } finally {
       setLoading(false);
     }
@@ -321,56 +591,17 @@ export function GruposUsuarios() {
 
   useEffect(() => {
     fetchGrupos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function openCreate() {
-    setEditingGrupo(null);
-    setForm({ nome: "", descricao: "", cor: "#03a4ed" });
-    setShowForm(true);
-  }
-
   function openEdit(grupo: Grupo) {
-    setEditingGrupo(grupo);
-    setForm({ nome: grupo.nome, descricao: grupo.descricao ?? "", cor: grupo.cor });
-    setShowForm(true);
+    setSelectedGrupo(grupo);
+    setView("detail");
   }
 
-  function cancelForm() {
-    setShowForm(false);
-    setEditingGrupo(null);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      if (editingGrupo) {
-        await fetch(`/api/grupos/${editingGrupo.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            nome: form.nome,
-            descricao: form.descricao || undefined,
-            cor: form.cor,
-          }),
-        });
-      } else {
-        await fetch("/api/grupos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            nome: form.nome,
-            descricao: form.descricao || undefined,
-            cor: form.cor,
-          }),
-        });
-      }
-      setShowForm(false);
-      setEditingGrupo(null);
-      await fetchGrupos();
-    } finally {
-      setSaving(false);
-    }
+  function goBack() {
+    setView("list");
+    setSelectedGrupo(null);
   }
 
   async function handleDelete(id: string) {
@@ -379,133 +610,101 @@ export function GruposUsuarios() {
     await fetchGrupos();
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Grupos de Usuários</h2>
-        {!showForm && (
+  /* ── Lista ── */
+  if (view === "list") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Grupos de Usuários</h2>
           <button
-            onClick={openCreate}
+            onClick={() => setView("create")}
             className="px-4 py-2 text-white text-sm rounded-xl font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm"
           >
             + Novo Grupo
           </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : grupos.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+              </svg>
+            </div>
+            <p className="text-sm text-slate-500">Nenhum grupo criado ainda.</p>
+            <button
+              onClick={() => setView("create")}
+              className="mt-3 text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium"
+            >
+              Criar primeiro grupo
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {grupos.map((grupo) => (
+              <GrupoCard
+                key={grupo.id}
+                grupo={grupo}
+                onEdit={openEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
         )}
       </div>
+    );
+  }
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-2xl shadow-sm p-6 space-y-4 border border-slate-100"
-        >
-          <h3 className="text-sm font-semibold text-slate-900">
-            {editingGrupo ? "Editar Grupo" : "Novo Grupo"}
-          </h3>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-slate-500 font-medium">
-                Nome <span className="text-[#ff695f]">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                placeholder="Ex: Equipe Comercial"
-                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-500 font-medium">Descrição</label>
-              <textarea
-                value={form.descricao}
-                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                placeholder="Descrição opcional do grupo..."
-                rows={2}
-                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-500 font-medium">Cor do grupo</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CORES_PREDEFINIDAS.map((cor) => (
-                  <button
-                    key={cor}
-                    type="button"
-                    onClick={() => setForm({ ...form, cor })}
-                    className="w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center"
-                    style={{
-                      backgroundColor: cor,
-                      borderColor: form.cor === cor ? "#1e293b" : "transparent",
-                      transform: form.cor === cor ? "scale(1.15)" : "scale(1)",
-                    }}
-                    title={cor}
-                  >
-                    {form.cor === cor && (
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 text-white text-sm rounded-xl font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm disabled:opacity-60"
-            >
-              {saving ? "Salvando..." : editingGrupo ? "Salvar" : "Criar Grupo"}
-            </button>
-            <button
-              type="button"
-              onClick={cancelForm}
-              className="px-4 py-2 text-slate-600 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : grupos.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-            </svg>
-          </div>
-          <p className="text-sm text-slate-500">Nenhum grupo criado ainda.</p>
+  /* ── Criar ── */
+  if (view === "create") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
           <button
-            onClick={openCreate}
-            className="mt-3 text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium"
+            onClick={() => setView("list")}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium transition-colors"
           >
-            Criar primeiro grupo
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Voltar
           </button>
+          <span className="text-slate-300">/</span>
+          <span className="text-sm text-slate-500">Grupos</span>
+          <span className="text-slate-300">/</span>
+          <span className="text-sm font-semibold text-slate-900">Novo Grupo</span>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {grupos.map((grupo) => (
-            <GrupoCard
-              key={grupo.id}
-              grupo={grupo}
-              onEdit={openEdit}
-              onDelete={handleDelete}
-              onRefresh={fetchGrupos}
-            />
-          ))}
+        <div className="max-w-lg">
+          <GrupoCreateForm
+            onCancel={() => setView("list")}
+            onCreated={async () => {
+              await fetchGrupos();
+              setView("list");
+            }}
+          />
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  /* ── Detalhe ── */
+  if (view === "detail" && selectedGrupo) {
+    return (
+      <GrupoDetalhe
+        grupo={selectedGrupo}
+        onBack={goBack}
+        onSaved={fetchGrupos}
+        onDeleted={() => {
+          fetchGrupos();
+          goBack();
+        }}
+      />
+    );
+  }
+
+  return null;
 }

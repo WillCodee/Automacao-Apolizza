@@ -316,8 +316,9 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
   const [loading, setLoading] = useState(false);
   const [activeStation, setActiveStation] = useState<StationKey | null>(null);
   const [typeText, setTypeText] = useState("");
-  const [sendTelegram, setSendTelegram] = useState(false);
+  const [emailDestino, setEmailDestino] = useState("");
   const [telegramStatus, setTelegramStatus] = useState<"idle" | "ok" | "fail">("idle");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "ok" | "fail">("idle");
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [webhookStatus, setWebhookStatus] = useState<"idle" | "loading" | "ok" | "fail">("idle");
   const [diagData, setDiagData] = useState<Record<string, unknown> | null>(null);
@@ -427,6 +428,7 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
     setResultado("");
     setTypeText("");
     setTelegramStatus("idle");
+    setEmailStatus("idle");
     setLoading(true);
     addLog(`> Consultando: ${opcao.label}...`);
 
@@ -444,13 +446,21 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
     await new Promise((r) => setTimeout(r, 1200));
 
     try {
+      // Sempre envia para o Telegram ao consultar
       const res = await fetch("/api/auditoria/consultar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tipo: opcao.key, enviar_telegram: false }),
+        body: JSON.stringify({
+          tipo: opcao.key,
+          enviar_telegram: true,
+          email: emailDestino || undefined,
+        }),
       });
       const json = await res.json();
       const txt: string = json.data?.texto || "Sem dados.";
+
+      setTelegramStatus(json.data?.telegramOk ? "ok" : "fail");
+      if (emailDestino) setEmailStatus(json.data?.emailOk ? "ok" : "fail");
 
       // Walk back to main desk
       targetPos.current = { x: 99, y: 82 };
@@ -468,17 +478,9 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
       }, 8);
 
       addLog(`> ${opcao.label}: OK ✓`);
+      addLog(json.data?.telegramOk ? "> Telegram: enviado ✓" : "> Telegram: falhou ✗");
+      if (emailDestino) addLog(json.data?.emailOk ? "> Email: enviado ✓" : "> Email: falhou ✗");
 
-      if (sendTelegram) {
-        const r2 = await fetch("/api/auditoria/consultar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tipo: opcao.key, enviar_telegram: true }),
-        });
-        const j2 = await r2.json();
-        setTelegramStatus(j2.data?.telegramOk ? "ok" : "fail");
-        addLog(j2.data?.telegramOk ? "> Telegram: enviado ✓" : "> Telegram: falhou ✗");
-      }
     } catch {
       setResultado("Erro ao consultar dados.");
       setTypeText("Erro ao consultar dados.");
@@ -494,11 +496,16 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
     const res = await fetch("/api/auditoria/consultar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo: selectedOpcao, enviar_telegram: true }),
+      body: JSON.stringify({
+        tipo: selectedOpcao,
+        enviar_telegram: true,
+        email: emailDestino || undefined,
+      }),
     });
     const json = await res.json();
     setTelegramStatus(json.data?.telegramOk ? "ok" : "fail");
-    addLog(json.data?.telegramOk ? "> Telegram: enviado ✓" : "> Telegram: falhou ✗");
+    if (emailDestino) setEmailStatus(json.data?.emailOk ? "ok" : "fail");
+    addLog(json.data?.telegramOk ? "> Telegram: reenviado ✓" : "> Telegram: falhou ✗");
   }
 
   async function handleDiagnostico() {
@@ -640,6 +647,42 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
           </div>
         </div>
 
+        {/* Email input — sempre visível */}
+        <div
+          className="rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm"
+          style={{ background: "var(--surface)" }}
+        >
+          <div
+            className="px-4 py-3 border-b border-[var(--border)]"
+            style={{ background: "var(--surface-2)" }}
+          >
+            <span className="text-xs font-bold tracking-wider" style={{ color: "var(--primary)" }}>
+              📧 ENVIAR RESULTADO POR EMAIL (OPCIONAL)
+            </span>
+          </div>
+          <div className="p-4">
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={emailDestino}
+                onChange={(e) => setEmailDestino(e.target.value)}
+                placeholder="seu@email.com (opcional)"
+                className="flex-1 px-3 py-2 text-xs rounded-xl border transition outline-none focus:ring-1"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "var(--surface-2)",
+                  color: "var(--foreground)",
+                }}
+              />
+              {emailStatus === "ok" && <span className="text-green-500 text-[11px] font-semibold self-center">✓ Enviado!</span>}
+              {emailStatus === "fail" && <span className="text-red-500 text-[11px] font-semibold self-center">✗ Falhou</span>}
+            </div>
+            <p className="text-[10px] mt-1.5" style={{ color: "var(--text-muted)" }}>
+              Cada consulta é enviada automaticamente ao Telegram. Informe um email para receber também por email.
+            </p>
+          </div>
+        </div>
+
         {/* Result box */}
         {(typeText || loading) && (
           <div
@@ -654,25 +697,16 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
                 ❯ RESULTADO
               </span>
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: "var(--text-muted)" }}>
-                  <input
-                    type="checkbox"
-                    checked={sendTelegram}
-                    onChange={(e) => setSendTelegram(e.target.checked)}
-                    className="accent-[var(--primary)]"
-                  />
-                  Auto-enviar Telegram
-                </label>
+                {telegramStatus === "ok" && <span className="text-green-500 text-[11px] font-semibold">✓ Telegram enviado!</span>}
+                {telegramStatus === "fail" && <span className="text-red-500 text-[11px] font-semibold">✗ Telegram falhou</span>}
                 <button
                   onClick={handleSendTelegram}
-                  disabled={!resultado}
+                  disabled={!resultado || loading}
                   className="px-3 py-1 text-[11px] font-semibold rounded-lg border transition disabled:opacity-30"
                   style={{ borderColor: "var(--primary)", color: "var(--primary)", background: "transparent" }}
                 >
-                  📨 Enviar Telegram
+                  📨 Reenviar
                 </button>
-                {telegramStatus === "ok" && <span className="text-green-500 text-[11px] font-semibold">✓ Enviado!</span>}
-                {telegramStatus === "fail" && <span className="text-[var(--accent)] text-[11px] font-semibold">✗ Falhou</span>}
               </div>
             </div>
             <pre
@@ -682,6 +716,17 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
               {loading && !typeText ? "..." : typeText}
               {!loading && typeText && <span className="animate-pulse" style={{ color: "var(--primary)" }}>▌</span>}
             </pre>
+            <div className="px-4 pb-3">
+              <a
+                href="/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition"
+                style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+              >
+                📊 Ver Dashboard
+              </a>
+            </div>
           </div>
         )}
 

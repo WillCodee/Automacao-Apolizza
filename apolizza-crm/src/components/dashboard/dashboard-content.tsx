@@ -7,13 +7,19 @@ import { CotadoresTable } from "./cotadores-table";
 import { CotadoresPie } from "./cotadores-pie";
 import { FilteredChart } from "./filtered-chart";
 import { MetasCard } from "./metas-card";
+import { ProximasTratativas } from "./proximas-tratativas";
+import { AdminKanban } from "./admin-kanban";
 
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const isAdminOrProprietario = userRole === "admin" || userRole === "proprietario";
+  const isCotador = userRole === "cotador";
   return (
     <div className="space-y-6">
       {/* Row 1: KPIs */}
       <KpiCards />
+
+      {/* Próximas Tratativas — apenas cotador */}
+      {isCotador && <ProximasTratativas />}
 
       {/* Row 2: Evolucao + Metas + Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -41,6 +47,11 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
       {/* Row 4: Cards de cotadores (admin/proprietario) */}
       {isAdminOrProprietario && (
         <CotadoresTable />
+      )}
+
+      {/* Row 5: Kanban por usuário e grupo (admin/proprietario) */}
+      {isAdminOrProprietario && (
+        <AdminKanban />
       )}
     </div>
   );

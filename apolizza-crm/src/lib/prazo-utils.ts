@@ -133,11 +133,19 @@ export function calcularDataEntrega(
       if (qtd <= 10) return addDays(now, 2);
       return addDays(now, 5);
     }
-    if (RAMOS_ELEMENTAR.has(produto) || BENEFICIOS_PF.has(produto)) {
+    if (RAMOS_ELEMENTAR.has(produto)) {
       return addHours(now, 24);
     }
+    // SAÚDE PF, VIDA PF, ODONTO PF → 1 dia útil
+    if (BENEFICIOS_PF.has(produto)) {
+      return addWorkingDays(now, 1);
+    }
+    // SAÚDE PJ, VIDA PJ, ODONTO PJ → depende da qtd de vidas
     if (BENEFICIOS_PJ.has(produto)) {
-      return addDays(now, 20);
+      if (quantidadeVidas != null && quantidadeVidas > 100) {
+        return addWorkingDays(now, 5);
+      }
+      return addWorkingDays(now, 2);
     }
   }
 
@@ -152,12 +160,15 @@ export const PRODUTOS_BENEFICIOS_PJ = ["SAÚDE PJ", "VIDA PJ", "ODONTO PJ"] as c
 export function precisaMaisInfo(produto: string, tipoCliente: string): {
   mostrarVeiculos: boolean;
   mostrarVidas: boolean;
+  isNovoPJ: boolean;
 } {
   const isNovo = tipoCliente === "NOVO" || tipoCliente === "NOVO/CASA";
   const isRenovacao = tipoCliente === "RENOVAÇÃO";
+  const isBeneficioPJ = (PRODUTOS_BENEFICIOS_PJ as readonly string[]).includes(produto);
   return {
     mostrarVeiculos: produto === PRODUTO_FROTAS && isNovo,
-    mostrarVidas: (PRODUTOS_BENEFICIOS_PJ as readonly string[]).includes(produto) && isRenovacao,
+    mostrarVidas: isBeneficioPJ && (isRenovacao || isNovo),
+    isNovoPJ: isBeneficioPJ && isNovo,
   };
 }
 

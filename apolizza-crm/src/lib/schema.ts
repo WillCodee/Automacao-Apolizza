@@ -517,6 +517,20 @@ export const chatLeituras = pgTable(
 );
 
 // ============================================================
+// REGRAS DE AUDITORIA
+// ============================================================
+
+export const regrasAuditoria = pgTable("regras_auditoria", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nome: varchar("nome", { length: 100 }).notNull(),
+  comando: varchar("comando", { length: 50 }).notNull(), // ex: /relatorio_seg
+  tipo: varchar("tipo", { length: 50 }).notNull(),       // atrasados | tarefas_hoje | tratativas | pendentes | relatorio | resumo
+  descricao: varchar("descricao", { length: 200 }),
+  ativo: boolean("ativo").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================
 // RELATIONS
 // ============================================================
 

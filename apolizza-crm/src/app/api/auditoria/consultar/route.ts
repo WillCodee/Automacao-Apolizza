@@ -7,6 +7,7 @@ import {
   sendTelegram, fmtAtrasado, fmtTarefasHoje,
   fmtTratativas, fmtTarefasPendentes, fmtRelatorio, MENU_CONSULTA,
 } from "@/lib/telegram";
+import { sendAlertEmail } from "@/lib/email";
 
 type Tipo = "atrasados" | "tarefas_hoje" | "tratativas" | "pendentes" | "relatorio" | "resumo" | "consulta";
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!user) return apiError("Nao autenticado", 401);
   if (!isAdminOrProprietario(user.role)) return apiError("Acesso negado", 403);
 
-  const { tipo, enviar_telegram }: { tipo: Tipo; enviar_telegram?: boolean } = await req.json();
+  const { tipo, enviar_telegram, email }: { tipo: Tipo; enviar_telegram?: boolean; email?: string } = await req.json();
 
   let texto = "";
   let dados: unknown = null;
@@ -136,10 +137,24 @@ export async function POST(req: NextRequest) {
       return apiError("Tipo invalido", 400);
   }
 
+  // Sempre envia para o Telegram quando solicitado
   let telegramOk: boolean | null = null;
   if (enviar_telegram) {
     telegramOk = await sendTelegram(texto);
   }
 
-  return apiSuccess({ texto, dados, telegramOk });
+  // Envia por email se fornecido
+  let emailOk: boolean | null = null;
+  if (email && email.includes("@")) {
+    try {
+      const subject = `[Apolizza] Consulta: ${tipo}`;
+      const htmlBody = `<pre style="font-family:monospace;font-size:13px;line-height:1.6">${texto.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre><br><a href="${process.env.NEXT_PUBLIC_APP_URL || ""}/dashboard">Ver Dashboard</a>`;
+      const result = await sendAlertEmail({ to: email, subject, html: htmlBody });
+      emailOk = result.success;
+    } catch {
+      emailOk = false;
+    }
+  }
+
+  return apiSuccess({ texto, dados, telegramOk, emailOk });
 }

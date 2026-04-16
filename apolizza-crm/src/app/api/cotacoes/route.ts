@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, ilike, isNull, sql, count, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, statusConfig } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
 import { validateStatusFields } from "@/lib/status-validation";
@@ -151,6 +151,15 @@ export async function POST(req: NextRequest) {
         isRenovacao: input.isRenovacao,
       })
       .returning();
+
+    // Registrar evento de criação no histórico
+    await db.insert(cotacaoHistory).values({
+      cotacaoId: created.id,
+      userId: user.id,
+      fieldName: "criacao",
+      oldValue: null,
+      newValue: "Cotação criada",
+    });
 
     return apiSuccess(formatCotacao(created), 201);
   } catch (error) {

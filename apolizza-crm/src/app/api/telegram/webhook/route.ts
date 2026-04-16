@@ -1,10 +1,38 @@
 import { NextRequest } from "next/server";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { regrasAuditoria } from "@/lib/schema";
 import {
   sendTelegram, fmtAtrasado, fmtTarefasHoje, fmtTratativas,
   fmtTarefasPendentes, fmtRelatorio, MENU_CONSULTA,
 } from "@/lib/telegram";
+
+async function buildMenuConsulta(): Promise<string> {
+  const regras = await db
+    .select()
+    .from(regrasAuditoria)
+    .where(eq(regrasAuditoria.ativo, true))
+    .orderBy(regrasAuditoria.createdAt);
+
+  let extra = "";
+  if (regras.length > 0) {
+    extra = "\n\n📌 <b>REGRAS CUSTOMIZADAS</b>\n" +
+      regras.map((r) => `${r.comando} — ${r.descricao || r.nome}`).join("\n");
+  }
+  return MENU_CONSULTA + extra;
+}
+
+async function runTipoQuery(tipo: string): Promise<string> {
+  switch (tipo) {
+    case "atrasados":   return getAtrasados();
+    case "tarefas_hoje": return getTarefasHoje();
+    case "tratativas":  return getTratativas();
+    case "pendentes":   return getTarefasPendentes();
+    case "relatorio":   return getRelatorio();
+    case "resumo":      return getResumo();
+    default:            return "❓ Tipo de consulta desconhecido.";
+  }
+}
 
 // Telegram envia POST para este endpoint quando há mensagem no grupo
 export async function POST(req: NextRequest) {
@@ -21,7 +49,7 @@ export async function POST(req: NextRequest) {
     switch (cmd) {
       case "/consulta":
       case "/start":
-        await sendTelegram(MENU_CONSULTA, chatId);
+        await sendTelegram(await buildMenuConsulta(), chatId);
         break;
 
       case "/atrasados":
@@ -50,7 +78,17 @@ export async function POST(req: NextRequest) {
 
       default:
         if (cmd.startsWith("/")) {
-          await sendTelegram(`❓ Comando não reconhecido.\n\nUse /consulta para ver os comandos disponíveis.`, chatId);
+          // Verifica se é uma regra customizada
+          const regras = await db
+            .select()
+            .from(regrasAuditoria)
+            .where(eq(regrasAuditoria.ativo, true));
+          const regra = regras.find((r) => r.comando.toLowerCase() === cmd);
+          if (regra) {
+            await sendTelegram(await runTipoQuery(regra.tipo), chatId);
+          } else {
+            await sendTelegram(`❓ Comando não reconhecido.\n\nUse /consulta para ver os comandos disponíveis.`, chatId);
+          }
         }
     }
 

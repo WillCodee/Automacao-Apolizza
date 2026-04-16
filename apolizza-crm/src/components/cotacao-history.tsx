@@ -12,6 +12,7 @@ type HistoryEntry = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  criacao: "Criação",
   name: "Nome",
   status: "Status",
   priority: "Prioridade",
@@ -32,7 +33,7 @@ const FIELD_LABELS: Record<string, string> = {
   comissao: "Comissao",
   aReceber: "A Receber",
   valorPerda: "Valor Perda",
-  proximaTratativa: "Data Contato com Cliente",
+  proximaTratativa: "Próxima Tratativa",
   observacao: "Observacao",
   mesReferencia: "Mes Ref",
   anoReferencia: "Ano Ref",
@@ -79,19 +80,27 @@ export function CotacaoHistory({ cotacaoId }: { cotacaoId: string }) {
                       {new Date(h.changedAt).toLocaleString("pt-BR")}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700">
-                    <span className="font-medium text-slate-900">
-                      {FIELD_LABELS[h.fieldName] || h.fieldName}
-                    </span>
-                    :{" "}
-                    <span className="text-[#ff695f] line-through">
-                      {h.oldValue || "vazio"}
-                    </span>{" "}
-                    →{" "}
-                    <span className="text-emerald-600 font-medium">
-                      {h.newValue || "vazio"}
-                    </span>
-                  </p>
+                  {h.fieldName === "criacao" ? (
+                    <p className="text-sm text-slate-700">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">
+                        ✦ Cotação criada
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-slate-700">
+                      <span className="font-medium text-slate-900">
+                        {FIELD_LABELS[h.fieldName] || h.fieldName}
+                      </span>
+                      :{" "}
+                      <span className="text-[#ff695f] line-through">
+                        {h.oldValue || "vazio"}
+                      </span>{" "}
+                      →{" "}
+                      <span className="text-emerald-600 font-medium">
+                        {h.newValue || "vazio"}
+                      </span>
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

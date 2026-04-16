@@ -28,6 +28,7 @@ type Meta = {
 type Produtividade = {
   qtdCotacoes: number;
   qtdFechadas: number;
+  qtdPerdas: number;
   valorAReceber: number;
   valorPremio: number;
 };
@@ -121,7 +122,7 @@ function MetaPanel({ meta, prod }: { meta: Meta | null; prod: Produtividade }) {
       </div>
 
       {/* Quick stats row */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="bg-slate-50 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-slate-900">{prod.qtdCotacoes}</p>
           <p className="text-xs text-slate-500 mt-0.5">Cotações</p>
@@ -129,6 +130,10 @@ function MetaPanel({ meta, prod }: { meta: Meta | null; prod: Produtividade }) {
         <div className="bg-emerald-50 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-emerald-700">{prod.qtdFechadas}</p>
           <p className="text-xs text-emerald-600 mt-0.5">Fechadas</p>
+        </div>
+        <div className="bg-red-50 rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-red-600">{prod.qtdPerdas}</p>
+          <p className="text-xs text-red-500 mt-0.5">Perdas</p>
         </div>
       </div>
 
@@ -582,7 +587,7 @@ export function InicioContent({
             </>
           ) : (
             <>
-              <MetaPanel meta={data?.meta ?? null} prod={data?.produtividade ?? { qtdCotacoes: 0, qtdFechadas: 0, valorAReceber: 0, valorPremio: 0 }} />
+              <MetaPanel meta={data?.meta ?? null} prod={data?.produtividade ?? { qtdCotacoes: 0, qtdFechadas: 0, qtdPerdas: 0, valorAReceber: 0, valorPremio: 0 }} />
               <TarefasPanel
                 tarefas={data?.tarefas ?? []}
                 onUpdateStatus={handleUpdateTarefaStatus}
