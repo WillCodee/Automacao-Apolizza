@@ -55,3 +55,4 @@ next-env.d.ts
 
 # Backups do banco de dados
 /backups/
+.env*.local
