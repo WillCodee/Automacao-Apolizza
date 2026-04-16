@@ -16,9 +16,7 @@ type ResgateItem = {
   contatoCliente: string | null;
   mesReferencia: string | null;
   anoReferencia: number | null;
-  premioSemIof: number | null;
   aReceber: number | null;
-  valorPerda: number | null;
   observacao: string | null;
   createdAt: string;
   dueDate: string | null;
@@ -105,8 +103,7 @@ export function ResgateList() {
         "Contato",
         "Mês Ref.",
         "Ano Ref.",
-        "Prêmio sem IOF (R$)",
-        "A Receber (R$)",
+        "Valor em Perda (R$)",
         "Indicação",
         "Data Criação",
         "Observação",
@@ -122,7 +119,6 @@ export function ResgateList() {
         r.contatoCliente ?? "",
         r.mesReferencia ?? "",
         r.anoReferencia != null ? String(r.anoReferencia) : "",
-        r.premioSemIof != null ? r.premioSemIof.toFixed(2) : "",
         r.aReceber != null ? r.aReceber.toFixed(2) : "",
         r.indicacao ?? "",
         fmtDate(r.createdAt),
@@ -292,8 +288,7 @@ export function ResgateList() {
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">Situação</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-600">Mês/Ano</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-600">Prêmio sem IOF</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-600">A Receber</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-600">Valor em Perda</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-600 print:hidden">Ações</th>
                 </tr>
               </thead>
@@ -327,9 +322,6 @@ export function ResgateList() {
                         ? `${item.mesReferencia ?? ""}${item.mesReferencia && item.anoReferencia ? "/" : ""}${item.anoReferencia ?? ""}`
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-700">
-                      {fmtCurrency(item.premioSemIof)}
-                    </td>
                     <td className="px-4 py-3 text-right font-medium text-red-600">
                       {fmtCurrency(item.aReceber)}
                     </td>
@@ -349,11 +341,6 @@ export function ResgateList() {
                 <tr>
                   <td colSpan={6} className="px-4 py-3 text-sm font-semibold text-slate-700">
                     Total ({items.length} registro{items.length !== 1 ? "s" : ""})
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-slate-700">
-                    {fmtCurrency(
-                      items.reduce((acc, i) => acc + (i.premioSemIof ?? 0), 0) || null
-                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-red-600">
                     {fmtCurrency(
@@ -387,11 +374,8 @@ export function ResgateList() {
                   {(item.mesReferencia || item.anoReferencia) && (
                     <span>Período: <b className="text-slate-700">{item.mesReferencia}/{item.anoReferencia}</b></span>
                   )}
-                  {item.premioSemIof != null && (
-                    <span>Prêmio: <b className="text-slate-700">{fmtCurrency(item.premioSemIof)}</b></span>
-                  )}
                   {item.aReceber != null && (
-                    <span>A Receber: <b className="text-red-600">{fmtCurrency(item.aReceber)}</b></span>
+                    <span>Valor em Perda: <b className="text-red-600">{fmtCurrency(item.aReceber)}</b></span>
                   )}
                 </div>
               </Link>
