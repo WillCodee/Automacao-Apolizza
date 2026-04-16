@@ -111,6 +111,7 @@ export async function GET(req: NextRequest) {
                 user_id,
                 coalesce(sum(total_cotacoes), 0)::int as total_cotacoes,
                 coalesce(sum(fechadas), 0)::int as fechadas,
+                coalesce(sum(perdas), 0)::int as perdas,
                 coalesce(sum(faturamento), 0)::float as faturamento,
                 round(
                   coalesce(sum(fechadas), 0)::numeric
