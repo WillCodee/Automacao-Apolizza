@@ -13,7 +13,10 @@ type CotadorRow = {
   total: number;
   fechadas: number;
   perdas: number;
-  faturamento: number;
+  emAnalise: number;
+  ganhos: number;
+  perdasValor: number;
+  analiseValor: number;
   taxaConversao: number;
 };
 
@@ -24,7 +27,10 @@ type GrupoRow = {
   total: number;
   fechadas: number;
   perdas: number;
-  faturamento: number;
+  emAnalise: number;
+  ganhos: number;
+  perdasValor: number;
+  analiseValor: number;
   taxaConversao: number;
 };
 
@@ -172,7 +178,10 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         <th className={`${thClass} text-right`}>Total</th>
                         <th className={`${thClass} text-right`}>Fechadas</th>
                         <th className={`${thClass} text-right`}>Perdas</th>
-                        <th className={`${thClass} text-right`}>Faturamento</th>
+                        <th className={`${thClass} text-right`}>Análise</th>
+                        <th className={`${thClass} text-right text-emerald-600`}>Ganhos</th>
+                        <th className={`${thClass} text-right text-red-500`}>Perdas (R$)</th>
+                        <th className={`${thClass} text-right text-amber-600`}>Análise (R$)</th>
                         <th className={`${thClass} text-right`}>Taxa</th>
                       </tr>
                     </thead>
@@ -188,7 +197,10 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                           <td className={`${tdClass} text-right`}>{c.total}</td>
                           <td className={`${tdClass} text-right text-emerald-600 font-medium`}>{c.fechadas}</td>
                           <td className={`${tdClass} text-right text-red-500`}>{c.perdas}</td>
-                          <td className={`${tdClass} text-right font-semibold text-slate-800`}>{fmtCur(c.faturamento)}</td>
+                          <td className={`${tdClass} text-right text-amber-600`}>{c.emAnalise}</td>
+                          <td className={`${tdClass} text-right font-semibold text-emerald-600`}>{fmtCur(c.ganhos)}</td>
+                          <td className={`${tdClass} text-right text-red-500`}>{fmtCur(c.perdasValor)}</td>
+                          <td className={`${tdClass} text-right text-amber-600`}>{fmtCur(c.analiseValor)}</td>
                           <td className={`${tdClass} text-right`}>
                             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${c.taxaConversao >= 50 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                               {c.taxaConversao?.toFixed(0) ?? 0}%
@@ -197,7 +209,7 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         </tr>
                       ))}
                       {data.cotadores.length === 0 && (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">Nenhum dado no período</td></tr>
+                        <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">Nenhum dado no período</td></tr>
                       )}
                     </tbody>
                     {data.cotadores.length > 0 && (
@@ -207,7 +219,10 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                           <td className="px-4 py-2.5 text-right text-xs font-semibold text-slate-700">{data.cotadores.reduce((a, c) => a + c.total, 0)}</td>
                           <td className="px-4 py-2.5 text-right text-xs font-semibold text-emerald-600">{data.cotadores.reduce((a, c) => a + c.fechadas, 0)}</td>
                           <td className="px-4 py-2.5 text-right text-xs font-semibold text-red-500">{data.cotadores.reduce((a, c) => a + c.perdas, 0)}</td>
-                          <td className="px-4 py-2.5 text-right text-xs font-bold text-slate-800">{fmtCur(data.cotadores.reduce((a, c) => a + c.faturamento, 0))}</td>
+                          <td className="px-4 py-2.5 text-right text-xs font-semibold text-amber-600">{data.cotadores.reduce((a, c) => a + c.emAnalise, 0)}</td>
+                          <td className="px-4 py-2.5 text-right text-xs font-bold text-emerald-600">{fmtCur(data.cotadores.reduce((a, c) => a + c.ganhos, 0))}</td>
+                          <td className="px-4 py-2.5 text-right text-xs font-bold text-red-500">{fmtCur(data.cotadores.reduce((a, c) => a + c.perdasValor, 0))}</td>
+                          <td className="px-4 py-2.5 text-right text-xs font-bold text-amber-600">{fmtCur(data.cotadores.reduce((a, c) => a + c.analiseValor, 0))}</td>
                           <td />
                         </tr>
                       </tfoot>
@@ -226,7 +241,10 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         <th className={`${thClass} text-right`}>Total</th>
                         <th className={`${thClass} text-right`}>Fechadas</th>
                         <th className={`${thClass} text-right`}>Perdas</th>
-                        <th className={`${thClass} text-right`}>Faturamento</th>
+                        <th className={`${thClass} text-right`}>Análise</th>
+                        <th className={`${thClass} text-right text-emerald-600`}>Ganhos</th>
+                        <th className={`${thClass} text-right text-red-500`}>Perdas (R$)</th>
+                        <th className={`${thClass} text-right text-amber-600`}>Análise (R$)</th>
                         <th className={`${thClass} text-right`}>Taxa</th>
                       </tr>
                     </thead>
@@ -242,7 +260,10 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                           <td className={`${tdClass} text-right`}>{g.total}</td>
                           <td className={`${tdClass} text-right text-emerald-600 font-medium`}>{g.fechadas}</td>
                           <td className={`${tdClass} text-right text-red-500`}>{g.perdas}</td>
-                          <td className={`${tdClass} text-right font-semibold text-slate-800`}>{fmtCur(g.faturamento)}</td>
+                          <td className={`${tdClass} text-right text-amber-600`}>{g.emAnalise}</td>
+                          <td className={`${tdClass} text-right font-semibold text-emerald-600`}>{fmtCur(g.ganhos)}</td>
+                          <td className={`${tdClass} text-right text-red-500`}>{fmtCur(g.perdasValor)}</td>
+                          <td className={`${tdClass} text-right text-amber-600`}>{fmtCur(g.analiseValor)}</td>
                           <td className={`${tdClass} text-right`}>
                             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${g.taxaConversao >= 50 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                               {g.taxaConversao?.toFixed(0) ?? 0}%
@@ -251,7 +272,7 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         </tr>
                       ))}
                       {data.grupos.length === 0 && (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">Nenhum grupo cadastrado</td></tr>
+                        <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">Nenhum grupo cadastrado</td></tr>
                       )}
                     </tbody>
                   </table>

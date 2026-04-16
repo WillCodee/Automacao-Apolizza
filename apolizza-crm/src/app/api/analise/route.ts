@@ -28,7 +28,10 @@ export async function GET(req: NextRequest) {
           COUNT(c.id)::int AS total,
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS faturamento,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS emAnalise,
+          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
+          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS perdasValor,
+          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS analiseValor,
           ROUND(
             COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
             / NULLIF(COUNT(c.id), 0) * 100, 1
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest) {
           ${anoC} ${mesC}
         WHERE u.is_active = true AND u.role = 'cotador'
         GROUP BY u.id, u.name, u.photo_url
-        ORDER BY faturamento DESC
+        ORDER BY ganhos DESC
       `),
 
       // Por grupo
@@ -52,7 +55,10 @@ export async function GET(req: NextRequest) {
           COUNT(c.id)::int AS total,
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS faturamento,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS emAnalise,
+          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
+          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS perdasValor,
+          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS analiseValor,
           ROUND(
             COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
             / NULLIF(COUNT(c.id), 0) * 100, 1
@@ -64,7 +70,7 @@ export async function GET(req: NextRequest) {
           AND c.deleted_at IS NULL
           ${anoC} ${mesC}
         GROUP BY g.id, g.nome, g.cor
-        ORDER BY faturamento DESC
+        ORDER BY ganhos DESC
       `),
 
       // Por status
