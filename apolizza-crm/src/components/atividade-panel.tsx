@@ -22,6 +22,7 @@ type Mensagem = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  criacao: "Criação",
   name: "Nome",
   status: "Status",
   priority: "Prioridade",
@@ -96,7 +97,7 @@ export function AtividadePanel({
 }) {
   const [tab, setTab] = useState<"historico" | "mensagens">("historico");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [mensagensLoaded, setMensagensLoaded] = useState(false);
   const [texto, setTexto] = useState("");
@@ -107,14 +108,17 @@ export function AtividadePanel({
   const mensagensEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  function loadHistory() {
+    setHistoryLoading(true);
+    fetch(`/api/cotacoes/${cotacaoId}/history`)
+      .then((r) => r.json())
+      .then((d) => setHistory(d.data || []))
+      .finally(() => setHistoryLoading(false));
+  }
+
   useEffect(() => {
-    if (tab === "historico" && !historyLoaded) {
-      fetch(`/api/cotacoes/${cotacaoId}/history`)
-        .then((r) => r.json())
-        .then((d) => {
-          setHistory(d.data || []);
-          setHistoryLoaded(true);
-        });
+    if (tab === "historico") {
+      loadHistory();
     }
     if (tab === "mensagens" && !mensagensLoaded) {
       fetch(`/api/cotacoes/${cotacaoId}/mensagens`)
@@ -124,7 +128,8 @@ export function AtividadePanel({
           setMensagensLoaded(true);
         });
     }
-  }, [tab, cotacaoId, historyLoaded, mensagensLoaded]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, cotacaoId]);
 
   useEffect(() => {
     if (tab === "mensagens") {
@@ -221,7 +226,7 @@ export function AtividadePanel({
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Historico
+              Histórico
             </button>
             <button
               onClick={() => setTab("mensagens")}
@@ -245,33 +250,64 @@ export function AtividadePanel({
         <div className="flex-1 overflow-hidden flex flex-col">
           {tab === "historico" && (
             <div className="flex-1 overflow-y-auto">
-              {!historyLoaded ? (
+              {/* Botão recarregar */}
+              <div className="flex justify-end px-4 pt-2 pb-1">
+                <button
+                  onClick={loadHistory}
+                  disabled={historyLoading}
+                  className="text-[11px] text-slate-400 hover:text-[#03a4ed] transition-colors flex items-center gap-1 disabled:opacity-50"
+                >
+                  <svg className={`w-3 h-3 ${historyLoading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Atualizar
+                </button>
+              </div>
+
+              {historyLoading ? (
                 <p className="px-5 py-8 text-sm text-slate-400 text-center">Carregando...</p>
               ) : history.length === 0 ? (
                 <p className="px-5 py-8 text-sm text-slate-400 text-center">
-                  Nenhuma alteracao registrada.
+                  Nenhuma alteração registrada.
                 </p>
               ) : (
                 <ul className="divide-y divide-slate-50 px-1">
                   {history.map((h) => (
                     <li key={h.id} className="px-4 py-3">
                       <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#03a4ed] mt-1.5 shrink-0" />
+                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${h.fieldName === "criacao" ? "bg-emerald-500" : "bg-[#03a4ed]"}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-slate-700 leading-relaxed">
-                            <span className="font-semibold text-slate-900">
-                              {h.userName || "Sistema"}
-                            </span>{" "}
-                            alterou{" "}
-                            <span className="font-medium text-slate-700">
-                              {FIELD_LABELS[h.fieldName] || h.fieldName}
-                            </span>
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            <span className="text-[#ff695f] line-through">{h.oldValue || "vazio"}</span>
-                            {" → "}
-                            <span className="text-emerald-600 font-medium">{h.newValue || "vazio"}</span>
-                          </p>
+                          {h.fieldName === "criacao" ? (
+                            <>
+                              <p className="text-xs text-slate-700 leading-relaxed">
+                                <span className="font-semibold text-slate-900">{h.userName || "Sistema"}</span>
+                                {" "}
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">
+                                  ✦ Cotação criada
+                                </span>
+                              </p>
+                              {h.newValue && (
+                                <p className="text-xs text-slate-500 mt-0.5">{h.newValue}</p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-slate-700 leading-relaxed">
+                                <span className="font-semibold text-slate-900">
+                                  {h.userName || "Sistema"}
+                                </span>{" "}
+                                alterou{" "}
+                                <span className="font-medium text-slate-700">
+                                  {FIELD_LABELS[h.fieldName] || h.fieldName}
+                                </span>
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                <span className="text-[#ff695f] line-through">{h.oldValue || "vazio"}</span>
+                                {" → "}
+                                <span className="text-emerald-600 font-medium">{h.newValue || "vazio"}</span>
+                              </p>
+                            </>
+                          )}
                           <p className="text-[11px] text-slate-400 mt-1">
                             {fmtDateTime(h.changedAt)}
                           </p>
