@@ -21,14 +21,29 @@ const MESES = [
 const anos = Array.from({ length: 6 }, (_, i) => 2024 + i);
 
 function fmtBRL(v: string) {
-  const n = parseFloat(v.replace(/[^\d,]/g, "").replace(",", "."));
+  // DB retorna "100.00" (ponto decimal JS/PG); usuário digita "100,00" (BRL)
+  let n: number;
+  if (v.includes(",")) {
+    // Formato BRL: ponto = separador de milhar, vírgula = decimal
+    n = parseFloat(v.replace(/\./g, "").replace(",", "."));
+  } else {
+    // Formato JS/DB: ponto = decimal
+    n = parseFloat(v);
+  }
   if (isNaN(n)) return "";
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function parseBRL(v: string): number | null {
-  const clean = v.replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, "");
-  const n = parseFloat(clean);
+  const trimmed = v.trim();
+  let n: number;
+  if (trimmed.includes(",")) {
+    // Formato BRL: remove pontos (milhar), troca vírgula por ponto
+    n = parseFloat(trimmed.replace(/[^\d,]/g, "").replace(",", "."));
+  } else {
+    // Formato JS/DB: mantém ponto decimal
+    n = parseFloat(trimmed.replace(/[^\d.]/g, ""));
+  }
   return isNaN(n) ? null : n;
 }
 
