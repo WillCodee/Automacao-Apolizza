@@ -72,8 +72,8 @@ export function PedidoForm() {
         return;
       }
 
-      setSuccess("Pedido criado e tarefa gerada com sucesso! Notificação enviada.");
-      setTimeout(() => router.push("/tarefas"), 2000);
+      setSuccess("Pedido criado com sucesso! Redirecionando para a cotação...");
+      setTimeout(() => router.push(`/cotacoes/${data.data.cotacao.id}`), 2000);
     } catch {
       setError("Erro ao enviar pedido.");
     } finally {

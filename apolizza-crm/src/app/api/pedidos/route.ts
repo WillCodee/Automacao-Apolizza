@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas, tarefasAnexos, users } from "@/lib/schema";
+import { cotacoes, cotacaoDocs, cotacaoHistory, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import { sendTelegram } from "@/lib/telegram";
@@ -63,51 +63,49 @@ export async function POST(req: NextRequest) {
       .where(eq(users.id, responsavelId))
       .limit(1);
 
-    // Constrói título e descrição da tarefa
-    const titulo = `[PEDIDO] ${nomeCliente} — ${produto} ${mes}/${ano}`;
-    const descricaoCompleta = [
-      `Cliente: ${nomeCliente}`,
-      `Contato: ${contatoCliente}`,
-      `Prioridade: ${prioridade}`,
-      `Indicação: ${indicacao || "—"}`,
-      `Produto: ${produto}`,
-      `Referência: ${mes}/${ano}`,
-      `Situação: ${situacao}`,
-      ``,
-      descricao,
-    ].join("\n");
-
-    // Data de vencimento = amanhã
-    const amanha = new Date();
-    amanha.setDate(amanha.getDate() + 1);
-    amanha.setHours(23, 59, 0, 0);
-
-    // Cria tarefa
-    const [tarefa] = await db
-      .insert(tarefas)
+    // Cria a cotação
+    const [cotacao] = await db
+      .insert(cotacoes)
       .values({
-        titulo,
-        descricao: descricaoCompleta,
-        status: "Pendente",
-        cotadorId: responsavelId,
-        criadorId: user.id,
-        dataVencimento: amanha,
+        name: nomeCliente,
+        status: "não iniciado",
+        priority: prioridade.toLowerCase() === "alta" ? "high" : prioridade.toLowerCase() === "urgente" ? "urgent" : "normal",
+        assigneeId: responsavelId,
+        produto,
+        contatoCliente,
+        indicacao: indicacao || null,
+        situacao,
+        mesReferencia: mes,
+        anoReferencia: parseInt(ano),
+        observacao: descricao,
+        tags: ["pedido"],
       })
       .returning();
 
-    // Salva anexos
+    // Registra evento de criação no histórico
+    await db.insert(cotacaoHistory).values({
+      cotacaoId: cotacao.id,
+      userId: user.id,
+      fieldName: "criacao",
+      oldValue: null,
+      newValue: `Pedido criado por ${user.name} — ${produto} ${mes}/${ano}`,
+    });
+
+    // Salva anexos como docs da cotação
     for (const f of files) {
-      await db.insert(tarefasAnexos).values({
-        tarefaId: tarefa.id,
-        usuarioId: user.id,
-        nomeArquivo: f.name,
-        urlBlob: f.url,
-        tamanho: f.size,
+      await db.insert(cotacaoDocs).values({
+        cotacaoId: cotacao.id,
+        fileName: f.name,
+        fileUrl: f.url,
+        fileSize: f.size,
         mimeType: f.mime,
+        uploadedBy: user.id,
       });
     }
 
-    // Notificação Telegram (sempre)
+    const cotacaoUrl = `${APP_URL}/cotacoes/${cotacao.id}`;
+
+    // Notificação Telegram
     const telegramMsg = [
       `📋 <b>NOVO PEDIDO DE COTAÇÃO</b>`,
       ``,
@@ -123,23 +121,34 @@ export async function POST(req: NextRequest) {
       ``,
       `📝 ${descricao}`,
       ``,
-      `🔗 <a href="${APP_URL}/tarefas">Ver Tarefas</a>`,
+      `🔗 <a href="${cotacaoUrl}">Ver Cotação</a>`,
     ].join("\n");
 
     await sendTelegram(telegramMsg).catch(() => {});
 
-    // Email para o responsável (se configurado)
+    // Email para o responsável
     if (responsavel?.email) {
       try {
         await sendAlertEmail({
           to: responsavel.email,
           subject: `[Apolizza] Novo pedido: ${nomeCliente} — ${produto}`,
-          html: `<h2>Novo Pedido de Cotação</h2><pre style="font-family:inherit">${descricaoCompleta}</pre><br><a href="${APP_URL}/tarefas">Ver Tarefas</a>`,
+          html: `
+            <h2>Novo Pedido de Cotação</h2>
+            <p><b>Cliente:</b> ${nomeCliente}</p>
+            <p><b>Contato:</b> ${contatoCliente}</p>
+            <p><b>Produto:</b> ${produto} — ${mes}/${ano}</p>
+            <p><b>Prioridade:</b> ${prioridade}</p>
+            <p><b>Descrição:</b> ${descricao}</p>
+            <br>
+            <a href="${cotacaoUrl}" style="display:inline-block;background:#03a4ed;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+              Ver Cotação
+            </a>
+          `,
         });
       } catch {}
     }
 
-    return apiSuccess({ tarefa, anexos: files.length }, 201);
+    return apiSuccess({ cotacao, anexos: files.length }, 201);
   } catch (error: unknown) {
     const e = error as Error;
     console.error("POST /api/pedidos:", e);
