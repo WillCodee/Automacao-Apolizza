@@ -3,8 +3,9 @@
 import { useState, useEffect, Suspense } from "react";
 import { CotacoesList } from "./cotacoes-list";
 import { KanbanBoard } from "./kanban-board";
+import { ResgateList } from "./resgate-list";
 
-type ViewMode = "lista" | "kanban";
+type ViewMode = "lista" | "kanban" | "resgate";
 
 export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const [view, setView] = useState<ViewMode>("lista");
@@ -12,7 +13,7 @@ export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" | "pr
   // Persist preference
   useEffect(() => {
     const saved = localStorage.getItem("cotacoes-view");
-    if (saved === "kanban" || saved === "lista") setView(saved);
+    if (saved === "kanban" || saved === "lista" || saved === "resgate") setView(saved);
   }, []);
 
   function toggleView(mode: ViewMode) {
@@ -55,6 +56,21 @@ export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" | "pr
               Kanban
             </span>
           </button>
+          <button
+            onClick={() => toggleView("resgate")}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+              view === "resgate"
+                ? "bg-red-500 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Resgate
+            </span>
+          </button>
         </div>
       </div>
 
@@ -66,8 +82,16 @@ export function CotacoesView({ userRole }: { userRole: "admin" | "cotador" | "pr
         }>
           <CotacoesList userRole={userRole} />
         </Suspense>
-      ) : (
+      ) : view === "kanban" ? (
         <KanbanBoard userRole={userRole} />
+      ) : (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-16">
+            <div className="w-6 h-6 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <ResgateList />
+        </Suspense>
       )}
     </div>
   );
