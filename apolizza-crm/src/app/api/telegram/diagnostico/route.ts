@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser, isAdminOrProprietario } from "@/lib/auth-helpers";
+import { apiError } from "@/lib/api-helpers";
 
 const BASE = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
 export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return apiError("Nao autenticado", 401);
+  if (!isAdminOrProprietario(user.role)) return apiError("Acesso negado", 403);
+
   const tokenSet = !!process.env.TELEGRAM_BOT_TOKEN;
   const chatIdSet = !!process.env.TELEGRAM_CHAT_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://apolizza-crm.vercel.app";
@@ -38,7 +44,7 @@ export async function GET() {
   return NextResponse.json({
     env: {
       TELEGRAM_BOT_TOKEN: tokenSet ? "✅ definido" : "❌ NÃO DEFINIDO",
-      TELEGRAM_CHAT_ID: chatIdSet ? `✅ ${process.env.TELEGRAM_CHAT_ID}` : "❌ NÃO DEFINIDO",
+      TELEGRAM_CHAT_ID: chatIdSet ? "✅ definido" : "❌ NÃO DEFINIDO",
       NEXT_PUBLIC_APP_URL: appUrl,
     },
     bot: botInfo
