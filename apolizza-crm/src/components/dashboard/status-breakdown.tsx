@@ -6,8 +6,8 @@ import { CardFilter } from "./card-filter";
 
 type StatusData = { status: string; count: number; total: number };
 
-const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmt = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function StatusBreakdown() {
   const currentYear = String(new Date().getFullYear());

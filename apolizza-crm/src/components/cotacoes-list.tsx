@@ -181,6 +181,15 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     fetchCotacoes();
   }
 
+  async function handleConcluir(id: string) {
+    await fetch(`/api/cotacoes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ situacao: "FECHADO" }),
+    });
+    fetchCotacoes();
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -560,6 +569,14 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                       >
                         Editar
                       </Link>
+                      {c.situacao !== "FECHADO" && (
+                        <button
+                          onClick={() => handleConcluir(c.id)}
+                          className="text-emerald-600 hover:text-emerald-700 text-xs font-medium min-h-[44px] flex items-center"
+                        >
+                          Concluído
+                        </button>
+                      )}
                       {canBulk && (
                         <button
                           onClick={() => handleDelete(c.id, c.name)}
@@ -645,6 +662,14 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                           >
                             Editar
                           </Link>
+                          {c.situacao !== "FECHADO" && (
+                            <button
+                              onClick={() => handleConcluir(c.id)}
+                              className="text-emerald-600 hover:text-emerald-700 text-xs font-medium"
+                            >
+                              Concluído
+                            </button>
+                          )}
                           {canBulk && (
                             <button
                               onClick={() => handleDelete(c.id, c.name)}

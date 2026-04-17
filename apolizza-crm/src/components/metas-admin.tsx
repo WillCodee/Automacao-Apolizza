@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 
 type Cotador = { id: string; name: string; photoUrl: string | null };
+type Grupo = { id: string; nome: string; cor: string };
 type Meta = {
   id?: string;
   userId: string | null;
+  grupoId?: string | null;
   ano: number;
   mes: number;
   metaValor: string | null;
@@ -21,13 +23,10 @@ const MESES = [
 const anos = Array.from({ length: 6 }, (_, i) => 2024 + i);
 
 function fmtBRL(v: string) {
-  // DB retorna "100.00" (ponto decimal JS/PG); usuário digita "100,00" (BRL)
   let n: number;
   if (v.includes(",")) {
-    // Formato BRL: ponto = separador de milhar, vírgula = decimal
     n = parseFloat(v.replace(/\./g, "").replace(",", "."));
   } else {
-    // Formato JS/DB: ponto = decimal
     n = parseFloat(v);
   }
   if (isNaN(n)) return "";
@@ -38,10 +37,8 @@ function parseBRL(v: string): number | null {
   const trimmed = v.trim();
   let n: number;
   if (trimmed.includes(",")) {
-    // Formato BRL: remove pontos (milhar), troca vírgula por ponto
     n = parseFloat(trimmed.replace(/[^\d,]/g, "").replace(",", "."));
   } else {
-    // Formato JS/DB: mantém ponto decimal
     n = parseFloat(trimmed.replace(/[^\d.]/g, ""));
   }
   return isNaN(n) ? null : n;
@@ -60,16 +57,31 @@ function Avatar({ name, photo }: { name: string; photo: string | null }) {
 type MetaRowProps = {
   label: string;
   photo?: string | null;
+  color?: string;
   meta: Meta;
   onSave: (m: Meta) => Promise<void>;
+  clearTrigger?: number;
 };
 
-function MetaRow({ label, photo, meta, onSave }: MetaRowProps) {
+function MetaRow({ label, photo, color, meta, onSave, clearTrigger }: MetaRowProps) {
   const [valor, setValor] = useState(meta.metaValor ? fmtBRL(meta.metaValor) : "");
   const [qtd, setQtd] = useState(meta.metaQtdCotacoes?.toString() || "");
   const [renovacoes, setRenovacoes] = useState(meta.metaRenovacoes?.toString() || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setValor(meta.metaValor ? fmtBRL(meta.metaValor) : "");
+    setQtd(meta.metaQtdCotacoes?.toString() || "");
+    setRenovacoes(meta.metaRenovacoes?.toString() || "");
+  }, [meta.metaValor, meta.metaQtdCotacoes, meta.metaRenovacoes]);
+
+  useEffect(() => {
+    if (clearTrigger === undefined || clearTrigger === 0) return;
+    setValor("");
+    setQtd("");
+    setRenovacoes("");
+  }, [clearTrigger]);
 
   async function handleSave() {
     setSaving(true);
@@ -86,9 +98,12 @@ function MetaRow({ label, photo, meta, onSave }: MetaRowProps) {
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-3 py-4 border-b border-slate-100 last:border-0">
-      {/* Name */}
       <div className="flex items-center gap-2.5 w-40 shrink-0">
-        {photo !== undefined ? (
+        {color !== undefined ? (
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: color }}>
+            {label.slice(0, 2).toUpperCase()}
+          </div>
+        ) : photo !== undefined ? (
           <Avatar name={label} photo={photo ?? null} />
         ) : (
           <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
@@ -100,7 +115,6 @@ function MetaRow({ label, photo, meta, onSave }: MetaRowProps) {
         <span className="text-sm font-medium text-slate-800 truncate">{label}</span>
       </div>
 
-      {/* Inputs */}
       <div className="flex flex-1 gap-2 flex-wrap">
         <div className="flex-1 min-w-[130px]">
           <label className="text-[11px] text-slate-400 font-medium block mb-1">Valor (R$)</label>
@@ -143,7 +157,6 @@ function MetaRow({ label, photo, meta, onSave }: MetaRowProps) {
         </div>
       </div>
 
-      {/* Save button */}
       <button
         onClick={handleSave}
         disabled={saving}
@@ -159,7 +172,7 @@ function MetaRow({ label, photo, meta, onSave }: MetaRowProps) {
   );
 }
 
-export function MetasAdmin({ cotadores }: { cotadores: Cotador[] }) {
+export function MetasAdmin({ cotadores, grupos }: { cotadores: Cotador[]; grupos: Grupo[] }) {
   const now = new Date();
   const [ano, setAno] = useState(now.getFullYear());
   const [mes, setMes] = useState(now.getMonth() + 1);
@@ -172,6 +185,10 @@ export function MetasAdmin({ cotadores }: { cotadores: Cotador[] }) {
   const [todoRenovacoes, setTodoRenovacoes] = useState("");
   const [applyingAll, setApplyingAll] = useState(false);
   const [appliedAll, setAppliedAll] = useState(false);
+
+  const [cotadorClearKey, setCotadorClearKey] = useState(0);
+  const [grupoClearKey, setGrupoClearKey] = useState(0);
+  const [cotadorVersion, setCotadorVersion] = useState(0);
 
   const fetchMetas = useCallback(async () => {
     setLoading(true);
@@ -190,9 +207,17 @@ export function MetasAdmin({ cotadores }: { cotadores: Cotador[] }) {
 
   function getMetaFor(userId: string | null): Meta {
     const found = metas.find(
-      (m) => m.mes === mes && (userId === null ? m.userId === null : m.userId === userId)
+      (m) =>
+        m.mes === mes &&
+        !m.grupoId &&
+        (userId === null ? m.userId === null : m.userId === userId)
     );
-    return found || { userId, ano, mes, metaValor: null, metaQtdCotacoes: null, metaRenovacoes: null };
+    return found || { userId, grupoId: null, ano, mes, metaValor: null, metaQtdCotacoes: null, metaRenovacoes: null };
+  }
+
+  function getMetaForGrupo(grupoId: string): Meta {
+    const found = metas.find((m) => m.mes === mes && m.grupoId === grupoId);
+    return found || { userId: null, grupoId, ano, mes, metaValor: null, metaQtdCotacoes: null, metaRenovacoes: null };
   }
 
   async function saveMeta(meta: Meta) {
@@ -207,26 +232,42 @@ export function MetasAdmin({ cotadores }: { cotadores: Cotador[] }) {
   async function handleApplyAll() {
     if (!todoValor && !todoQtd && !todoRenovacoes) return;
     setApplyingAll(true);
-    await Promise.all(
-      cotadores.map((c) =>
-        fetch("/api/metas", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: c.id,
-            ano,
-            mes,
-            metaValor: parseBRL(todoValor)?.toString() ?? null,
-            metaQtdCotacoes: todoQtd ? parseInt(todoQtd) : null,
-            metaRenovacoes: todoRenovacoes ? parseInt(todoRenovacoes) : null,
-          }),
-        })
-      )
-    );
-    await fetchMetas();
-    setApplyingAll(false);
-    setAppliedAll(true);
-    setTimeout(() => setAppliedAll(false), 2500);
+    try {
+      const payload = {
+        grupoId: null,
+        ano,
+        mes,
+        metaValor: parseBRL(todoValor)?.toString() ?? null,
+        metaQtdCotacoes: todoQtd ? parseInt(todoQtd) : null,
+        metaRenovacoes: todoRenovacoes ? parseInt(todoRenovacoes) : null,
+      };
+      const results = await Promise.all(
+        cotadores.map((c) =>
+          fetch("/api/metas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, userId: c.id }),
+          }).then((r) => r.json())
+        )
+      );
+      const hasError = results.some((r) => !r.success);
+      if (hasError) {
+        alert("Erro ao salvar algumas metas. Tente novamente.");
+        return;
+      }
+      await fetchMetas();
+      setCotadorVersion((v) => v + 1);
+      setAppliedAll(true);
+      setTimeout(() => setAppliedAll(false), 2500);
+    } finally {
+      setApplyingAll(false);
+    }
+  }
+
+  function handleClearAll() {
+    setTodoValor("");
+    setTodoQtd("");
+    setTodoRenovacoes("");
   }
 
   return (
@@ -290,16 +331,24 @@ export function MetasAdmin({ cotadores }: { cotadores: Cotador[] }) {
 
           {/* Aplicar a todos */}
           <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Aplicar a Todos os Cotadores</h2>
+                  <p className="text-xs text-slate-500">Define a mesma meta para todos de uma vez</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">Aplicar a Todos os Cotadores</h2>
-                <p className="text-xs text-slate-500">Define a mesma meta para todos de uma vez</p>
-              </div>
+              <button
+                onClick={handleClearAll}
+                className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+              >
+                Limpar campos
+              </button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 items-end">
@@ -356,33 +405,77 @@ export function MetasAdmin({ cotadores }: { cotadores: Cotador[] }) {
             </div>
           </div>
 
-          {/* Metas individuais */}
+          {/* Metas por Cotador */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-[#ff695f]/10 flex items-center justify-center">
-                <svg className="w-4 h-4 text-[#ff695f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#ff695f]/10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-[#ff695f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Metas por Cotador</h2>
+                  <p className="text-xs text-slate-500">Meta individual para cada cotador ativo</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">Metas por Cotador</h2>
-                <p className="text-xs text-slate-500">Meta individual para cada cotador ativo</p>
-              </div>
+              <button
+                onClick={() => setCotadorClearKey((k) => k + 1)}
+                className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+              >
+                Limpar campos
+              </button>
             </div>
             {cotadores.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-6">Nenhum cotador ativo encontrado.</p>
             ) : (
               cotadores.map((c) => (
                 <MetaRow
-                  key={c.id}
+                  key={`${c.id}-${cotadorVersion}`}
                   label={c.name}
                   photo={c.photoUrl}
                   meta={getMetaFor(c.id)}
                   onSave={saveMeta}
+                  clearTrigger={cotadorClearKey}
                 />
               ))
             )}
           </div>
+
+          {/* Metas por Grupo */}
+          {grupos.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm-7 4a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Metas por Grupo</h2>
+                    <p className="text-xs text-slate-500">Meta consolidada para cada grupo de cotadores</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setGrupoClearKey((k) => k + 1)}
+                  className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+                >
+                  Limpar campos
+                </button>
+              </div>
+              {grupos.map((g) => (
+                <MetaRow
+                  key={g.id}
+                  label={g.nome}
+                  color={g.cor}
+                  meta={getMetaForGrupo(g.id)}
+                  onSave={saveMeta}
+                  clearTrigger={grupoClearKey}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

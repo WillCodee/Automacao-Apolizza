@@ -11,6 +11,7 @@ import { ProximasTratativas } from "./proximas-tratativas";
 import { AdminKanban } from "./admin-kanban";
 import { AnálisePanel } from "./analise-panel";
 import { MetasDashboard } from "./metas-dashboard";
+import { WeeklyGoalChart } from "./weekly-goal-chart";
 
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const isAdminOrProprietario = userRole === "admin" || userRole === "proprietario";
@@ -49,7 +50,10 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
       {/* Row 4: Análise de Cotações (por cotador/grupo e por status/situação) */}
       <AnálisePanel userRole={userRole} />
 
-      {/* Row 5: Metas & Desempenho detalhado */}
+      {/* Row 5: Progresso semanal vs meta */}
+      <WeeklyGoalChart />
+
+      {/* Row 6: Metas & Desempenho detalhado */}
       <MetasDashboard isAdmin={isAdminOrProprietario} />
 
       {/* Row 6: Cards de cotadores (admin/proprietario) */}

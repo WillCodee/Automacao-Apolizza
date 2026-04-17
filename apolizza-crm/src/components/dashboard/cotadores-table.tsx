@@ -15,8 +15,8 @@ type CotadorData = {
   taxaConversao: number;
 };
 
-const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmt = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   const initials = name

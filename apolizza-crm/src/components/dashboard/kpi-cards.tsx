@@ -16,8 +16,8 @@ type KpiData = {
 
 const MES_OPTIONS_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
 
-const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmt = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function KpiCardsSkeleton() {
   return (
@@ -67,7 +67,7 @@ export function KpiCards() {
     {
       label: "Total Cotacoes",
       value: String(kpis.totalCotacoes),
-      sub: `${kpis.fechadas} fechadas, ${kpis.perdas} perdas`,
+      sub: `${kpis.fechadas} fechadas · ${kpis.perdas} perdas · ${kpis.emAndamento} em andamento`,
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -78,9 +78,9 @@ export function KpiCards() {
       valueColor: "text-slate-900",
     },
     {
-      label: "A Receber",
+      label: "Comissão (A Receber)",
       value: fmt(kpis.totalAReceber),
-      sub: `Premio total: ${fmt(kpis.totalPremio)}`,
+      sub: `${kpis.fechadas} cotações fechadas`,
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

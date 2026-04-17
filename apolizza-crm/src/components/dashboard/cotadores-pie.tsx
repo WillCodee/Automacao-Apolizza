@@ -40,8 +40,8 @@ const COLORS = [
   "#84cc16",
 ];
 
-const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmt = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function CotadoresPie() {
   const currentYear = String(new Date().getFullYear());

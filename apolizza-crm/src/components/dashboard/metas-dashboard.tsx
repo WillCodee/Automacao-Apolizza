@@ -9,6 +9,7 @@ const MES_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NO
 type Meta = {
   id: string;
   userId: string | null;
+  grupoId: string | null;
   ano: number;
   mes: number;
   metaValor: string | null;
@@ -19,22 +20,22 @@ type CotadorPerf = {
   id: string;
   name: string;
   photoUrl: string | null;
-  total: number;
-  fechadas: number;
-  perdas: number;
-  faturamento: number;
-  taxaConversao: number;
+  total: number | string;
+  fechadas: number | string;
+  perdas: number | string;
+  ganhos: number | string;
+  taxaConversao: number | string | null;
 };
 
 type GrupoPerf = {
   id: string;
   nome: string;
   cor: string;
-  total: number;
-  fechadas: number;
-  perdas: number;
-  faturamento: number;
-  taxaConversao: number;
+  total: number | string;
+  fechadas: number | string;
+  perdas: number | string;
+  ganhos: number | string;
+  taxaConversao: number | string | null;
 };
 
 type Kpis = {
@@ -44,8 +45,8 @@ type Kpis = {
   perdas: number;
 };
 
-const fmtCur = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtCur = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function ProgressBar({ pct, color }: { pct: number; color: string }) {
   const safe = Math.min(Math.max(pct, 0), 100);
@@ -136,7 +137,7 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── Derived values ──────────────────────────────────────────
-  const metaEmpresa = metas.find(m => m.mes === mesNum && m.userId === null);
+  const metaEmpresa = metas.find(m => m.mes === mesNum && m.userId === null && !m.grupoId);
   const metaValorEmp = metaEmpresa?.metaValor ? parseFloat(metaEmpresa.metaValor) : null;
   const metaQtdEmp   = metaEmpresa?.metaQtdCotacoes ?? null;
 
@@ -274,11 +275,15 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                   <p className="text-sm text-slate-400 text-center py-4">Nenhum cotador ativo</p>
                 )}
                 {cotadores.map((c) => {
+                  const faturamento = Number(c.ganhos ?? 0);
+                  const fechadas = Number(c.fechadas ?? 0);
+                  const perdas = Number(c.perdas ?? 0);
+                  const taxa = Number(c.taxaConversao ?? 0);
                   const metaCot = metas.find(m => m.userId === c.id && m.mes === mesNum);
                   const mValor = metaCot?.metaValor ? parseFloat(metaCot.metaValor) : null;
                   const mQtd = metaCot?.metaQtdCotacoes ?? null;
-                  const pValor = mValor && mValor > 0 ? (c.faturamento / mValor) * 100 : null;
-                  const pQtd   = mQtd   && mQtd   > 0 ? (c.fechadas   / mQtd)   * 100 : null;
+                  const pValor = mValor && mValor > 0 ? (faturamento / mValor) * 100 : null;
+                  const pQtd   = mQtd   && mQtd   > 0 ? (fechadas   / mQtd)   * 100 : null;
                   const pct = pValor ?? pQtd;
                   const barColor = pct == null ? "#94a3b8" : pct >= 100 ? "#10b981" : pct >= 60 ? "#03a4ed" : "#f59e0b";
 
@@ -289,16 +294,16 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-sm font-semibold text-slate-800 truncate">{c.name}</span>
                           <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <span className="text-xs text-slate-500">{fmtCur(c.faturamento)}</span>
+                            <span className="text-xs text-slate-500">{fmtCur(faturamento)}</span>
                             {mValor && <span className="text-[11px] text-slate-400">/ {fmtCur(mValor)}</span>}
                             {pct !== null && <PctBadge pct={pct} />}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 mb-1.5">
-                          <span className="text-[11px] text-slate-400">{c.fechadas} fechadas</span>
+                          <span className="text-[11px] text-slate-400">{fechadas} fechadas</span>
                           {mQtd && <span className="text-[11px] text-slate-400">/ {mQtd} meta</span>}
-                          <span className="text-[11px] text-slate-400">{c.perdas} perdas</span>
-                          <span className="text-[11px] text-slate-400">{c.taxaConversao?.toFixed(0) ?? 0}% taxa</span>
+                          <span className="text-[11px] text-slate-400">{perdas} perdas</span>
+                          <span className="text-[11px] text-slate-400">{taxa.toFixed(0)}% taxa</span>
                         </div>
                         <ProgressBar pct={pct ?? 0} color={barColor} />
                         {pct === null && (
@@ -318,6 +323,16 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                   <p className="text-sm text-slate-400 text-center py-4">Nenhum grupo cadastrado</p>
                 )}
                 {grupos.map((g) => {
+                  const faturamento = Number(g.ganhos ?? 0);
+                  const total = Number(g.total ?? 0);
+                  const fechadas = Number(g.fechadas ?? 0);
+                  const perdas = Number(g.perdas ?? 0);
+                  const taxa = Number(g.taxaConversao ?? 0);
+                  const metaGrupo = metas.find(m => m.grupoId === g.id && m.mes === mesNum);
+                  const mValorG = metaGrupo?.metaValor ? parseFloat(metaGrupo.metaValor) : null;
+                  const pValorG = mValorG && mValorG > 0 ? (faturamento / mValorG) * 100 : null;
+                  const barColor = pValorG == null ? g.cor : pValorG >= 100 ? "#10b981" : pValorG >= 60 ? "#03a4ed" : "#f59e0b";
+
                   return (
                     <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/60 transition">
                       <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold"
@@ -327,15 +342,22 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-sm font-semibold text-slate-800 truncate">{g.nome}</span>
-                          <span className="text-xs font-semibold text-[#03a4ed] shrink-0 ml-2">{fmtCur(g.faturamento)}</span>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-xs font-semibold text-[#03a4ed]">{fmtCur(faturamento)}</span>
+                            {mValorG && <span className="text-[11px] text-slate-400">/ {fmtCur(mValorG)}</span>}
+                            {pValorG !== null && <PctBadge pct={pValorG} />}
+                          </div>
                         </div>
                         <div className="flex items-center gap-3 mb-1.5">
-                          <span className="text-[11px] text-slate-400">{g.total} cotações</span>
-                          <span className="text-[11px] text-emerald-600">{g.fechadas} fechadas</span>
-                          <span className="text-[11px] text-red-400">{g.perdas} perdas</span>
-                          <span className="text-[11px] text-slate-400">{g.taxaConversao?.toFixed(0) ?? 0}% taxa</span>
+                          <span className="text-[11px] text-slate-400">{total} cotações</span>
+                          <span className="text-[11px] text-emerald-600">{fechadas} fechadas</span>
+                          <span className="text-[11px] text-red-400">{perdas} perdas</span>
+                          <span className="text-[11px] text-slate-400">{taxa.toFixed(0)}% taxa</span>
                         </div>
-                        <ProgressBar pct={g.fechadas > 0 ? Math.min((g.fechadas / Math.max(g.total, 1)) * 100, 100) : 0} color={g.cor} />
+                        <ProgressBar pct={pValorG ?? (fechadas > 0 ? Math.min((fechadas / Math.max(total, 1)) * 100, 100) : 0)} color={barColor} />
+                        {pValorG === null && (
+                          <p className="text-[10px] text-slate-400 mt-0.5">Sem meta definida</p>
+                        )}
                       </div>
                     </div>
                   );

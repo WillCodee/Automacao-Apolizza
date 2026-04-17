@@ -19,30 +19,49 @@ export async function GET(req: NextRequest) {
     const mesS = mes ? sql`AND mes_referencia = ${mes}` : sql``;
 
     const [cotadoresRows, gruposRows, statusRows, situacaoRows] = await Promise.all([
-      // Por cotador
+      // Por cotador — exclui Suporte e Gustavo; inclui Pedidos (sem assignee)
       db.execute(sql`
         SELECT
           u.id,
           u.name,
-          u.photo_url AS "photoUrl",
-          COUNT(c.id)::int AS total,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS emAnalise,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS perdasValor,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS analiseValor,
+          u.photo_url                                                                          AS "photoUrl",
+          COUNT(c.id)::int                                                                     AS total,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int                       AS fechadas,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int       AS perdas,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS "emAnalise",
+          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float               AS ganhos,
+          COALESCE(SUM(c.valor_perda::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS "perdasValor",
+          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS "analiseValor",
           ROUND(
             COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
             / NULLIF(COUNT(c.id), 0) * 100, 1
-          )::float AS taxaConversao
+          )::float AS "taxaConversao"
         FROM users u
         LEFT JOIN cotacoes c
           ON c.assignee_id = u.id
           AND c.deleted_at IS NULL
           ${anoC} ${mesC}
-        WHERE u.is_active = true AND u.role = 'cotador'
+        WHERE u.is_active = true
+          AND u.name NOT IN ('Suporte', 'Gustavo')
         GROUP BY u.id, u.name, u.photo_url
+        UNION ALL
+        SELECT
+          NULL::uuid                                                                            AS id,
+          'Pedidos'                                                                             AS name,
+          NULL                                                                                  AS "photoUrl",
+          COUNT(*)::int                                                                         AS total,
+          COUNT(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int                             AS fechadas,
+          COUNT(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int             AS perdas,
+          COUNT(*) FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL)::int AS "emAnalise",
+          COALESCE(SUM(a_receber::numeric)   FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float               AS ganhos,
+          COALESCE(SUM(valor_perda::numeric) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate')), 0)::float AS "perdasValor",
+          COALESCE(SUM(a_receber::numeric)   FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL), 0)::float AS "analiseValor",
+          ROUND(
+            COUNT(*) FILTER (WHERE LOWER(situacao) = 'fechado')::numeric
+            / NULLIF(COUNT(*), 0) * 100, 1
+          )::float AS "taxaConversao"
+        FROM cotacoes
+        WHERE assignee_id IS NULL AND deleted_at IS NULL ${anoS} ${mesS}
         ORDER BY ganhos DESC
       `),
 
@@ -52,17 +71,17 @@ export async function GET(req: NextRequest) {
           g.id,
           g.nome,
           g.cor,
-          COUNT(c.id)::int AS total,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS emAnalise,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS perdasValor,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS analiseValor,
+          COUNT(c.id)::int                                                                     AS total,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int                       AS fechadas,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int       AS perdas,
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS "emAnalise",
+          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float               AS ganhos,
+          COALESCE(SUM(c.valor_perda::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS "perdasValor",
+          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS "analiseValor",
           ROUND(
             COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
             / NULLIF(COUNT(c.id), 0) * 100, 1
-          )::float AS taxaConversao
+          )::float AS "taxaConversao"
         FROM grupos_usuarios g
         LEFT JOIN grupo_membros gm ON gm.grupo_id = g.id
         LEFT JOIN cotacoes c

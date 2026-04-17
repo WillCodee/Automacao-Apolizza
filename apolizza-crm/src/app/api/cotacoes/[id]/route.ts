@@ -62,7 +62,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.name !== undefined) updateData.name = input.name;
     if (input.status !== undefined) updateData.status = input.status;
     if (input.priority !== undefined) updateData.priority = input.priority;
-    if (input.dueDate !== undefined) updateData.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+    if (input.dueDate !== undefined && user.role !== "cotador")
+      updateData.dueDate = input.dueDate ? new Date(input.dueDate) : null;
     if (input.assigneeId !== undefined) updateData.assigneeId = input.assigneeId;
     if (input.tipoCliente !== undefined) updateData.tipoCliente = input.tipoCliente;
     if (input.contatoCliente !== undefined) updateData.contatoCliente = input.contatoCliente;

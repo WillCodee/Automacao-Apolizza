@@ -132,6 +132,16 @@ export function AtividadePanel({
   }, [tab, cotacaoId]);
 
   useEffect(() => {
+    function onRefresh() {
+      loadHistory();
+      if (tab !== "historico") setTab("historico");
+    }
+    window.addEventListener("apolizza:history-refresh", onRefresh);
+    return () => window.removeEventListener("apolizza:history-refresh", onRefresh);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  useEffect(() => {
     if (tab === "mensagens") {
       mensagensEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }

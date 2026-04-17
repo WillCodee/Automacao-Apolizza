@@ -9,9 +9,11 @@ type Props = {
 
 export function ObservacaoEditor({ cotacaoId, initialValue }: Props) {
   const [value, setValue] = useState(initialValue ?? "");
+  const [committed, setCommitted] = useState(initialValue ?? "");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -23,20 +25,34 @@ export function ObservacaoEditor({ cotacaoId, initialValue }: Props) {
 
   async function handleSave() {
     setSaving(true);
-    await fetch(`/api/cotacoes/${cotacaoId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ observacao: value }),
-    });
-    setSaving(false);
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError(null);
+    try {
+      const res = await fetch(`/api/cotacoes/${cotacaoId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ observacao: value }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Erro ao salvar. Tente novamente.");
+        return;
+      }
+      setCommitted(value);
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      window.dispatchEvent(new CustomEvent("apolizza:history-refresh"));
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleCancel() {
-    setValue(initialValue ?? "");
+    setValue(committed);
     setEditing(false);
+    setError(null);
   }
 
   return (
@@ -69,6 +85,9 @@ export function ObservacaoEditor({ cotacaoId, initialValue }: Props) {
             placeholder="Notas adicionais..."
             className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none resize-none leading-relaxed"
           />
+          {error && (
+            <p className="text-xs text-red-500">{error}</p>
+          )}
           <div className="flex gap-2 justify-end">
             <button
               onClick={handleCancel}

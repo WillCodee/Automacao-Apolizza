@@ -107,6 +107,8 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const [showMaisInfo, setShowMaisInfo] = useState(false);
   const [quantidadeVeiculos, setQuantidadeVeiculos] = useState("");
   const [quantidadeVidas, setQuantidadeVidas] = useState("");
+  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [dueDateSaved, setDueDateSaved] = useState(false);
   // Impede recálculo automático da data de entrega ao carregar form em modo edição
   const skipDueDateCalc = useRef(isEdit);
 
@@ -148,10 +150,10 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       .catch(() => {});
   }, [form.seguradora, form.produto]);
 
-  // Auto-cálculo da Data de Entrega com base em Produto + Tipo Cliente + Situação + infos extras
-  // Em modo edição, NÃO recalcula ao carregar (apenas quando usuário altera os campos)
+  // Auto-cálculo da Data de Entrega — apenas admin e proprietario podem alterar
   useEffect(() => {
     if (skipDueDateCalc.current) return;
+    if (currentUser.role === "cotador") return;
     if (!form.produto || !form.tipoCliente) return;
     const qtdVeiculos = quantidadeVeiculos ? Number(quantidadeVeiculos) : null;
     const qtdVidas = quantidadeVidas ? Number(quantidadeVidas) : null;
@@ -214,7 +216,8 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     }
 
     // Validação: Data Contato com Cliente não pode ser superior à Data de Entrega
-    if (form.proximaTratativa && form.dueDate) {
+    // (não aplica quando situação é FECHADO)
+    if (form.situacao !== "FECHADO" && form.proximaTratativa && form.dueDate) {
       if (new Date(form.proximaTratativa) > new Date(form.dueDate)) {
         setError("Próxima Tratativa não pode ser superior à Data de Entrega.");
         setLoading(false);
@@ -230,7 +233,8 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       tags: [],
     };
 
-    if (form.dueDate) body.dueDate = new Date(form.dueDate).toISOString();
+    if (form.dueDate && currentUser.role !== "cotador")
+      body.dueDate = new Date(form.dueDate).toISOString();
     if (form.assigneeId) body.assigneeId = form.assigneeId;
     if (form.tipoCliente) body.tipoCliente = form.tipoCliente;
     if (form.contatoCliente) body.contatoCliente = form.contatoCliente;
@@ -376,12 +380,51 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             </select>
           </div>
           <div>
-            <label className={labelClass}>Data de Entrega</label>
-            <div className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-500 bg-slate-50 min-h-[38px]">
-              {form.dueDate
-                ? new Date(form.dueDate + "T00:00:00").toLocaleDateString("pt-BR")
-                : "Selecione Produto e Tipo Cliente"}
+            <div className="flex items-center justify-between mb-1">
+              <label className={labelClass}>Data de Entrega</label>
+              {currentUser.role !== "cotador" && cotacaoId && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={editingDueDate}
+                    onChange={(e) => {
+                      setEditingDueDate(e.target.checked);
+                      if (!e.target.checked) setDueDateSaved(false);
+                    }}
+                    className="rounded border-slate-300 text-[#03a4ed] focus:ring-[#03a4ed]"
+                  />
+                  <span className="text-xs text-slate-500">Alterar</span>
+                  {dueDateSaved && <span className="text-xs text-emerald-600 font-medium">Salvo</span>}
+                </label>
+              )}
             </div>
+            {currentUser.role !== "cotador" && editingDueDate ? (
+              <input
+                type="date"
+                value={form.dueDate}
+                onChange={async (e) => {
+                  const val = e.target.value;
+                  set("dueDate", val);
+                  if (cotacaoId) {
+                    await fetch(`/api/cotacoes/${cotacaoId}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ dueDate: val ? new Date(val).toISOString() : null }),
+                    });
+                    setDueDateSaved(true);
+                    setEditingDueDate(false);
+                    setTimeout(() => setDueDateSaved(false), 2000);
+                  }
+                }}
+                className={inputClass()}
+              />
+            ) : (
+              <div className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-500 bg-slate-50 min-h-[38px]">
+                {form.dueDate
+                  ? new Date(form.dueDate + "T00:00:00").toLocaleDateString("pt-BR")
+                  : "Selecione Produto e Tipo Cliente"}
+              </div>
+            )}
           </div>
           {currentUser.role === "admin" ? (
             <div>
