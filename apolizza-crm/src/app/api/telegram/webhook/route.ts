@@ -123,7 +123,7 @@ async function getTarefasHoje() {
       AND t.data_vencimento::date = CURRENT_DATE
     ORDER BY t.created_at ASC LIMIT 20
   `);
-  return fmtTarefasHoje(r.rows as never);
+  return fmtTarefasHoje(r.rows as never) ?? "✅ Nenhuma tarefa vence hoje.";
 }
 
 async function getTratativas() {
@@ -152,7 +152,7 @@ async function getTarefasPendentes() {
       AND (t.data_vencimento IS NULL OR t.data_vencimento < now())
     ORDER BY t.data_vencimento ASC NULLS LAST LIMIT 20
   `);
-  return fmtTarefasPendentes(r.rows as never);
+  return fmtTarefasPendentes(r.rows as never) ?? "✅ Nenhuma tarefa pendente atrasada.";
 }
 
 async function getRelatorio() {

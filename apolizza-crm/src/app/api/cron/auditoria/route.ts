@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
     `);
 
     if (r.rows.length > 0) {
-      await sendTelegram(fmtTarefasHoje(r.rows as never));
+      const msgHoje = fmtTarefasHoje(r.rows as never);
+      if (msgHoje) await sendTelegram(msgHoje);
 
       // Notificações individuais para cotadores
       await db.insert(cotacaoNotificacoes).values(
@@ -114,9 +115,8 @@ export async function POST(req: NextRequest) {
       ORDER BY t.data_vencimento ASC LIMIT 30
     `);
 
-    if (r.rows.length > 0) {
-      await sendTelegram(fmtTarefasPendentes(r.rows as never));
-    }
+    const msgPendentes = fmtTarefasPendentes(r.rows as never);
+    if (msgPendentes) await sendTelegram(msgPendentes);
 
     results.tarefasPendentes = r.rows.length;
   }

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         ORDER BY t.created_at ASC LIMIT 30
       `);
       dados = r.rows;
-      texto = fmtTarefasHoje(r.rows as never);
+      texto = fmtTarefasHoje(r.rows as never) ?? "✅ Nenhuma tarefa vence hoje.";
       break;
     }
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         ORDER BY t.data_vencimento ASC NULLS LAST LIMIT 30
       `);
       dados = r.rows;
-      texto = fmtTarefasPendentes(r.rows as never);
+      texto = fmtTarefasPendentes(r.rows as never) ?? "✅ Nenhuma tarefa pendente atrasada.";
       break;
     }
 

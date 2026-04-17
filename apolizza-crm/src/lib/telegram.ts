@@ -41,6 +41,10 @@ export function linkCotacao(id: string, nome: string) {
   return `<a href="${APP_URL}/cotacoes/${id}">${esc(nome)}</a>`;
 }
 
+export function linkTarefa(id: string, titulo: string) {
+  return `<a href="${APP_URL}/tarefas/${id}">${esc(titulo)}</a>`;
+}
+
 // ─── Formatters (parse_mode: HTML) ───────────────────────────────────────────
 
 export function fmtAtrasado(rows: { id: string; name: string; due_date: string; assignee_name: string | null }[]) {
@@ -52,9 +56,9 @@ export function fmtAtrasado(rows: { id: string; name: string; due_date: string; 
 }
 
 export function fmtTarefasHoje(rows: { id: string; titulo: string; cotador_name: string }[]) {
-  if (rows.length === 0) return "✅ Nenhuma tarefa vence hoje.";
-  const lines = rows.map((r) => `• <b>${esc(r.titulo)}</b>\n  👤 ${esc(r.cotador_name)}`);
-  return `⏰ <b>TAREFAS PARA FINALIZAR HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}\n\n🔗 ${APP_URL}/tarefas`;
+  if (rows.length === 0) return null;
+  const lines = rows.map((r) => `• ${linkTarefa(r.id, r.titulo)}\n  👤 ${esc(r.cotador_name)}`);
+  return `⏰ <b>TAREFAS PARA FINALIZAR HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
 }
 
 export function fmtTratativas(rows: { id: string; name: string; proxima_tratativa: string; assignee_name: string | null }[], quando: "hoje" | "amanha") {
@@ -67,12 +71,20 @@ export function fmtTratativas(rows: { id: string; name: string; proxima_tratativ
   return `${emoji} <b>TRATATIVAS DE ${label} (${rows.length})</b>\n\n${lines.join("\n\n")}`;
 }
 
-export function fmtTarefasPendentes(rows: { titulo: string; cotador_name: string; data_vencimento: string | null }[]) {
-  if (rows.length === 0) return "✅ Nenhuma tarefa pendente atrasada.";
+export function fmtTarefasPendentes(rows: { id: string; titulo: string; cotador_name: string; data_vencimento: string | null }[]) {
+  if (rows.length === 0) return null;
   const lines = rows.map(
-    (r) => `• <b>${esc(r.titulo)}</b>\n  👤 ${esc(r.cotador_name)} | 📅 ${r.data_vencimento ? fmtDate(r.data_vencimento) : "Sem prazo"}`
+    (r) => `• ${linkTarefa(r.id, r.titulo)}\n  👤 ${esc(r.cotador_name)} | 📅 ${r.data_vencimento ? fmtDate(r.data_vencimento) : "Sem prazo"}`
   );
-  return `📋 <b>TAREFAS NÃO FINALIZADAS (${rows.length})</b>\n\n${lines.join("\n\n")}\n\n🔗 ${APP_URL}/tarefas`;
+  return `📋 <b>TAREFAS PENDENTES ATRASADAS (${rows.length})</b>\n\n${lines.join("\n\n")}`;
+}
+
+export function fmtVigenciaHoje(rows: { id: string; name: string; seguradora: string | null; assignee_name: string | null }[]) {
+  if (rows.length === 0) return null;
+  const lines = rows.map(
+    (r) => `• ${linkCotacao(r.id, r.name)}\n  🏢 ${esc(r.seguradora || "—")} | 👤 ${esc(r.assignee_name || "Sem responsável")}`
+  );
+  return `⚠️ <b>SEGUROS VENCENDO HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
 }
 
 export function fmtRelatorio(data: {

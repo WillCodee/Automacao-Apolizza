@@ -16,6 +16,7 @@ import {
   sendTelegram,
   fmtAtrasado,
   fmtTratativas,
+  fmtTarefasPendentes,
 } from "@/lib/telegram";
 import {
   getAdminEmails,
@@ -275,18 +276,37 @@ async function processarNotificacoesTarefas() {
   return { novas: novas.rows.length, concluidas: concluidas.rows.length, emailsEnviados };
 }
 
+// ─── 6. Tarefas pendentes atrasadas (Telegram) ──────────────────────────────
+
+async function processarTarefasPendentes() {
+  const r = await db.execute(sql`
+    SELECT t.id, t.titulo, u.name as cotador_name, t.data_vencimento::text
+    FROM tarefas t JOIN users u ON t.cotador_id = u.id
+    WHERE t.status NOT IN ('Concluída','Cancelada')
+      AND t.data_vencimento IS NOT NULL
+      AND t.data_vencimento < now()
+    ORDER BY t.data_vencimento ASC LIMIT 30
+  `);
+
+  const msg = fmtTarefasPendentes(r.rows as { id: string; titulo: string; cotador_name: string; data_vencimento: string | null }[]);
+  if (msg) await sendTelegram(msg);
+
+  return r.rows.length;
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
 
   try {
-    const [atrasados, tratativas, vigencia, alertaTratativa, tarefas] = await Promise.all([
+    const [atrasados, tratativas, vigencia, alertaTratativa, tarefas, tarefasPendentes] = await Promise.all([
       processarAtrasados(),
       processarTratativas(),
       processarAlertasVigencia(),
       processarAlertasTratativa(),
       processarNotificacoesTarefas(),
+      processarTarefasPendentes(),
     ]);
 
     return apiSuccess({
@@ -296,6 +316,7 @@ async function handler(req: NextRequest) {
       vigencia,
       alertaTratativa,
       tarefas,
+      tarefasPendentes,
     });
   } catch (error) {
     console.error("API /api/cron/manha:", error);

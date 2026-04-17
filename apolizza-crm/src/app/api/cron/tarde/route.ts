@@ -14,7 +14,7 @@ import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
   sendTelegram,
   fmtTarefasHoje,
-  fmtTarefasPendentes,
+  fmtVigenciaHoje,
 } from "@/lib/telegram";
 import {
   getAdminEmails,
@@ -42,7 +42,8 @@ async function processarTarefasHoje() {
   `);
 
   if (r.rows.length > 0) {
-    await sendTelegram(fmtTarefasHoje(r.rows as never));
+    const msg = fmtTarefasHoje(r.rows as never);
+    if (msg) await sendTelegram(msg);
 
     await db.insert(cotacaoNotificacoes).values(
       (r.rows as { id: string; titulo: string; cotador_id: string; cotador_name: string }[]).map((t) => ({
@@ -61,21 +62,20 @@ async function processarTarefasHoje() {
   return r.rows.length;
 }
 
-// ─── 2. Tarefas não finalizadas (pendentes) ──────────────────────────────────
+// ─── 2. Seguros vencendo hoje (Telegram) ────────────────────────────────────
 
-async function processarTarefasPendentes() {
+async function processarVigenciaHoje() {
   const r = await db.execute(sql`
-    SELECT t.titulo, u.name as cotador_name, t.data_vencimento::text
-    FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Concluída','Cancelada')
-      AND t.data_vencimento IS NOT NULL
-      AND t.data_vencimento < now()
-    ORDER BY t.data_vencimento ASC LIMIT 30
+    SELECT c.id, c.name, c.seguradora, u.name as assignee_name
+    FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
+    WHERE c.deleted_at IS NULL
+      AND c.fim_vigencia = CURRENT_DATE
+      AND c.status NOT IN ('perda', 'cancelado', 'concluido ocultar')
+    ORDER BY c.name ASC LIMIT 30
   `);
 
-  if (r.rows.length > 0) {
-    await sendTelegram(fmtTarefasPendentes(r.rows as never));
-  }
+  const msg = fmtVigenciaHoje(r.rows as { id: string; name: string; seguradora: string | null; assignee_name: string | null }[]);
+  if (msg) await sendTelegram(msg);
 
   return r.rows.length;
 }
@@ -196,9 +196,9 @@ async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
 
   try {
-    const [tarefasHoje, tarefasPendentes, tarefasAtrasadas, alertasPrazo, resumo] = await Promise.all([
+    const [tarefasHoje, vigenciaHoje, tarefasAtrasadas, alertasPrazo, resumo] = await Promise.all([
       processarTarefasHoje(),
-      processarTarefasPendentes(),
+      processarVigenciaHoje(),
       processarTarefasAtrasadas(),
       processarAlertasPrazo(),
       processarResumoDiario(),
@@ -207,7 +207,7 @@ async function handler(req: NextRequest) {
     return apiSuccess({
       message: "Cron da tarde executado com sucesso",
       tarefasHoje,
-      tarefasPendentes,
+      vigenciaHoje,
       tarefasAtrasadas,
       alertasPrazo,
       resumo,
