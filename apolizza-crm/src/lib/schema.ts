@@ -80,6 +80,7 @@ export const cotacoes = pgTable(
     priority: varchar("priority", { length: 20 }).default("normal"),
     dueDate: timestamp("due_date", { withTimezone: true }),
     assigneeId: uuid("assignee_id").references(() => users.id),
+    grupoId: uuid("grupo_id"),
 
     // 19 custom fields mapeados do ClickUp
     tipoCliente: varchar("tipo_cliente", { length: 50 }),
@@ -156,6 +157,7 @@ export const metas = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").references(() => users.id),
+    grupoId: uuid("grupo_id").references(() => gruposUsuarios.id),
     ano: integer("ano").notNull(),
     mes: integer("mes").notNull(),
     metaValor: decimal("meta_valor", { precision: 12, scale: 2 }),
@@ -172,6 +174,11 @@ export const metas = pgTable(
   (table) => [
     uniqueIndex("metas_user_ano_mes_idx").on(
       table.userId,
+      table.ano,
+      table.mes
+    ),
+    uniqueIndex("metas_grupo_ano_mes_idx").on(
+      table.grupoId,
       table.ano,
       table.mes
     ),

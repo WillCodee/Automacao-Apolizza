@@ -50,20 +50,25 @@ export async function POST(req: NextRequest) {
       mes,
       ano,
       responsavelId,
+      grupoId,
       descricao,
       situacao = "COTAR",
     } = fields;
 
-    if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || !responsavelId || !descricao) {
+    if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || (!responsavelId && !grupoId) || !descricao) {
       return apiError("Campos obrigatórios: nome, contato, prioridade, produto, mês, ano, responsável e descrição", 422);
     }
 
-    // Busca o responsável
-    const [responsavel] = await db
-      .select({ id: users.id, name: users.name, email: users.email })
-      .from(users)
-      .where(eq(users.id, responsavelId))
-      .limit(1);
+    // Busca o responsável (usuário ou grupo)
+    let responsavel: { id: string; name: string; email: string } | undefined;
+    if (responsavelId) {
+      const [found] = await db
+        .select({ id: users.id, name: users.name, email: users.email })
+        .from(users)
+        .where(eq(users.id, responsavelId))
+        .limit(1);
+      responsavel = found;
+    }
 
     // Cria a cotação
     const [cotacao] = await db
@@ -72,7 +77,8 @@ export async function POST(req: NextRequest) {
         name: nomeCliente,
         status: "não iniciado",
         priority: prioridade.toLowerCase() === "alta" ? "high" : prioridade.toLowerCase() === "urgente" ? "urgent" : "normal",
-        assigneeId: responsavelId,
+        assigneeId: responsavelId || null,
+        grupoId: grupoId || null,
         produto,
         contatoCliente,
         indicacao: indicacao || null,
@@ -119,7 +125,7 @@ export async function POST(req: NextRequest) {
       `💡 <b>Indicação:</b> ${esc(indicacao || "—")}`,
       `🔖 <b>Situação:</b> ${esc(situacao)}`,
       ``,
-      `👷 <b>Responsável:</b> ${esc(responsavel?.name || responsavelId)}`,
+      `👷 <b>Responsável:</b> ${esc(responsavel?.name || (grupoId ? `Grupo ${grupoId}` : responsavelId))}`,
       ``,
       `📝 ${esc(descricao)}`,
       ``,
