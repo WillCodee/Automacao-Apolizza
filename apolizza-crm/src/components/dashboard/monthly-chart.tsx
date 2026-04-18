@@ -189,7 +189,7 @@ export function MonthlyChart() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className="text-sm font-semibold text-slate-900">
           Evolucao {view === "mensal" ? "Mensal" : "Anual"}
@@ -232,13 +232,13 @@ export function MonthlyChart() {
       </div>
 
       {loading ? (
-        <div className="h-[300px] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-[300px]">
           <div className="w-7 h-7 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : isEmpty ? (
         <p className="text-slate-400 text-sm py-8 text-center">Sem dados para exibir</p>
       ) : (
-        <div className="h-[300px]">
+        <div className="flex-1 min-h-[300px]">
           <Bar
             data={view === "mensal" ? monthlyChartData : annualChartData}
             options={view === "mensal" ? baseOptions : annualOptions}
