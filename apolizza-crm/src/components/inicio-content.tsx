@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { STATUS_BADGES } from "@/lib/status-config";
 import { STATUS_OPTIONS, PRODUTO_OPTIONS } from "@/lib/constants";
+import { ProximasTratativas } from "@/components/dashboard/proximas-tratativas";
+import { ProximasTrativasKanban } from "@/components/dashboard/proximas-tratativas-kanban";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -141,9 +143,6 @@ function MetaPanel({ meta, prod }: { meta: Meta | null; prod: Produtividade }) {
       <div className="bg-[#03a4ed]/5 rounded-xl p-3 mb-4">
         <p className="text-xs text-slate-500 mb-0.5">A Receber este mês</p>
         <p className="text-lg font-bold text-[#03a4ed]">{fmt(prod.valorAReceber)}</p>
-        {prod.valorPremio > 0 && (
-          <p className="text-xs text-slate-400 mt-0.5">Prêmio: {fmt(prod.valorPremio)}</p>
-        )}
       </div>
 
       {/* Meta progress */}
@@ -301,6 +300,7 @@ export function InicioContent({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [data, setData] = useState<InicioData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [grupo, setGrupo] = useState<{ nome: string; cor: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [seguradoraFilter, setSeguradoraFilter] = useState("");
   const [produtoFilter, setProdutoFilter] = useState("");
@@ -324,6 +324,21 @@ export function InicioContent({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    fetch("/api/grupos")
+      .then((r) => r.json())
+      .then((res) => {
+        const grupos = res.data ?? [];
+        for (const g of grupos) {
+          if (g.membros?.some((m: { id: string }) => m.id === userId)) {
+            setGrupo({ nome: g.nome, cor: g.cor ?? "#03a4ed" });
+            break;
+          }
+        }
+      })
+      .catch(() => {});
+  }, [userId]);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -411,7 +426,17 @@ export function InicioContent({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{greeting(userName)}</h1>
-            <p className="text-slate-400 text-sm mt-0.5 capitalize">{today}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-slate-400 text-sm capitalize">{today}</p>
+              {grupo && (
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold text-white"
+                  style={{ backgroundColor: grupo.cor }}
+                >
+                  {grupo.nome}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -431,6 +456,9 @@ export function InicioContent({
           </Link>
         </div>
       </div>
+
+      {/* Próximas Tratativas */}
+      {userRole === "cotador" ? <ProximasTratativas /> : <ProximasTrativasKanban />}
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

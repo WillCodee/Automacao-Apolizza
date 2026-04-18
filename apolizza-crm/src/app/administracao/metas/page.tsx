@@ -18,8 +18,8 @@ export default async function MetasAdminPage() {
       .where(
         and(
           eq(users.isActive, true),
-          eq(users.role, "cotador"),
-          notInArray(users.name, ["Suporte", "Gustavo"])
+          notInArray(users.role, ["admin"]),
+          notInArray(users.name, ["Suporte"])
         )
       )
       .orderBy(users.name),

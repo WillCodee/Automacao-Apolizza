@@ -124,7 +124,7 @@ async function createViews() {
       AND c.deleted_at IS NULL
       AND c.ano_referencia IS NOT NULL
       AND c.mes_referencia IS NOT NULL
-    WHERE u.is_active = true AND u.role = 'cotador'
+    WHERE u.is_active = true AND u.role IN ('cotador', 'proprietario')
     GROUP BY u.id, u.name, u.photo_url, c.ano_referencia, c.mes_referencia
   `;
   console.log("vw_cotadores criada");

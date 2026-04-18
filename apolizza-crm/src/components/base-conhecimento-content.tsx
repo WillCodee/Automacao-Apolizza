@@ -129,8 +129,8 @@ const IconUsers = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strok
 
 // ─── Categories Data ──────────────────────────────────────────────────────────
 
-function buildCategories(): Category[] {
-  return [
+function buildCategories(userRole: string): Category[] {
+  const all: Category[] = [
     {
       id: "primeiros-passos",
       label: "Primeiros Passos",
@@ -932,12 +932,39 @@ function buildCategories(): Category[] {
       ],
     },
   ];
+
+  if (userRole === "cotador") {
+    const COTADOR_HIDDEN_SECTIONS = new Set([
+      "operacoes-em-lote",
+      "campos-obrigatorios",
+      "cron-atrasados",
+      "notificacoes-cotacoes",
+      "feed-notificacoes",
+      "usuarios",
+      "relatorios",
+      "metas-admin",
+      "config-situacao",
+      "kpis",
+      "graficos",
+    ]);
+    const COTADOR_HIDDEN_CATEGORIES = new Set(["notificacoes", "administracao", "dashboard"]);
+
+    return all
+      .filter((cat) => !COTADOR_HIDDEN_CATEGORIES.has(cat.id))
+      .map((cat) => ({
+        ...cat,
+        sections: cat.sections.filter((s) => !COTADOR_HIDDEN_SECTIONS.has(s.id)),
+      }))
+      .filter((cat) => cat.sections.length > 0);
+  }
+
+  return all;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function BaseConhecimentoContent({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
-  const categories = useMemo(() => buildCategories(), []);
+  const categories = useMemo(() => buildCategories(userRole), [userRole]);
   const [activeCategory, setActiveCategory] = useState("primeiros-passos");
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["login"]));
   const [search, setSearch] = useState("");
@@ -976,8 +1003,6 @@ export function BaseConhecimentoContent({ userRole }: { userRole: "admin" | "cot
   }, [search, categories]);
 
   const isGlobalSearch = search.trim().length > 0;
-
-  void userRole; // available for future role-based filtering
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

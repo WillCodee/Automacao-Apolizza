@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
               where true ${anoFilter} ${mesFilter}
               group by user_id
             ) v on v.user_id = u.id
-            where u.is_active = true and u.role = 'cotador'
+            where u.is_active = true and u.role in ('cotador', 'proprietario')
             order by coalesce(v.faturamento, 0) desc
           `),
     ]);
