@@ -155,7 +155,7 @@ async function processarNotificacoesTarefas() {
     SELECT t.id, t.titulo, u.name as cotador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
-    WHERE DATE(t.updated_at) = CURDATE() AND t.status = 'Concluída' AND u.is_active = true
+    WHERE DATE(t.updated_at) = CURDATE() AND t.tarefa_status = 'Concluída' AND u.is_active = true
   `);
 
   const msgNovas = fmtNovasTarefas(novas);
@@ -173,7 +173,7 @@ async function processarTarefasPendentes() {
   const rows = await dbQuery<{ id: string; titulo: string; cotador_name: string; data_vencimento: string | null }>(sql`
     SELECT t.id, t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Concluída','Cancelada')
+    WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
       AND t.data_vencimento IS NOT NULL
       AND t.data_vencimento < now()
     ORDER BY t.data_vencimento ASC LIMIT 30

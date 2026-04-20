@@ -1,33 +1,29 @@
 /**
- * Script de Migração ClickUp → Neon (Story 6.4)
+ * Script de Migração ClickUp → MySQL (Story 6.4)
  *
- * Extrai tasks da lista de Cotações do ClickUp e insere no banco Neon.
- * Uso: npx tsx scripts/migrate-clickup.ts [--limit=100] [--dry-run]
+ * Extrai tasks da lista de Cotações do ClickUp e insere no banco MySQL.
+ * Uso: npx tsx scripts/migrate-clickup.ts [--limit=100] [--dry-run] [--from-backup=data/clickup-backup-2026-04-13.json]
  */
 
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import mysql from "mysql2/promise";
+import { drizzle } from "drizzle-orm/mysql2";
 import { eq, sql } from "drizzle-orm";
 import * as schema from "../src/lib/schema";
 import { hashSync } from "bcryptjs";
-import { writeFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
 
 // ============================================================
 // CONFIG
 // ============================================================
 
-if (!process.env.CLICKUP_API_TOKEN) {
-  console.error("CLICKUP_API_TOKEN nao definido em .env.local");
-  process.exit(1);
-}
-const CLICKUP_TOKEN: string = process.env.CLICKUP_API_TOKEN;
 const LIST_ID = process.env.CLICKUP_LIST_ID || "900701916229";
 const RENOV_SPACE_ID = process.env.CLICKUP_RENOV_SPACE_ID || "90070369721";
 const RENOV_TEAM_ID = process.env.CLICKUP_RENOV_TEAM_ID || "9007156248";
 const API_BASE = "https://api.clickup.com/api/v2";
+const CLICKUP_TOKEN: string = process.env.CLICKUP_API_TOKEN || "";
 
 // Custom field UUIDs
 const FIELDS = {
@@ -62,10 +58,18 @@ const args = process.argv.slice(2);
 const limitArg = args.find((a) => a.startsWith("--limit="));
 const TASK_LIMIT = limitArg ? parseInt(limitArg.split("=")[1]) : 0; // 0 = all
 const DRY_RUN = args.includes("--dry-run");
+const backupArg = args.find((a) => a.startsWith("--from-backup="));
+const FROM_BACKUP = backupArg ? backupArg.split("=")[1] : null;
+const COTACOES_LIST_ID = "900701916229"; // Used to distinguish cotações from other tasks
 
 // DB setup
-const sqlConn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlConn, { schema });
+const pool = mysql.createPool({
+  uri: process.env.DATABASE_URL!,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
+const db = drizzle(pool, { schema, mode: "default" });
 
 // ============================================================
 // TYPES
@@ -391,10 +395,12 @@ async function getOrCreateUsers(
 
   console.log(`\nAssignees unicos encontrados: ${uniqueAssignees.size}`);
 
-  // Check existing users
+  // Check existing users by username AND email
   const existingUsers = await db.select().from(schema.users);
+  const emailToId = new Map<string, string>();
   for (const u of existingUsers) {
     usernameMap.set(u.username, u.id);
+    emailToId.set(u.email, u.id);
   }
 
   // Create missing users
@@ -403,7 +409,17 @@ async function getOrCreateUsers(
 
   for (const [username, info] of uniqueAssignees) {
     if (usernameMap.has(username)) {
-      console.log(`  Usuario existente: ${username}`);
+      console.log(`  Usuario existente (username): ${username}`);
+      continue;
+    }
+
+    const email = info.email || `${username.toLowerCase().replace(/\s+/g, ".")}@apolizza.com`;
+
+    // Check if email already exists (user with different username)
+    if (emailToId.has(email)) {
+      const existingId = emailToId.get(email)!;
+      usernameMap.set(username, existingId);
+      console.log(`  Usuario existente (email ${email}): ${username} → id ${existingId.substring(0, 8)}...`);
       continue;
     }
 
@@ -413,8 +429,7 @@ async function getOrCreateUsers(
       continue;
     }
 
-    const email = info.email || `${username.toLowerCase().replace(/\s+/g, ".")}@apolizza.com`;
-    const [newUser] = await db
+    await db
       .insert(schema.users)
       .values({
         email,
@@ -424,10 +439,15 @@ async function getOrCreateUsers(
         role: "cotador",
         photoUrl: info.profilePicture || null,
         isActive: true,
-      })
-      .returning();
+      });
+
+    const [newUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.username, username));
 
     usernameMap.set(username, newUser.id);
+    emailToId.set(email, newUser.id);
     created.push(username);
     console.log(`  ✓ Usuario criado: ${username} (${email})`);
   }
@@ -572,41 +592,73 @@ async function main() {
   };
 
   console.log("=".repeat(60));
-  console.log("  MIGRAÇÃO CLICKUP → NEON");
+  console.log("  MIGRAÇÃO CLICKUP → MySQL");
+  console.log(`  Fonte: ${FROM_BACKUP ? `Backup JSON (${FROM_BACKUP})` : "ClickUp API"}`);
   console.log(`  Limite: ${TASK_LIMIT || "TODAS"} tasks`);
   console.log(`  Modo: ${DRY_RUN ? "DRY-RUN (sem escrita)" : "PRODUÇÃO"}`);
   console.log("=".repeat(60));
 
-  // ── Step 1: Fetch tasks from Cotações list ──
-  console.log("\n📥 Extraindo tasks da lista Cotações...");
-  const cotacoesTasks = await fetchClickUpTasks(LIST_ID, TASK_LIMIT);
-  console.log(`  Total extraido (Cotações): ${cotacoesTasks.length}`);
+  let allTasks: ClickUpTask[];
+  let cotacoesCount: number;
 
-  // ── Step 2: Fetch tasks from Renovação space ──
-  let renovacaoTasks: ClickUpTask[] = [];
-  const remaining = TASK_LIMIT > 0 ? TASK_LIMIT - cotacoesTasks.length : 0;
+  if (FROM_BACKUP) {
+    // ── Load from backup JSON ──
+    console.log(`\n📂 Carregando tasks do backup: ${FROM_BACKUP}`);
+    const raw = readFileSync(FROM_BACKUP, "utf-8");
+    let loaded: ClickUpTask[] = JSON.parse(raw);
 
-  if (TASK_LIMIT === 0 || remaining > 0) {
-    console.log("\n📥 Extraindo tasks do Space Renovação...");
-    renovacaoTasks = await fetchRenovacaoTasks(
-      RENOV_SPACE_ID,
-      RENOV_TEAM_ID,
-      TASK_LIMIT,
-      cotacoesTasks.length
-    );
-    console.log(`  Total extraido (Renovação): ${renovacaoTasks.length}`);
+    // Filter only COTAÇÕES list tasks (ignore PEDIDOS, WEEKLY PLANNER, etc.)
+    const beforeFilter = loaded.length;
+    loaded = loaded.filter((t: any) => t.list?.id === COTACOES_LIST_ID);
+    console.log(`  Total no arquivo: ${beforeFilter} | Filtradas (COTAÇÕES): ${loaded.length}`);
+
+    if (TASK_LIMIT > 0) {
+      loaded = loaded.slice(0, TASK_LIMIT);
+      console.log(`  Limite aplicado: ${loaded.length}`);
+    }
+
+    allTasks = loaded;
+    cotacoesCount = allTasks.length; // All are cotações from backup
+    report.source = `Backup JSON: ${FROM_BACKUP}`;
+  } else {
+    // ── Fetch from ClickUp API ──
+    if (!CLICKUP_TOKEN) {
+      console.error("CLICKUP_API_TOKEN nao definido em .env.local (necessario sem --from-backup)");
+      await pool.end();
+      process.exit(1);
+    }
+
+    console.log("\n📥 Extraindo tasks da lista Cotações...");
+    const cotacoesTasks = await fetchClickUpTasks(LIST_ID, TASK_LIMIT);
+    console.log(`  Total extraido (Cotações): ${cotacoesTasks.length}`);
+    cotacoesCount = cotacoesTasks.length;
+
+    let renovacaoTasks: ClickUpTask[] = [];
+    const remaining = TASK_LIMIT > 0 ? TASK_LIMIT - cotacoesTasks.length : 0;
+
+    if (TASK_LIMIT === 0 || remaining > 0) {
+      console.log("\n📥 Extraindo tasks do Space Renovação...");
+      renovacaoTasks = await fetchRenovacaoTasks(
+        RENOV_SPACE_ID,
+        RENOV_TEAM_ID,
+        TASK_LIMIT,
+        cotacoesTasks.length
+      );
+      console.log(`  Total extraido (Renovação): ${renovacaoTasks.length}`);
+    }
+
+    allTasks = [...cotacoesTasks, ...renovacaoTasks];
+
+    // Save backup JSON
+    console.log("\n💾 Salvando backup JSON...");
+    mkdirSync("data", { recursive: true });
+    const backupFile = `data/clickup-backup-${new Date().toISOString().split("T")[0]}.json`;
+    writeFileSync(backupFile, JSON.stringify(allTasks, null, 2));
+    console.log(`  Backup salvo em: ${backupFile} (${allTasks.length} tasks)`);
   }
 
-  const allTasks = [...cotacoesTasks, ...renovacaoTasks];
   report.totalExtracted = allTasks.length;
-  console.log(`\n📊 Total de tasks extraidas: ${allTasks.length}`);
-
-  // ── Step 3: Save backup JSON ──
-  console.log("\n💾 Salvando backup JSON...");
-  mkdirSync("data", { recursive: true });
-  const backupFile = `data/clickup-backup-${new Date().toISOString().split("T")[0]}.json`;
-  writeFileSync(backupFile, JSON.stringify(allTasks, null, 2));
-  console.log(`  Backup salvo em: ${backupFile} (${allTasks.length} tasks)`);
+  console.log(`\n📊 Total de tasks a migrar: ${allTasks.length}`);
 
   // ── Step 4: Create/find users ──
   console.log("\n👤 Processando usuarios...");
@@ -617,7 +669,7 @@ async function main() {
 
   for (let i = 0; i < allTasks.length; i++) {
     const task = allTasks[i];
-    const isRenovacao = i >= cotacoesTasks.length; // Tasks after cotações are renovações
+    const isRenovacao = i >= cotacoesCount; // Tasks after cotações are renovações
     const progress = `[${i + 1}/${allTasks.length}]`;
 
     try {
@@ -697,11 +749,15 @@ async function main() {
   console.log("=".repeat(60));
 
   if (report.totalErrors > 0) {
+    await pool.end();
     process.exit(1);
   }
+
+  await pool.end();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error("\n💥 Erro fatal:", err);
+  await pool.end();
   process.exit(1);
 });

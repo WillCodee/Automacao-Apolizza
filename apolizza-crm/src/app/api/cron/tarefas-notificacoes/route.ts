@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     // 1️⃣ Tarefas criadas hoje → email para cotador
     const novasTarefas = await dbQuery<TarefaRow>(sql`
       SELECT
-        t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
+        t.id, t.titulo, t.descricao, t.data_vencimento, t.tarefa_status as status, t.cotador_id,
         u.name as cotador_name, u.email as cotador_email,
         criador.name as criador_name
       FROM tarefas t
@@ -82,14 +82,14 @@ export async function POST(req: NextRequest) {
     // 2️⃣ Tarefas atrasadas → email para cotador + gestor
     const tarefasAtrasadas = await dbQuery<TarefaRow>(sql`
       SELECT
-        t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
+        t.id, t.titulo, t.descricao, t.data_vencimento, t.tarefa_status as status, t.cotador_id,
         u.name as cotador_name, u.email as cotador_email,
         criador.name as criador_name
       FROM tarefas t
       JOIN users u ON t.cotador_id = u.id
       JOIN users criador ON t.criador_id = criador.id
       WHERE t.data_vencimento < NOW()
-        AND t.status NOT IN ('Concluída', 'Cancelada')
+        AND t.tarefa_status NOT IN ('Concluída', 'Cancelada')
         AND u.is_active = true
     `);
 
@@ -118,14 +118,14 @@ export async function POST(req: NextRequest) {
     // 3️⃣ Tarefas concluídas hoje → email para gestor
     const tarefasConcluidas = await dbQuery<TarefaRow>(sql`
       SELECT
-        t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
+        t.id, t.titulo, t.descricao, t.data_vencimento, t.tarefa_status as status, t.cotador_id,
         u.name as cotador_name, u.email as cotador_email,
         criador.name as criador_name
       FROM tarefas t
       JOIN users u ON t.cotador_id = u.id
       JOIN users criador ON t.criador_id = criador.id
       WHERE DATE(t.updated_at) = CURDATE()
-        AND t.status = 'Concluída'
+        AND t.tarefa_status = 'Concluída'
         AND u.is_active = true
     `);
 

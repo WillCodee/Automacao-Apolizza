@@ -32,7 +32,7 @@ async function processarTarefasHoje() {
   const rows = await dbQuery<{ id: string; titulo: string; cotador_id: string; cotador_name: string }>(sql`
     SELECT t.id, t.titulo, t.cotador_id, u.name as cotador_name
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Concluída','Cancelada')
+    WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
       AND DATE(t.data_vencimento) = CURDATE()
     ORDER BY t.created_at ASC LIMIT 30
   `);
@@ -103,7 +103,7 @@ async function processarTarefasAtrasadas() {
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
     WHERE t.data_vencimento < NOW()
-      AND t.status NOT IN ('Concluída', 'Cancelada')
+      AND t.tarefa_status NOT IN ('Concluída', 'Cancelada')
       AND u.is_active = true
     ORDER BY t.data_vencimento ASC LIMIT 30
   `);
