@@ -28,10 +28,10 @@ async function createViews() {
       -- Totais (novas + renovações)
       count(*)::int AS total_cotacoes,
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
-      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
+      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda')::int AS perdas,
       count(*) FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL)::int AS em_andamento,
       COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS total_a_receber,
-      COALESCE(SUM(valor_perda::numeric) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate')), 0)::float AS total_valor_perda,
+      COALESCE(SUM(valor_perda::numeric) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda'), 0)::float AS total_valor_perda,
       COALESCE(SUM(premio_sem_iof::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS total_premio,
       ROUND(
         count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::numeric
@@ -42,7 +42,7 @@ async function createViews() {
       count(*) FILTER (WHERE UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)::int AS total_renovacoes,
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS fechadas_renovacao,
       COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS a_receber_renovacao,
-      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS perdas_renovacao,
+      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS perdas_renovacao,
 
       -- Novas (não renovação)
       count(*) FILTER (WHERE NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS total_novas,
@@ -108,7 +108,7 @@ async function createViews() {
       -- Totais
       count(c.id)::int AS total_cotacoes,
       count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-      count(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
+      count(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda')::int AS perdas,
       COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS faturamento,
       ROUND(
         count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
@@ -152,7 +152,7 @@ async function createViews() {
 
       -- Totais
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
-      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
+      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda')::int AS perdas,
       count(*)::int AS total,
       COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS a_receber,
 

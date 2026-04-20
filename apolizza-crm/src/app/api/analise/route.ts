@@ -28,11 +28,11 @@ export async function GET(req: NextRequest) {
           u.photo_url                                                                AS "photoUrl",
           COUNT(c.id)::int                                                           AS total,
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int             AS fechadas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS "emAnalise",
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda')::int AS perdas,
+          COUNT(c.id) FILTER (WHERE (LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL) AND c.status != 'perda')::int AS "emAnalise",
           COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(c.valor_perda::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS "perdasValor",
-          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS "analiseValor",
+          COALESCE(SUM(c.valor_perda::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda'), 0)::float AS "perdasValor",
+          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE (LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL) AND c.status != 'perda'), 0)::float AS "analiseValor",
           ROUND(
             COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
             / NULLIF(COUNT(c.id), 0) * 100, 1
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
           COUNT(c.id) FILTER (WHERE (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS "totalRenovacoes",
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS "fechadasRenovacao",
           COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true)), 0)::float AS "ganhosRenovacao",
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS "perdasRenovacao",
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS "perdasRenovacao",
 
           -- Novas (não renovação)
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS "fechadasNovas",
@@ -65,11 +65,11 @@ export async function GET(req: NextRequest) {
           NULL       AS "photoUrl",
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
-          COUNT(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(*) FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL)::int AS "emAnalise",
+          COUNT(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda')::int AS perdas,
+          COUNT(*) FILTER (WHERE (LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL) AND status != 'perda')::int AS "emAnalise",
           COALESCE(SUM(a_receber::numeric)   FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(valor_perda::numeric) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate')), 0)::float AS "perdasValor",
-          COALESCE(SUM(a_receber::numeric)   FILTER (WHERE LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL), 0)::float AS "analiseValor",
+          COALESCE(SUM(valor_perda::numeric) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda'), 0)::float AS "perdasValor",
+          COALESCE(SUM(a_receber::numeric)   FILTER (WHERE (LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL) AND status != 'perda'), 0)::float AS "analiseValor",
           ROUND(
             COUNT(*) FILTER (WHERE LOWER(situacao) = 'fechado')::numeric
             / NULLIF(COUNT(*), 0) * 100, 1
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
           COUNT(*) FILTER (WHERE (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS "totalRenovacoes",
           COUNT(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS "fechadasRenovacao",
           COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS "ganhosRenovacao",
-          COUNT(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS "perdasRenovacao",
+          COUNT(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS "perdasRenovacao",
           COUNT(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS "fechadasNovas",
           COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS "ganhosNovas"
 
@@ -94,11 +94,11 @@ export async function GET(req: NextRequest) {
           g.cor,
           COUNT(c.id)::int AS total,
           COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS "emAnalise",
+          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda')::int AS perdas,
+          COUNT(c.id) FILTER (WHERE (LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL) AND c.status != 'perda')::int AS "emAnalise",
           COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(c.valor_perda::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS "perdasValor",
-          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS "analiseValor",
+          COALESCE(SUM(c.valor_perda::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda'), 0)::float AS "perdasValor",
+          COALESCE(SUM(c.a_receber::numeric)   FILTER (WHERE (LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL) AND c.status != 'perda'), 0)::float AS "analiseValor",
           ROUND(
             COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
             / NULLIF(COUNT(c.id), 0) * 100, 1
