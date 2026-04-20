@@ -1,7 +1,8 @@
 /**
  * Cron da Tarde — 18:00 UTC (15:00 BRT)
  * - Tarefas vencendo hoje → Telegram + notificações cotadores
- * - Tarefas não finalizadas (pendentes) → Telegram
+ * - Seguros vencendo hoje (fim_vigencia) → Telegram
+ * - Cotações com prazo hoje (due_date) → Telegram
  * - Tarefas atrasadas → email cotadores + admins
  * - Alertas de prazo (due_date = hoje) → email responsáveis
  * - Resumo diário → email admins
@@ -15,6 +16,7 @@ import {
   sendTelegram,
   fmtTarefasHoje,
   fmtVigenciaHoje,
+  fmtCotacoesVencendoHoje,
 } from "@/lib/telegram";
 import {
   getAdminEmails,
@@ -80,7 +82,26 @@ async function processarVigenciaHoje() {
   return r.rows.length;
 }
 
-// ─── 3. Tarefas atrasadas (email) ────────────────────────────────────────────
+// ─── 3. Cotações com prazo hoje (Telegram) ───────────────────────────────────
+
+async function processarCotacoesVencendoHoje() {
+  const r = await db.execute(sql`
+    SELECT c.id, c.name, c.status, u.name as assignee_name
+    FROM cotacoes c
+    LEFT JOIN users u ON c.assignee_id = u.id
+    WHERE c.deleted_at IS NULL
+      AND c.due_date::date = CURRENT_DATE
+      AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
+    ORDER BY c.name ASC LIMIT 30
+  `);
+
+  const msg = fmtCotacoesVencendoHoje(r.rows as { id: string; name: string; assignee_name: string | null; status: string }[]);
+  if (msg) await sendTelegram(msg);
+
+  return r.rows.length;
+}
+
+// ─── 5. Tarefas atrasadas (email) ────────────────────────────────────────────
 
 interface TarefaRow extends Record<string, unknown> {
   id: string;
@@ -121,7 +142,7 @@ async function processarTarefasAtrasadas() {
   return { tarefas: r.rows.length, emailsEnviados };
 }
 
-// ─── 4. Alertas de prazo cotações (email) ────────────────────────────────────
+// ─── 6. Alertas de prazo cotações (email) ────────────────────────────────────
 
 async function processarAlertasPrazo() {
   const result = await db.execute(sql`
@@ -158,7 +179,7 @@ async function processarAlertasPrazo() {
   return { sent, cotacoes: rows.length };
 }
 
-// ─── 5. Resumo diário (email admins) ────────────────────────────────────────
+// ─── 7. Resumo diário (email admins) ────────────────────────────────────────
 
 async function processarResumoDiario() {
   const result = await db.execute(sql`
@@ -196,9 +217,10 @@ async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
 
   try {
-    const [tarefasHoje, vigenciaHoje, tarefasAtrasadas, alertasPrazo, resumo] = await Promise.all([
+    const [tarefasHoje, vigenciaHoje, cotacoesVencendoHoje, tarefasAtrasadas, alertasPrazo, resumo] = await Promise.all([
       processarTarefasHoje(),
       processarVigenciaHoje(),
+      processarCotacoesVencendoHoje(),
       processarTarefasAtrasadas(),
       processarAlertasPrazo(),
       processarResumoDiario(),
@@ -208,6 +230,7 @@ async function handler(req: NextRequest) {
       message: "Cron da tarde executado com sucesso",
       tarefasHoje,
       vigenciaHoje,
+      cotacoesVencendoHoje,
       tarefasAtrasadas,
       alertasPrazo,
       resumo,

@@ -87,6 +87,14 @@ export function fmtVigenciaHoje(rows: { id: string; name: string; seguradora: st
   return `⚠️ <b>SEGUROS VENCENDO HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
 }
 
+export function fmtCotacoesVencendoHoje(rows: { id: string; name: string; assignee_name: string | null; status: string }[]) {
+  if (rows.length === 0) return null;
+  const lines = rows.map(
+    (r) => `• ${linkCotacao(r.id, r.name)}\n  👤 ${esc(r.assignee_name || "Sem responsável")} | 🔖 ${esc(r.status)}`
+  );
+  return `📅 <b>COTAÇÕES COM PRAZO HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
+}
+
 export function fmtRelatorio(data: {
   totalCotacoes: number; fechadas: number; perdas: number; emAndamento: number;
   totalAReceber: number; ranking: { name: string; fechadas: number; faturamento: number }[];
