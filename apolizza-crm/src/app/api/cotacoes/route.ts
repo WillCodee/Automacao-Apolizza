@@ -81,28 +81,28 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    // Batch-fetch assignee name + group for each unique assignee
-    const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter((id): id is string => !!id))];
+    // Enrich with assignee name + group (isolated — never breaks the main list)
     const assigneeMap = new Map<string, { name: string; grupoNome: string | null }>();
-    if (assigneeIds.length > 0) {
-      const infoRows = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          grupoNome: gruposUsuarios.nome,
-        })
-        .from(users)
-        .leftJoin(grupoMembros, eq(grupoMembros.userId, users.id))
-        .leftJoin(gruposUsuarios, eq(grupoMembros.grupoId, gruposUsuarios.id))
-        .where(inArray(users.id, assigneeIds))
-        .orderBy(users.id, gruposUsuarios.nome);
-
-      for (const r of infoRows) {
-        // Keep first group alphabetically (DISTINCT ON behaviour)
-        if (!assigneeMap.has(r.id)) {
-          assigneeMap.set(r.id, { name: r.name, grupoNome: r.grupoNome ?? null });
+    try {
+      const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter((id): id is string => !!id))];
+      if (assigneeIds.length > 0) {
+        const infoRows = await db.execute(sql`
+          SELECT DISTINCT ON (u.id)
+            u.id,
+            u.name,
+            g.nome AS grupo_nome
+          FROM users u
+          LEFT JOIN grupo_membros gm ON gm.user_id = u.id
+          LEFT JOIN grupos_usuarios g ON g.id = gm.grupo_id
+          WHERE u.id = ANY(ARRAY[${sql.join(assigneeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+          ORDER BY u.id, g.nome ASC NULLS LAST
+        `);
+        for (const r of infoRows.rows as { id: string; name: string; grupo_nome: string | null }[]) {
+          assigneeMap.set(r.id, { name: r.name, grupoNome: r.grupo_nome });
         }
       }
+    } catch (enrichErr) {
+      console.error("Assignee enrichment failed (non-fatal):", enrichErr);
     }
 
     const data = rows.map((row) => ({
