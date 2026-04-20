@@ -64,6 +64,7 @@ export const cotacoes = mysqlTable(
     priority: varchar("priority", { length: 20 }).default("normal"),
     dueDate: datetime("due_date"),
     assigneeId: char("assignee_id", { length: 36 }).references(() => users.id),
+    grupoId: char("grupo_id", { length: 36 }),
 
     // 19 custom fields mapeados do ClickUp
     tipoCliente: varchar("tipo_cliente", { length: 50 }),
@@ -140,6 +141,7 @@ export const metas = mysqlTable(
   {
     id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
     userId: char("user_id", { length: 36 }).references(() => users.id),
+    grupoId: char("grupo_id", { length: 36 }).references(() => gruposUsuarios.id),
     ano: int("ano").notNull(),
     mes: int("mes").notNull(),
     metaValor: decimal("meta_valor", { precision: 12, scale: 2 }),
@@ -159,6 +161,36 @@ export const metas = mysqlTable(
       table.ano,
       table.mes
     ),
+    uniqueIndex("metas_grupo_ano_mes_idx").on(
+      table.grupoId,
+      table.ano,
+      table.mes
+    ),
+  ]
+);
+
+// ============================================================
+// METAS_PRODUTO
+// ============================================================
+
+export const metasProduto = mysqlTable(
+  "metas_produto",
+  {
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    ano: int("ano").notNull(),
+    mes: int("mes").notNull(),
+    produto: varchar("produto", { length: 100 }).notNull(),
+    metaValor: decimal("meta_valor", { precision: 12, scale: 2 }),
+    createdAt: datetime("created_at")
+      .notNull()
+      .default(sql`NOW()`),
+    updatedAt: datetime("updated_at")
+      .notNull()
+      .default(sql`NOW()`)
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("metas_produto_ano_mes_produto_idx").on(table.ano, table.mes, table.produto),
   ]
 );
 
@@ -575,6 +607,10 @@ export const metasRelations = relations(metas, ({ one }) => ({
   user: one(users, {
     fields: [metas.userId],
     references: [users.id],
+  }),
+  grupo: one(gruposUsuarios, {
+    fields: [metas.grupoId],
+    references: [gruposUsuarios.id],
   }),
 }));
 

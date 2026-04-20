@@ -263,7 +263,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
   // Admin e Proprietário: Administração
   if (userRole === "admin" || userRole === "proprietario") {
     const adminItems: NavItem[] = [
-      { href: "/relatorios", label: "Relatórios", key: "relatorios", icon: IconChart },
+      ...(userRole === "proprietario" ? [{ href: "/relatorios", label: "Relatórios", key: "relatorios" as ActivePage, icon: IconChart }] : []),
       { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell, badge: notifCount > 0 ? notifCount : undefined },
       { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBriefcase },
     ];
@@ -309,14 +309,16 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
               >
                 Início
               </Link>
-              <Link
-                href="/dashboard"
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                Dashboard
-              </Link>
+              {userRole !== "cotador" && (
+                <Link
+                  href="/dashboard"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  Dashboard
+                </Link>
+              )}
               <Link
                 href="/base-conhecimento"
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -442,13 +444,15 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
                 >
                   Início
                 </Link>
-                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                    activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  Dashboard
-                </Link>
+                {userRole !== "cotador" && (
+                  <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                      activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                )}
                 <Link href="/base-conhecimento" onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                     activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"

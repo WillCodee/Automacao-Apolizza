@@ -17,16 +17,6 @@ import { CardFilter } from "./card-filter";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-type CotadorData = {
-  userId: string;
-  name: string;
-  totalCotacoes: number;
-  fechadas: number;
-  perdas: number;
-  faturamento: number;
-  taxaConversao: number;
-};
-
 type StatusData = {
   status: string;
   count: number;
@@ -54,18 +44,13 @@ type Props = {
   userRole: "admin" | "cotador" | "proprietario";
 };
 
-type ViewMode = "cotadores" | "status";
+type ViewMode = "situacao" | "status";
 
-const COTADOR_COLORS = [
-  "#03a4ed",
-  "#a855f7",
-  "#f59e0b",
-  "#06b6d4",
-  "#ec4899",
-  "#84cc16",
-  "#6366f1",
-  "#14b8a6",
-];
+type SituacaoData = {
+  situacao: string;
+  total: number;
+  faturamento: number;
+};
 
 function hexToRgba(hex: string, alpha: number) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -93,8 +78,8 @@ export function FilteredChart({ userRole }: Props) {
 
   const [ano, setAno] = useState(currentYear);
   const [mes, setMes] = useState("");
-  const [cotadores, setCotadores] = useState<CotadorData[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<StatusData[]>([]);
+  const [situacaoBreakdown, setSituacaoBreakdown] = useState<SituacaoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("status");
   const [drillDown, setDrillDown] = useState<DrillDown | null>(null);
@@ -104,22 +89,20 @@ export function FilteredChart({ userRole }: Props) {
     const params = new URLSearchParams();
     params.set("ano", ano);
     if (mes) params.set("mes", mes);
-    const res = await fetch(`/api/dashboard?${params}`);
-    const json = await res.json();
-    const c: CotadorData[] = json.data?.cotadores ?? [];
-    const s: StatusData[] = json.data?.statusBreakdown ?? [];
-    setCotadores(c);
-    setStatusBreakdown(s);
-    // Set initial view based on data availability
-    setView(c.length > 0 ? "cotadores" : "status");
+    const [dashRes, analiseRes] = await Promise.all([
+      fetch(`/api/dashboard?${params}`),
+      fetch(`/api/analise?${params}`),
+    ]);
+    const dash = await dashRes.json();
+    const analise = await analiseRes.json();
+    setStatusBreakdown(dash.data?.statusBreakdown ?? []);
+    setSituacaoBreakdown(analise.data?.porSituacao ?? []);
     setLoading(false);
   }, [ano, mes]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const cotadorColors = cotadores.map((_, i) => COTADOR_COLORS[i % COTADOR_COLORS.length]);
 
   /* Fetch drill-down cotacoes */
   const fetchDrillDown = useCallback(async (title: string, extraParams: Record<string, string>) => {
@@ -150,82 +133,59 @@ export function FilteredChart({ userRole }: Props) {
     [statusBreakdown, fetchDrillDown]
   );
 
-  const handleCotadorClick = useCallback(
+  const handleSituacaoClick = useCallback(
     (_: unknown, elements: { datasetIndex: number; index: number }[]) => {
       if (!elements.length) return;
-      const { datasetIndex, index } = elements[0];
-      const c = cotadores[index];
-      if (!c) return;
-
-      const datasetLabels = ["Total", "Fechados", "Perdas"];
-      const label = `${c.name.split(" ")[0]} — ${datasetLabels[datasetIndex] ?? "Total"}`;
-      const extra: Record<string, string> = { assignee: c.userId };
-      if (datasetIndex === 1) extra.situacao = "fechado";
-      if (datasetIndex === 2) extra.situacao = "perda";
-      fetchDrillDown(label, extra);
+      const s = situacaoBreakdown[elements[0].index];
+      if (!s) return;
+      fetchDrillDown(`Situação: ${s.situacao}`, { situacao: s.situacao });
     },
-    [cotadores, fetchDrillDown]
+    [situacaoBreakdown, fetchDrillDown]
   );
 
+  /* Situação colors */
+  const SITUACAO_COLORS: Record<string, string> = {
+    "IMPLANTAÇÃO": "#03a4ed",
+    "COTAR": "#f59e0b",
+    "CCLIENTE": "#22c55e",
+    "CLIENTE": "#22c55e",
+    "RAUT": "#a855f7",
+    "FECHADO": "#10b981",
+    "PERDA/RESGATE": "#ff695f",
+  };
+  const getSituacaoColor = (s: string) => SITUACAO_COLORS[s.toUpperCase()] ?? "#94a3b8";
+
   /* Chart data */
-  const cotadoresChartData = {
-    labels: cotadores.map((c) => c.name.split(" ")[0]),
+  const situacaoChartData = {
+    labels: situacaoBreakdown.map((s) => s.situacao),
     datasets: [
       {
-        label: "Total",
-        data: cotadores.map((c) => c.totalCotacoes),
-        backgroundColor: "rgba(3, 164, 237, 0.7)",
-        borderColor: "#03a4ed",
+        label: "Qtd. Cotações",
+        data: situacaoBreakdown.map((s) => s.total),
+        backgroundColor: situacaoBreakdown.map((s) => hexToRgba(getSituacaoColor(s.situacao), 0.8)),
+        borderColor: situacaoBreakdown.map((s) => getSituacaoColor(s.situacao)),
         borderWidth: 1.5,
-        borderRadius: 5,
-        borderSkipped: false as const,
-      },
-      {
-        label: "Fechadas",
-        data: cotadores.map((c) => c.fechadas),
-        backgroundColor: "rgba(34, 197, 94, 0.85)",
-        borderColor: "#22c55e",
-        borderWidth: 1.5,
-        borderRadius: 5,
-        borderSkipped: false as const,
-      },
-      {
-        label: "Perdas",
-        data: cotadores.map((c) => c.perdas),
-        backgroundColor: cotadores.map(() => "rgba(255,105,95,0.65)"),
-        borderColor: cotadores.map(() => "#ff695f"),
-        borderWidth: 1.5,
-        borderRadius: 5,
+        borderRadius: 6,
         borderSkipped: false as const,
       },
     ],
   };
 
-  const cotadoresOptions = {
+  const situacaoOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    cursor: "pointer",
     plugins: {
-      legend: {
-        position: "top" as const,
-        labels: {
-          boxWidth: 10,
-          font: { size: 11, family: "Poppins" },
-          usePointStyle: true,
-          pointStyle: "circle" as const,
-          padding: 14,
-        },
-      },
+      legend: { display: false },
       tooltip: {
         callbacks: {
-          afterBody: (items: { dataIndex: number }[]) => {
-            const c = cotadores[items[0]?.dataIndex];
-            if (!c) return [];
+          label: (ctx: { dataIndex: number; parsed: { y: number | null } }) => {
+            const s = situacaoBreakdown[ctx.dataIndex];
+            const count = ctx.parsed.y ?? 0;
             return [
-              `Faturamento: ${fmtFull(c.faturamento)}`,
-              `Conversao: ${c.taxaConversao}%`,
+              ` ${count} cotações`,
+              ` Faturamento: ${fmtFull(s.faturamento)}`,
               ``,
-              `Clique para ver cotacoes`,
+              ` Clique para ver cotações`,
             ];
           },
         },
@@ -239,10 +199,10 @@ export function FilteredChart({ userRole }: Props) {
       },
       x: {
         grid: { display: false },
-        ticks: { font: { size: 11, family: "Poppins" } },
+        ticks: { font: { size: 9, family: "Poppins" }, maxRotation: 30 },
       },
     },
-    onClick: handleCotadorClick,
+    onClick: handleSituacaoClick,
   };
 
   const statusChartData = {
@@ -296,14 +256,9 @@ export function FilteredChart({ userRole }: Props) {
   };
 
   /* Summary pills */
-  const totalCotacoes =
-    cotadores.reduce((a, c) => a + c.totalCotacoes, 0) ||
-    statusBreakdown.reduce((a, s) => a + s.count, 0);
-  const totalFaturamento = cotadores.reduce((a, c) => a + c.faturamento, 0);
-  const avgConversao = cotadores.length
-    ? Math.round(cotadores.reduce((a, c) => a + c.taxaConversao, 0) / cotadores.length)
-    : 0;
+  const totalCotacoes = statusBreakdown.reduce((a, s) => a + s.count, 0);
   const totalValor = statusBreakdown.reduce((a, s) => a + s.total, 0);
+  const totalFaturamentoSituacao = situacaoBreakdown.reduce((a, s) => a + s.faturamento, 0);
 
   return (
     <>
@@ -315,30 +270,28 @@ export function FilteredChart({ userRole }: Props) {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <CardFilter ano={ano} mes={mes} onChange={({ ano: a, mes: m }) => { setAno(a); setMes(m); }} />
-            {userRole !== "cotador" && cotadores.length > 0 && (
-              <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setView("cotadores")}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    view === "cotadores"
-                      ? "bg-white text-[#03a4ed] shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  Por Cotador
-                </button>
-                <button
-                  onClick={() => setView("status")}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    view === "status"
-                      ? "bg-white text-[#03a4ed] shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  Por Status
-                </button>
-              </div>
-            )}
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setView("situacao")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  view === "situacao"
+                    ? "bg-white text-[#03a4ed] shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Por Situação
+              </button>
+              <button
+                onClick={() => setView("status")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  view === "status"
+                    ? "bg-white text-[#03a4ed] shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Por Status
+              </button>
+            </div>
           </div>
         </div>
 
@@ -352,40 +305,21 @@ export function FilteredChart({ userRole }: Props) {
             <div className="flex flex-wrap gap-3 mb-4">
               <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#03a4ed]" />
-                <span className="text-xs text-slate-600 font-medium">{totalCotacoes} cotacoes</span>
+                <span className="text-xs text-slate-600 font-medium">{totalCotacoes} cotações</span>
               </div>
-              {cotadores.length > 0 ? (
-                <>
-                  <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-xs text-slate-600 font-medium">{fmt(totalFaturamento)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
-                    <span className="w-2 h-2 rounded-full bg-violet-500" />
-                    <span className="text-xs text-slate-600 font-medium">{avgConversao}% conv. media</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-slate-600 font-medium">{fmt(totalValor)} em valor</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-xs text-slate-600 font-medium">{fmt(view === "situacao" ? totalFaturamentoSituacao : totalValor)} em valor</span>
+              </div>
             </div>
 
-            {/* Cotadores color legend */}
-            {view === "cotadores" && cotadores.length > 0 && (
+            {/* Situação color legend */}
+            {view === "situacao" && situacaoBreakdown.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
-                {cotadores.map((c, i) => (
-                  <span
-                    key={c.userId}
-                    className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 rounded-full px-2.5 py-1"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: cotadorColors[i] }}
-                    />
-                    {c.name.split(" ")[0]}
+                {situacaoBreakdown.map((s) => (
+                  <span key={s.situacao} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 rounded-full px-2.5 py-1">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getSituacaoColor(s.situacao) }} />
+                    {s.situacao}
                   </span>
                 ))}
               </div>
@@ -395,14 +329,8 @@ export function FilteredChart({ userRole }: Props) {
             {view === "status" && statusBreakdown.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {statusBreakdown.map((s) => (
-                  <span
-                    key={s.status}
-                    className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 rounded-full px-2.5 py-1"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: getStatusColor(s.status) }}
-                    />
+                  <span key={s.status} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 rounded-full px-2.5 py-1">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusColor(s.status) }} />
                     {s.status}
                   </span>
                 ))}
@@ -410,9 +338,9 @@ export function FilteredChart({ userRole }: Props) {
             )}
 
             <div className="h-[240px]" style={{ cursor: "pointer" }}>
-              {view === "cotadores" && cotadores.length > 0 ? (
-                <Bar data={cotadoresChartData} options={cotadoresOptions} />
-              ) : statusBreakdown.length > 0 ? (
+              {view === "situacao" && situacaoBreakdown.length > 0 ? (
+                <Bar data={situacaoChartData} options={situacaoOptions} />
+              ) : view === "status" && statusBreakdown.length > 0 ? (
                 <Bar data={statusChartData} options={statusOptions} />
               ) : (
                 <p className="text-slate-400 text-sm py-8 text-center">Sem dados para exibir</p>

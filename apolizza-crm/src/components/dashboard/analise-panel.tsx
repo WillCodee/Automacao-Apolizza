@@ -53,8 +53,8 @@ type AnaliseData = {
   porSituacao: SituacaoRow[];
 };
 
-const fmtCur = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtCur = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function Avatar({ name, photoUrl, size = 7 }: { name: string; photoUrl?: string | null; size?: number }) {
   const initials = name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
@@ -307,7 +307,6 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         <th className={thClass}>Status</th>
                         <th className={`${thClass} text-right`}>Cotações</th>
                         <th className={`${thClass} text-right`}>%</th>
-                        <th className={`${thClass} text-right`}>Faturamento</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -329,7 +328,6 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                                 <span className="text-xs text-slate-500 w-8 text-right">{grandTotal ? ((r.total / grandTotal) * 100).toFixed(0) : 0}%</span>
                               </div>
                             </td>
-                            <td className={`${tdClass} text-right text-slate-500`}>{fmtCur(r.faturamento)}</td>
                           </tr>
                         ));
                       })()}
@@ -339,7 +337,6 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         <td className="px-4 py-2.5 text-xs font-semibold text-slate-600">Total</td>
                         <td className="px-4 py-2.5 text-right text-xs font-bold text-slate-800">{data.porStatus.reduce((a, r) => a + r.total, 0)}</td>
                         <td />
-                        <td className="px-4 py-2.5 text-right text-xs font-bold text-slate-800">{fmtCur(data.porStatus.reduce((a, r) => a + r.faturamento, 0))}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -354,7 +351,6 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         <th className={thClass}>Situação</th>
                         <th className={`${thClass} text-right`}>Cotações</th>
                         <th className={`${thClass} text-right`}>%</th>
-                        <th className={`${thClass} text-right`}>Faturamento</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -376,7 +372,6 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                                 <span className="text-xs text-slate-500 w-8 text-right">{grandTotal ? ((r.total / grandTotal) * 100).toFixed(0) : 0}%</span>
                               </div>
                             </td>
-                            <td className={`${tdClass} text-right text-slate-500`}>{fmtCur(r.faturamento)}</td>
                           </tr>
                         ));
                       })()}
@@ -386,7 +381,6 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                         <td className="px-4 py-2.5 text-xs font-semibold text-slate-600">Total</td>
                         <td className="px-4 py-2.5 text-right text-xs font-bold text-slate-800">{data.porSituacao.reduce((a, r) => a + r.total, 0)}</td>
                         <td />
-                        <td className="px-4 py-2.5 text-right text-xs font-bold text-slate-800">{fmtCur(data.porSituacao.reduce((a, r) => a + r.faturamento, 0))}</td>
                       </tr>
                     </tfoot>
                   </table>

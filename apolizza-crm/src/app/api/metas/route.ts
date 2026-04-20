@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { metas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess, validateAno } from "@/lib/api-helpers";
 
-// GET /api/metas?ano=2026&mes=3
+// GET /api/metas?ano=2026
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -14,12 +14,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const ano = searchParams.get("ano");
 
-    // Param validation (Story 10.2)
     if (!validateAno(ano)) return apiError("Ano invalido", 400);
 
     const conditions = [];
     if (ano) conditions.push(eq(metas.ano, Number(ano)));
-    // Admin vê metas globais (userId null) e de todos; cotador vê só suas
     if (user.role === "cotador") {
       conditions.push(eq(metas.userId, user.id));
     }
@@ -44,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (user.role !== "proprietario") return apiError("Apenas o proprietário pode definir metas", 403);
 
     const body = await req.json();
-    const { ano, mes, metaValor, metaQtdCotacoes, metaRenovacoes, userId } = body;
+    const { ano, mes, metaValor, metaQtdCotacoes, metaRenovacoes, userId, grupoId } = body;
 
     if (!ano || !mes) return apiError("Ano e mes sao obrigatorios", 400);
 
@@ -57,51 +55,62 @@ export async function POST(req: NextRequest) {
       return apiError("Mes invalido", 400);
     }
 
-    // Upsert: check if exists
-    const existing = await db
-      .select()
-      .from(metas)
-      .where(
-        and(
-          eq(metas.ano, anoNum),
-          eq(metas.mes, mesNum),
-          userId ? eq(metas.userId, userId) : undefined
-        )
-      );
+    const isGrupo = !!grupoId;
+    const isEmpresa = !userId && !grupoId;
 
-    if (existing.length > 0) {
-      await db
-        .update(metas)
-        .set({
-          metaValor: metaValor?.toString() ?? null,
-          metaQtdCotacoes: metaQtdCotacoes ?? null,
-          metaRenovacoes: metaRenovacoes ?? null,
-        })
-        .where(eq(metas.id, existing[0].id));
-      const [updated] = await db.select().from(metas).where(eq(metas.id, existing[0].id));
-      return apiSuccess(updated);
+    let existing;
+    if (isGrupo) {
+      existing = await db
+        .select()
+        .from(metas)
+        .where(and(eq(metas.ano, anoNum), eq(metas.mes, mesNum), eq(metas.grupoId, grupoId)));
+    } else if (isEmpresa) {
+      existing = await db
+        .select()
+        .from(metas)
+        .where(and(eq(metas.ano, anoNum), eq(metas.mes, mesNum), isNull(metas.userId), isNull(metas.grupoId)));
+    } else {
+      existing = await db
+        .select()
+        .from(metas)
+        .where(and(eq(metas.ano, anoNum), eq(metas.mes, mesNum), eq(metas.userId, userId)));
     }
 
-    const insertData = {
-      userId: userId || null,
-      ano: anoNum,
-      mes: mesNum,
+    const values = {
       metaValor: metaValor?.toString() ?? null,
       metaQtdCotacoes: metaQtdCotacoes ?? null,
       metaRenovacoes: metaRenovacoes ?? null,
     };
-    await db.insert(metas).values(insertData);
-    // Fetch the created record - find by unique constraint (userId+ano+mes)
+
+    if (existing && existing.length > 0) {
+      await db
+        .update(metas)
+        .set(values)
+        .where(eq(metas.id, existing[0].id));
+      const [updated] = await db
+        .select()
+        .from(metas)
+        .where(eq(metas.id, existing[0].id))
+        .limit(1);
+      return apiSuccess(updated);
+    }
+
+    await db
+      .insert(metas)
+      .values({
+        userId: userId || null,
+        grupoId: grupoId || null,
+        ano: anoNum,
+        mes: mesNum,
+        ...values,
+      });
+
     const [created] = await db
       .select()
       .from(metas)
-      .where(
-        and(
-          eq(metas.ano, anoNum),
-          eq(metas.mes, mesNum),
-          userId ? eq(metas.userId, userId) : undefined
-        )
-      );
+      .where(and(eq(metas.ano, anoNum), eq(metas.mes, mesNum), isGrupo ? eq(metas.grupoId, grupoId) : isEmpresa ? and(isNull(metas.userId), isNull(metas.grupoId)) : eq(metas.userId, userId)))
+      .orderBy(desc(metas.createdAt))
+      .limit(1);
 
     return apiSuccess(created);
   } catch (error) {

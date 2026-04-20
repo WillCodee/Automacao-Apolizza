@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, cotacaoDocs, cotacaoHistory, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -50,42 +50,50 @@ export async function POST(req: NextRequest) {
       mes,
       ano,
       responsavelId,
+      grupoId,
       descricao,
       situacao = "COTAR",
     } = fields;
 
-    if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || !responsavelId || !descricao) {
+    if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || (!responsavelId && !grupoId) || !descricao) {
       return apiError("Campos obrigatórios: nome, contato, prioridade, produto, mês, ano, responsável e descrição", 422);
     }
 
-    // Busca o responsável
-    const [responsavel] = await db
-      .select({ id: users.id, name: users.name, email: users.email })
-      .from(users)
-      .where(eq(users.id, responsavelId))
-      .limit(1);
+    // Busca o responsável (usuário ou grupo)
+    let responsavel: { id: string; name: string; email: string } | undefined;
+    if (responsavelId) {
+      const [found] = await db
+        .select({ id: users.id, name: users.name, email: users.email })
+        .from(users)
+        .where(eq(users.id, responsavelId))
+        .limit(1);
+      responsavel = found;
+    }
 
     // Cria a cotação
-    const insertData = {
-      name: nomeCliente,
-      status: "não iniciado" as const,
-      priority: (prioridade.toLowerCase() === "alta" ? "high" : prioridade.toLowerCase() === "urgente" ? "urgent" : "normal") as "high" | "urgent" | "normal",
-      assigneeId: responsavelId,
-      produto,
-      contatoCliente,
-      indicacao: indicacao || null,
-      situacao,
-      mesReferencia: mes,
-      anoReferencia: parseInt(ano),
-      observacao: descricao,
-      tags: ["pedido"],
-    };
-    await db.insert(cotacoes).values(insertData);
+    await db
+      .insert(cotacoes)
+      .values({
+        name: nomeCliente,
+        status: "não iniciado",
+        priority: prioridade.toLowerCase() === "alta" ? "high" : prioridade.toLowerCase() === "urgente" ? "urgent" : "normal",
+        assigneeId: responsavelId || null,
+        grupoId: grupoId || null,
+        produto,
+        contatoCliente,
+        indicacao: indicacao || null,
+        situacao,
+        mesReferencia: mes,
+        anoReferencia: parseInt(ano),
+        observacao: descricao,
+        tags: ["pedido"],
+      });
+
     const [cotacao] = await db
       .select()
       .from(cotacoes)
       .where(eq(cotacoes.name, nomeCliente))
-      .orderBy(sql`${cotacoes.createdAt} DESC`)
+      .orderBy(desc(cotacoes.createdAt))
       .limit(1);
 
     // Registra evento de criação no histórico
@@ -123,7 +131,7 @@ export async function POST(req: NextRequest) {
       `💡 <b>Indicação:</b> ${esc(indicacao || "—")}`,
       `🔖 <b>Situação:</b> ${esc(situacao)}`,
       ``,
-      `👷 <b>Responsável:</b> ${esc(responsavel?.name || responsavelId)}`,
+      `👷 <b>Responsável:</b> ${esc(responsavel?.name || (grupoId ? `Grupo ${grupoId}` : responsavelId))}`,
       ``,
       `📝 ${esc(descricao)}`,
       ``,

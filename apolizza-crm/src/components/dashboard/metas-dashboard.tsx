@@ -9,6 +9,7 @@ const MES_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NO
 type Meta = {
   id: string;
   userId: string | null;
+  grupoId: string | null;
   ano: number;
   mes: number;
   metaValor: string | null;
@@ -19,22 +20,34 @@ type CotadorPerf = {
   id: string;
   name: string;
   photoUrl: string | null;
-  total: number;
-  fechadas: number;
-  perdas: number;
-  faturamento: number;
-  taxaConversao: number;
+  total: number | string;
+  fechadas: number | string;
+  perdas: number | string;
+  ganhos: number | string;
+  taxaConversao: number | string | null;
+  // Renovações
+  totalRenovacoes?: number | string;
+  fechadasRenovacao?: number | string;
+  ganhosRenovacao?: number | string;
+  fechadasNovas?: number | string;
+  ganhosNovas?: number | string;
 };
 
 type GrupoPerf = {
   id: string;
   nome: string;
   cor: string;
-  total: number;
-  fechadas: number;
-  perdas: number;
-  faturamento: number;
-  taxaConversao: number;
+  total: number | string;
+  fechadas: number | string;
+  perdas: number | string;
+  ganhos: number | string;
+  taxaConversao: number | string | null;
+  // Renovações
+  totalRenovacoes?: number | string;
+  fechadasRenovacao?: number | string;
+  ganhosRenovacao?: number | string;
+  fechadasNovas?: number | string;
+  ganhosNovas?: number | string;
 };
 
 type Kpis = {
@@ -42,10 +55,16 @@ type Kpis = {
   fechadas: number;
   totalAReceber: number;
   perdas: number;
+  // Renovações
+  totalRenovacoes?: number;
+  fechadasRenovacao?: number;
+  aReceberRenovacao?: number;
+  fechadasNovas?: number;
+  aReceberNovas?: number;
 };
 
-const fmtCur = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtCur = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function ProgressBar({ pct, color }: { pct: number; color: string }) {
   const safe = Math.min(Math.max(pct, 0), 100);
@@ -136,7 +155,7 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── Derived values ──────────────────────────────────────────
-  const metaEmpresa = metas.find(m => m.mes === mesNum && m.userId === null);
+  const metaEmpresa = metas.find(m => m.mes === mesNum && m.userId === null && !m.grupoId);
   const metaValorEmp = metaEmpresa?.metaValor ? parseFloat(metaEmpresa.metaValor) : null;
   const metaQtdEmp   = metaEmpresa?.metaQtdCotacoes ?? null;
 
@@ -183,71 +202,51 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
         <div className="p-5 space-y-6">
 
           {/* ── Empresa ──────────────────────────────────────────── */}
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Empresa — {mes}/{ano}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <KpiCard
-                label="Ganho até agora"
-                value={fmtCur(ganhoAtual)}
-                sub={mes + "/" + ano}
-                color="#03a4ed"
-              />
-              <KpiCard
-                label="Meta faturamento"
-                value={metaValorEmp ? fmtCur(metaValorEmp) : "—"}
-                color="#8b5cf6"
-              />
-              <KpiCard
-                label="Fechadas"
-                value={String(fechadasAtual)}
-                sub={metaQtdEmp ? `Meta: ${metaQtdEmp}` : undefined}
-                color="#10b981"
-              />
-              <KpiCard
-                label="Perdas"
-                value={String(kpis?.perdas ?? 0)}
-                color="#ef4444"
-              />
+          <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5 space-y-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Empresa — {mes}/{ano}</p>
+
+            {/* Stats inline */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+              <span className="text-xs font-bold text-[#03a4ed]">{fmtCur(ganhoAtual)}</span>
+              {metaValorEmp && (
+                <span className="text-[11px] text-slate-400">/ meta {fmtCur(metaValorEmp)}</span>
+              )}
+              <span className="text-[11px] text-slate-500">{fechadasAtual} fechadas</span>
+              {metaQtdEmp && <span className="text-[11px] text-slate-400">/ {metaQtdEmp} meta</span>}
+              <span className="text-[11px] text-red-400">{kpis?.perdas ?? 0} perdas</span>
+              {pctValorEmp !== null && <PctBadge pct={pctValorEmp} />}
             </div>
 
-            {/* Progress bars empresa */}
-            {(pctValorEmp !== null || pctQtdEmp !== null) && (
-              <div className="space-y-3">
-                {pctValorEmp !== null && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-slate-600">Faturamento</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">{fmtCur(ganhoAtual)} / {fmtCur(metaValorEmp!)}</span>
-                        <PctBadge pct={pctValorEmp} />
-                      </div>
-                    </div>
-                    <ProgressBar pct={pctValorEmp} color={empColor(pctValorEmp)} />
-                  </div>
-                )}
-                {pctQtdEmp !== null && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-slate-600">Cotações fechadas</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">{fechadasAtual} / {metaQtdEmp}</span>
-                        <PctBadge pct={pctQtdEmp} />
-                      </div>
-                    </div>
-                    <ProgressBar pct={pctQtdEmp} color={empColor(pctQtdEmp)} />
-                  </div>
-                )}
-                {pctValorEmp === null && pctQtdEmp === null && (
-                  <p className="text-xs text-slate-400 text-center py-2">
-                    {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas da empresa →</Link> : "Nenhuma meta definida."}
-                  </p>
-                )}
+            {/* Barra de progresso faturamento */}
+            {pctValorEmp !== null && (
+              <ProgressBar pct={pctValorEmp} color={empColor(pctValorEmp)} />
+            )}
+            {pctQtdEmp !== null && (
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
+                  <span>Cotações fechadas</span><span>{fechadasAtual} / {metaQtdEmp}</span>
+                </div>
+                <ProgressBar pct={pctQtdEmp} color={empColor(pctQtdEmp)} />
               </div>
             )}
             {pctValorEmp === null && pctQtdEmp === null && (
-              <p className="text-xs text-slate-400 text-center py-1">
-                {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas da empresa →</Link> : "Nenhuma meta definida para o período."}
+              <p className="text-[11px] text-slate-400">
+                {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas →</Link> : "Sem meta definida."}
               </p>
+            )}
+
+            {/* Renovações inline */}
+            {(kpis?.totalRenovacoes ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 border-t border-violet-100">
+                <span className="text-[10px] font-bold text-violet-500">↻ Renovações:</span>
+                <span className="text-[10px] text-violet-600">{kpis!.fechadasRenovacao} fchdas</span>
+                <span className="text-[10px] font-semibold text-violet-700">{fmtCur(kpis!.aReceberRenovacao ?? 0)}</span>
+                {ganhoAtual > 0 && (
+                  <span className="text-[10px] text-violet-400 ml-auto">
+                    {Math.round(((kpis!.aReceberRenovacao ?? 0) / ganhoAtual) * 100)}% do total
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -269,16 +268,20 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
 
             {/* Por Cotador */}
             {tab === "cotador" && (
-              <div className="space-y-3">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 {cotadores.length === 0 && (
                   <p className="text-sm text-slate-400 text-center py-4">Nenhum cotador ativo</p>
                 )}
                 {cotadores.map((c) => {
+                  const faturamento = Number(c.ganhos ?? 0);
+                  const fechadas = Number(c.fechadas ?? 0);
+                  const perdas = Number(c.perdas ?? 0);
+                  const taxa = Number(c.taxaConversao ?? 0);
                   const metaCot = metas.find(m => m.userId === c.id && m.mes === mesNum);
                   const mValor = metaCot?.metaValor ? parseFloat(metaCot.metaValor) : null;
                   const mQtd = metaCot?.metaQtdCotacoes ?? null;
-                  const pValor = mValor && mValor > 0 ? (c.faturamento / mValor) * 100 : null;
-                  const pQtd   = mQtd   && mQtd   > 0 ? (c.fechadas   / mQtd)   * 100 : null;
+                  const pValor = mValor && mValor > 0 ? (faturamento / mValor) * 100 : null;
+                  const pQtd   = mQtd   && mQtd   > 0 ? (fechadas   / mQtd)   * 100 : null;
                   const pct = pValor ?? pQtd;
                   const barColor = pct == null ? "#94a3b8" : pct >= 100 ? "#10b981" : pct >= 60 ? "#03a4ed" : "#f59e0b";
 
@@ -289,16 +292,26 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-sm font-semibold text-slate-800 truncate">{c.name}</span>
                           <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <span className="text-xs text-slate-500">{fmtCur(c.faturamento)}</span>
+                            <span className="text-xs text-slate-500">{fmtCur(faturamento)}</span>
                             {mValor && <span className="text-[11px] text-slate-400">/ {fmtCur(mValor)}</span>}
                             {pct !== null && <PctBadge pct={pct} />}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <span className="text-[11px] text-slate-400">{c.fechadas} fechadas</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mb-1.5">
+                          <span className="text-[11px] text-slate-400">{fechadas} fechadas</span>
                           {mQtd && <span className="text-[11px] text-slate-400">/ {mQtd} meta</span>}
-                          <span className="text-[11px] text-slate-400">{c.perdas} perdas</span>
-                          <span className="text-[11px] text-slate-400">{c.taxaConversao?.toFixed(0) ?? 0}% taxa</span>
+                          <span className="text-[11px] text-slate-400">{perdas} perdas</span>
+                          <span className="text-[11px] text-slate-400">{taxa.toFixed(0)}% taxa</span>
+                          {Number(c.fechadasRenovacao ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full">
+                              ↻ {Number(c.fechadasRenovacao)} renov. · {fmtCur(Number(c.ganhosRenovacao ?? 0))}
+                            </span>
+                          )}
+                          {Number(c.fechadasNovas ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-[#03a4ed] bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              ✦ {Number(c.fechadasNovas)} novas · {fmtCur(Number(c.ganhosNovas ?? 0))}
+                            </span>
+                          )}
                         </div>
                         <ProgressBar pct={pct ?? 0} color={barColor} />
                         {pct === null && (
@@ -313,11 +326,21 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
 
             {/* Por Grupo */}
             {tab === "grupo" && (
-              <div className="space-y-3">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 {grupos.length === 0 && (
                   <p className="text-sm text-slate-400 text-center py-4">Nenhum grupo cadastrado</p>
                 )}
                 {grupos.map((g) => {
+                  const faturamento = Number(g.ganhos ?? 0);
+                  const total = Number(g.total ?? 0);
+                  const fechadas = Number(g.fechadas ?? 0);
+                  const perdas = Number(g.perdas ?? 0);
+                  const taxa = Number(g.taxaConversao ?? 0);
+                  const metaGrupo = metas.find(m => m.grupoId === g.id && m.mes === mesNum);
+                  const mValorG = metaGrupo?.metaValor ? parseFloat(metaGrupo.metaValor) : null;
+                  const pValorG = mValorG && mValorG > 0 ? (faturamento / mValorG) * 100 : null;
+                  const barColor = pValorG == null ? g.cor : pValorG >= 100 ? "#10b981" : pValorG >= 60 ? "#03a4ed" : "#f59e0b";
+
                   return (
                     <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/60 transition">
                       <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold"
@@ -327,15 +350,32 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-sm font-semibold text-slate-800 truncate">{g.nome}</span>
-                          <span className="text-xs font-semibold text-[#03a4ed] shrink-0 ml-2">{fmtCur(g.faturamento)}</span>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-xs font-semibold text-[#03a4ed]">{fmtCur(faturamento)}</span>
+                            {mValorG && <span className="text-[11px] text-slate-400">/ {fmtCur(mValorG)}</span>}
+                            {pValorG !== null && <PctBadge pct={pValorG} />}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <span className="text-[11px] text-slate-400">{g.total} cotações</span>
-                          <span className="text-[11px] text-emerald-600">{g.fechadas} fechadas</span>
-                          <span className="text-[11px] text-red-400">{g.perdas} perdas</span>
-                          <span className="text-[11px] text-slate-400">{g.taxaConversao?.toFixed(0) ?? 0}% taxa</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mb-1.5">
+                          <span className="text-[11px] text-slate-400">{total} cotações</span>
+                          <span className="text-[11px] text-emerald-600">{fechadas} fechadas</span>
+                          <span className="text-[11px] text-red-400">{perdas} perdas</span>
+                          <span className="text-[11px] text-slate-400">{taxa.toFixed(0)}% taxa</span>
+                          {Number(g.fechadasRenovacao ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full">
+                              ↻ {Number(g.fechadasRenovacao)} renov. · {fmtCur(Number(g.ganhosRenovacao ?? 0))}
+                            </span>
+                          )}
+                          {Number(g.fechadasNovas ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-[#03a4ed] bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              ✦ {Number(g.fechadasNovas)} novas · {fmtCur(Number(g.ganhosNovas ?? 0))}
+                            </span>
+                          )}
                         </div>
-                        <ProgressBar pct={g.fechadas > 0 ? Math.min((g.fechadas / Math.max(g.total, 1)) * 100, 100) : 0} color={g.cor} />
+                        <ProgressBar pct={pValorG ?? (fechadas > 0 ? Math.min((fechadas / Math.max(total, 1)) * 100, 100) : 0)} color={barColor} />
+                        {pValorG === null && (
+                          <p className="text-[10px] text-slate-400 mt-0.5">Sem meta definida</p>
+                        )}
                       </div>
                     </div>
                   );

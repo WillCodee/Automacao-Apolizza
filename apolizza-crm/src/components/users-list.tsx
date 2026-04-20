@@ -321,7 +321,7 @@ export function UsersList() {
                   </span>
                 </div>
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 flex-wrap">
                 <button
                   onClick={() => startEdit(u)}
                   className="text-xs text-[#03a4ed] hover:text-[#0288d1] font-medium min-h-[44px] flex items-center"

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { dbQuery } from "@/lib/db";
+import { db, dbQuery } from "@/lib/db";
 import { getCurrentUser, isAdminOrProprietario } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
       break;
 
     case "atrasados": {
-      const rows = await dbQuery(sql`
-        SELECT c.id, c.name, CAST(c.due_date AS CHAR) as due_date, u.name as assignee_name
+      const rows = await dbQuery<{ id: string; name: string; due_date: string; assignee_name: string }>(sql`
+        SELECT c.id, c.name, CAST(c.due_date AS CHAR) AS due_date, u.name as assignee_name
         FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
         WHERE c.deleted_at IS NULL AND c.status = 'atrasado'
         ORDER BY c.due_date ASC LIMIT 30
@@ -39,27 +39,27 @@ export async function POST(req: NextRequest) {
     }
 
     case "tarefas_hoje": {
-      const rows = await dbQuery(sql`
+      const rows = await dbQuery<{ id: string; titulo: string; cotador_name: string }>(sql`
         SELECT t.id, t.titulo, u.name as cotador_name
         FROM tarefas t JOIN users u ON t.cotador_id = u.id
-        WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
+        WHERE t.status NOT IN ('Concluída','Cancelada')
           AND DATE(t.data_vencimento) = CURDATE()
         ORDER BY t.created_at ASC LIMIT 30
       `);
       dados = rows;
-      texto = fmtTarefasHoje(rows as never);
+      texto = fmtTarefasHoje(rows as never) ?? "✅ Nenhuma tarefa vence hoje.";
       break;
     }
 
     case "tratativas": {
-      const hojeRows = await dbQuery(sql`
-        SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, u.name as assignee_name
+      const hojeRows = await dbQuery<{ id: string; name: string; proxima_tratativa: string; assignee_name: string }>(sql`
+        SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) AS proxima_tratativa, u.name as assignee_name
         FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
         WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE()
         ORDER BY c.proxima_tratativa ASC LIMIT 20
       `);
-      const amanhaRows = await dbQuery(sql`
-        SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, u.name as assignee_name
+      const amanhaRows = await dbQuery<{ id: string; name: string; proxima_tratativa: string; assignee_name: string }>(sql`
+        SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) AS proxima_tratativa, u.name as assignee_name
         FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
         WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE() + INTERVAL 1 DAY
         ORDER BY c.proxima_tratativa ASC LIMIT 20
@@ -67,71 +67,68 @@ export async function POST(req: NextRequest) {
       dados = { hoje: hojeRows, amanha: amanhaRows };
       const h = fmtTratativas(hojeRows as never, "hoje");
       const a = fmtTratativas(amanhaRows as never, "amanha");
-      texto = [h, a].filter(Boolean).join("\n\n") || "\u2705 Nenhuma tratativa para hoje ou amanh\u00e3.";
+      texto = [h, a].filter(Boolean).join("\n\n") || "✅ Nenhuma tratativa para hoje ou amanhã.";
       break;
     }
 
     case "pendentes": {
-      const rows = await dbQuery(sql`
-        SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
+      const rows = await dbQuery<{ titulo: string; cotador_name: string; data_vencimento: string }>(sql`
+        SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) AS data_vencimento
         FROM tarefas t JOIN users u ON t.cotador_id = u.id
-        WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
+        WHERE t.status NOT IN ('Concluída','Cancelada')
           AND (t.data_vencimento IS NULL OR t.data_vencimento < now())
         ORDER BY t.data_vencimento ASC LIMIT 30
       `);
       dados = rows;
-      texto = fmtTarefasPendentes(rows as never);
+      texto = fmtTarefasPendentes(rows as never) ?? "✅ Nenhuma tarefa pendente atrasada.";
       break;
     }
 
     case "relatorio": {
       const ano = new Date().getFullYear();
-      const kpiRows = await dbQuery(sql`
+      const [kpi] = await dbQuery<Record<string, unknown>>(sql`
         SELECT CAST(count(*) AS SIGNED) as totalCotacoes,
           CAST(sum(case when status='fechado' then 1 else 0 end) AS SIGNED) as fechadas,
           CAST(sum(case when status='perda' then 1 else 0 end) AS SIGNED) as perdas,
           CAST(sum(case when status not in ('fechado','perda','concluido ocultar') then 1 else 0 end) AS SIGNED) as emAndamento,
-          coalesce(sum(case when status='fechado' then cast(a_receber as decimal(12,2)) else 0 end),0) as totalAReceber
+          CAST(coalesce(sum(case when status='fechado' then cast(a_receber as decimal(12,2)) else 0 end),0) AS DECIMAL(12,2)) as totalAReceber
         FROM cotacoes WHERE deleted_at IS NULL AND ano_referencia=${ano}
       `);
-      const kpi = kpiRows[0];
-      const rankingRows = await dbQuery(sql`
+      const ranking = await dbQuery<Record<string, unknown>>(sql`
         SELECT u.name, CAST(count(c.id) AS SIGNED) as fechadas,
-          coalesce(sum(case when c.status='fechado' then cast(c.a_receber as decimal(12,2)) else 0 end),0) as faturamento
+          CAST(coalesce(sum(case when c.status='fechado' then cast(c.a_receber as decimal(12,2)) else 0 end),0) AS DECIMAL(12,2)) as faturamento
         FROM cotacoes c JOIN users u ON u.id = c.assignee_id
         WHERE c.deleted_at IS NULL AND c.ano_referencia=${ano}
         GROUP BY u.name ORDER BY faturamento DESC LIMIT 5
       `);
-      dados = { kpi, ranking: rankingRows };
+      dados = { kpi, ranking };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      texto = fmtRelatorio({ ...(kpi as any), ranking: rankingRows as never });
+      texto = fmtRelatorio({ ...(kpi as any), ranking: ranking as never });
       break;
     }
 
     case "resumo": {
-      const countsRows = await dbQuery(sql`
+      const [counts] = await dbQuery<Record<string, number>>(sql`
         SELECT
           CAST(sum(case when status='atrasado' then 1 else 0 end) AS SIGNED) as atrasadas,
           CAST(sum(case when proxima_tratativa = CURDATE() then 1 else 0 end) AS SIGNED) as tratativas_hoje,
           CAST(sum(case when proxima_tratativa = CURDATE() + INTERVAL 1 DAY then 1 else 0 end) AS SIGNED) as tratativas_amanha
         FROM cotacoes WHERE deleted_at IS NULL
       `);
-      const counts = countsRows[0] as Record<string, number>;
-      const tarefasRows = await dbQuery(sql`
+      const [tarefas] = await dbQuery<Record<string, number>>(sql`
         SELECT
-          CAST(sum(case when status not in ('Conclu\u00edda','Cancelada') and DATE(data_vencimento) = CURDATE() then 1 else 0 end) AS SIGNED) as hoje,
-          CAST(sum(case when status not in ('Conclu\u00edda','Cancelada') and (data_vencimento is null or data_vencimento < now()) then 1 else 0 end) AS SIGNED) as pendentes
+          CAST(sum(case when status not in ('Concluída','Cancelada') and DATE(data_vencimento) = CURDATE() then 1 else 0 end) AS SIGNED) as hoje,
+          CAST(sum(case when status not in ('Concluída','Cancelada') and (data_vencimento is null or data_vencimento < now()) then 1 else 0 end) AS SIGNED) as pendentes
         FROM tarefas
       `);
-      const tarefas = tarefasRows[0] as Record<string, number>;
       dados = { counts, tarefas };
       texto = (
-        `\ud83d\udcca *RESUMO DO DIA \u2014 ${new Date().toLocaleDateString("pt-BR")}*\n\n` +
-        `\ud83d\udea8 Cota\u00e7\u00f5es atrasadas: *${counts?.atrasadas ?? 0}*\n` +
-        `\ud83d\udcde Tratativas hoje: *${counts?.tratativas_hoje ?? 0}*\n` +
-        `\ud83d\udcc5 Tratativas amanh\u00e3: *${counts?.tratativas_amanha ?? 0}*\n` +
-        `\u23f0 Tarefas para hoje: *${tarefas?.hoje ?? 0}*\n` +
-        `\ud83d\udccb Tarefas pendentes: *${tarefas?.pendentes ?? 0}*`
+        `📊 *RESUMO DO DIA — ${new Date().toLocaleDateString("pt-BR")}*\n\n` +
+        `🚨 Cotações atrasadas: *${counts?.atrasadas ?? 0}*\n` +
+        `📞 Tratativas hoje: *${counts?.tratativas_hoje ?? 0}*\n` +
+        `📅 Tratativas amanhã: *${counts?.tratativas_amanha ?? 0}*\n` +
+        `⏰ Tarefas para hoje: *${tarefas?.hoje ?? 0}*\n` +
+        `📋 Tarefas pendentes: *${tarefas?.pendentes ?? 0}*`
       );
       break;
     }

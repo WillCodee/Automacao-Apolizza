@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { PRODUTO_OPTIONS, MES_OPTIONS, ANO_OPTIONS, PRIORITY_OPTIONS } from "@/lib/constants";
 
 type User = { id: string; name: string; email: string };
+type Grupo = { id: string; nome: string; cor: string };
 
 export function PedidoForm() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -23,7 +25,7 @@ export function PedidoForm() {
     produto: "",
     mes: "",
     ano: String(new Date().getFullYear()),
-    responsavelId: "",
+    assignee: "",   // "user:id" or "grupo:id"
     descricao: "",
     situacao: "COTAR",
   });
@@ -32,9 +34,12 @@ export function PedidoForm() {
     fetch("/api/users")
       .then((r) => r.json())
       .then((d) => setUsers(d.data || []));
+    fetch("/api/grupos")
+      .then((r) => r.json())
+      .then((d) => setGrupos(d.data || []));
   }, []);
 
-  function set(field: keyof typeof form, value: string) {
+  function set(field: keyof typeof form, value: string): void {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -52,16 +57,22 @@ export function PedidoForm() {
     setError("");
     setSuccess("");
 
-    const { nomeCliente, contatoCliente, prioridade, produto, mes, ano, responsavelId, descricao } = form;
-    if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || !responsavelId || !descricao) {
+    const { nomeCliente, contatoCliente, prioridade, produto, mes, ano, assignee, descricao } = form;
+    if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || !assignee || !descricao) {
       setError("Preencha todos os campos obrigatórios.");
       return;
     }
 
+    const [assigneeType, assigneeId] = assignee.split(":");
+
     setLoading(true);
     try {
       const formData = new FormData();
-      Object.entries(form).forEach(([k, v]) => formData.append(k, v));
+      Object.entries(form).forEach(([k, v]) => {
+        if (k !== "assignee") formData.append(k, v);
+      });
+      if (assigneeType === "user") formData.append("responsavelId", assigneeId);
+      else formData.append("grupoId", assigneeId);
       files.forEach((f) => formData.append("anexos", f));
 
       const res = await fetch("/api/pedidos", { method: "POST", body: formData });
@@ -169,9 +180,18 @@ export function PedidoForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Responsável pela Tarefa {req}</label>
-            <select value={form.responsavelId} onChange={(e) => set("responsavelId", e.target.value)} className={inputBase}>
+            <select value={form.assignee} onChange={(e) => set("assignee", e.target.value)} className={inputBase}>
               <option value="">Selecione o responsável...</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {users.length > 0 && (
+                <optgroup label="Cotadores">
+                  {users.map((u) => <option key={u.id} value={`user:${u.id}`}>{u.name}</option>)}
+                </optgroup>
+              )}
+              {grupos.length > 0 && (
+                <optgroup label="Grupos">
+                  {grupos.map((g) => <option key={g.id} value={`grupo:${g.id}`}>{g.nome}</option>)}
+                </optgroup>
+              )}
             </select>
           </div>
           <div>

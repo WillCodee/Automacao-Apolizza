@@ -1,11 +1,11 @@
 /**
- * Cron de Auditoria — chamado em horarios especificos (UTC):
- *   - 11:00 UTC (08:00 BRT): tratativas de hoje e amanha
+ * Cron de Auditoria — chamado em horários específicos (UTC):
+ *   - 11:00 UTC (08:00 BRT): tratativas de hoje e amanhã
  *   - 18:00 UTC (15:00 BRT): tarefas que vencem hoje
- *   - 21:00 UTC (18:00 BRT): tarefas nao finalizadas
+ *   - 21:00 UTC (18:00 BRT): tarefas não finalizadas
  */
 import { NextRequest } from "next/server";
-import { sql } from "drizzle-orm";
+import { sql, eq, or, isNull } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
 import { cotacaoNotificacoes } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -24,16 +24,18 @@ export async function POST(req: NextRequest) {
   const horaUTC = new Date().getUTCHours();
   const results: Record<string, unknown> = {};
 
-  // -- 11:00 UTC — Tratativas
+  // ── 11:00 UTC — Tratativas ────────────────────────────────────────────────
   if (horaUTC === 11) {
-    const hojeRows = await dbQuery(sql`
+    type TRow = { id: string; name: string; proxima_tratativa: string; assignee_id: string | null; assignee_name: string | null };
+
+    const hoje = await dbQuery<TRow>(sql`
       SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, c.assignee_id,
              u.name as assignee_name
       FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
       WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE()
       ORDER BY c.proxima_tratativa ASC LIMIT 30
     `);
-    const amanhaRows = await dbQuery(sql`
+    const amanha = await dbQuery<TRow>(sql`
       SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, c.assignee_id,
              u.name as assignee_name
       FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
@@ -42,15 +44,14 @@ export async function POST(req: NextRequest) {
     `);
 
     // Telegram para admins
-    const txtHoje = fmtTratativas(hojeRows as never, "hoje");
-    const txtAmanha = fmtTratativas(amanhaRows as never, "amanha");
+    const txtHoje = fmtTratativas(hoje as never, "hoje");
+    const txtAmanha = fmtTratativas(amanha as never, "amanha");
     if (txtHoje) await sendTelegram(txtHoje);
     if (txtAmanha) await sendTelegram(txtAmanha);
 
-    // Notificacoes no sistema para cotadores
-    type TRow = { id: string; name: string; proxima_tratativa: string; assignee_id: string | null; assignee_name: string | null };
-    const allRows = [...(hojeRows as TRow[]), ...(amanhaRows as TRow[])];
-    const quando = (r: TRow) => (hojeRows as TRow[]).includes(r) ? "hoje" : "amanh\u00e3";
+    // Notificações no sistema para cotadores
+    const allRows = [...hoje, ...amanha];
+    const hojeIds = new Set(hoje.map((r) => r.id));
 
     if (allRows.length > 0) {
       await db.insert(cotacaoNotificacoes).values(
@@ -62,38 +63,40 @@ export async function POST(req: NextRequest) {
             autorId: null as string | null,
             autorNome: "Auditor",
             tipo: "mensagem",
-            texto: `\ud83d\udcde Lembrete: voc\u00ea tem uma tratativa agendada para *${quando(r)}* nesta cota\u00e7\u00e3o.`,
+            texto: `📞 Lembrete: você tem uma tratativa agendada para *${hojeIds.has(r.id) ? "hoje" : "amanhã"}* nesta cotação.`,
             destinatarioId: r.assignee_id,
             lida: false,
           }))
       );
     }
 
-    results.tratativas = { hoje: hojeRows.length, amanha: amanhaRows.length };
+    results.tratativas = { hoje: hoje.length, amanha: amanha.length };
   }
 
-  // -- 18:00 UTC — Tarefas vencendo hoje
+  // ── 18:00 UTC — Tarefas vencendo hoje ────────────────────────────────────
   if (horaUTC === 18) {
-    const rows = await dbQuery(sql`
+    type TaskRow = { id: string; titulo: string; cotador_id: string; cotador_name: string };
+    const rows = await dbQuery<TaskRow>(sql`
       SELECT t.id, t.titulo, t.cotador_id, u.name as cotador_name
       FROM tarefas t JOIN users u ON t.cotador_id = u.id
-      WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
+      WHERE t.status NOT IN ('Concluída','Cancelada')
         AND DATE(t.data_vencimento) = CURDATE()
       ORDER BY t.created_at ASC LIMIT 30
     `);
 
     if (rows.length > 0) {
-      await sendTelegram(fmtTarefasHoje(rows as never));
+      const msgHoje = fmtTarefasHoje(rows as never);
+      if (msgHoje) await sendTelegram(msgHoje);
 
-      // Notificacoes individuais para cotadores
+      // Notificações individuais para cotadores
       await db.insert(cotacaoNotificacoes).values(
-        (rows as { id: string; titulo: string; cotador_id: string; cotador_name: string }[]).map((t) => ({
-          cotacaoId: t.id, // usando tarefa id como referencia (simplificado)
+        rows.map((t) => ({
+          cotacaoId: t.id, // usando tarefa id como referência (simplificado)
           cotacaoNome: t.titulo,
           autorId: null as string | null,
           autorNome: "Auditor",
           tipo: "mensagem",
-          texto: `\u23f0 Sua tarefa *"${t.titulo}"* deve ser finalizada hoje!`,
+          texto: `⏰ Sua tarefa *"${t.titulo}"* deve ser finalizada hoje!`,
           destinatarioId: t.cotador_id,
           lida: false,
         }))
@@ -103,20 +106,20 @@ export async function POST(req: NextRequest) {
     results.tarefasHoje = rows.length;
   }
 
-  // -- 21:00 UTC — Tarefas nao finalizadas
+  // ── 21:00 UTC — Tarefas não finalizadas ──────────────────────────────────
   if (horaUTC === 21) {
-    const rows = await dbQuery(sql`
+    type PendenteRow = { titulo: string; cotador_name: string; data_vencimento: string | null };
+    const rows = await dbQuery<PendenteRow>(sql`
       SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
       FROM tarefas t JOIN users u ON t.cotador_id = u.id
-      WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
+      WHERE t.status NOT IN ('Concluída','Cancelada')
         AND t.data_vencimento IS NOT NULL
         AND t.data_vencimento < now()
       ORDER BY t.data_vencimento ASC LIMIT 30
     `);
 
-    if (rows.length > 0) {
-      await sendTelegram(fmtTarefasPendentes(rows as never));
-    }
+    const msgPendentes = fmtTarefasPendentes(rows as never);
+    if (msgPendentes) await sendTelegram(msgPendentes);
 
     results.tarefasPendentes = rows.length;
   }

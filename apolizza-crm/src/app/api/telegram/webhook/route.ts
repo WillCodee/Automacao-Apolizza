@@ -16,8 +16,8 @@ async function buildMenuConsulta(): Promise<string> {
 
   let extra = "";
   if (regras.length > 0) {
-    extra = "\n\n\ud83d\udccc <b>REGRAS CUSTOMIZADAS</b>\n" +
-      regras.map((r) => `${r.comando} \u2014 ${r.descricao || r.nome}`).join("\n");
+    extra = "\n\n📌 <b>REGRAS CUSTOMIZADAS</b>\n" +
+      regras.map((r) => `${r.comando} — ${r.descricao || r.nome}`).join("\n");
   }
   return MENU_CONSULTA + extra;
 }
@@ -30,11 +30,11 @@ async function runTipoQuery(tipo: string): Promise<string> {
     case "pendentes":   return getTarefasPendentes();
     case "relatorio":   return getRelatorio();
     case "resumo":      return getResumo();
-    default:            return "\u2753 Tipo de consulta desconhecido.";
+    default:            return "❓ Tipo de consulta desconhecido.";
   }
 }
 
-// Telegram envia POST para este endpoint quando ha mensagem no grupo
+// Telegram envia POST para este endpoint quando há mensagem no grupo
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
       default:
         if (cmd.startsWith("/")) {
-          // Verifica se e uma regra customizada
+          // Verifica se é uma regra customizada
           const regras = await db
             .select()
             .from(regrasAuditoria)
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
           if (regra) {
             await sendTelegram(await runTipoQuery(regra.tipo), chatId);
           } else {
-            await sendTelegram(`\u2753 Comando n\u00e3o reconhecido.\n\nUse /consulta para ver os comandos dispon\u00edveis.`, chatId);
+            await sendTelegram(`❓ Comando não reconhecido.\n\nUse /consulta para ver os comandos disponíveis.`, chatId);
           }
         }
     }
@@ -103,11 +103,11 @@ export async function GET() {
   return new Response("Telegram webhook ativo");
 }
 
-// --- Data fetchers ---
+// ─── Data fetchers ─────────────────────────────────────────────────────────────
 
 async function getAtrasados() {
-  const rows = await dbQuery(sql`
-    SELECT c.id, c.name, CAST(c.due_date AS CHAR) as due_date, u.name as assignee_name
+  const rows = await dbQuery<{ id: string; name: string; due_date: string; assignee_name: string }>(sql`
+    SELECT c.id, c.name, CAST(c.due_date AS CHAR) AS due_date, u.name as assignee_name
     FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL AND c.status = 'atrasado'
     ORDER BY c.due_date ASC LIMIT 20
@@ -116,93 +116,90 @@ async function getAtrasados() {
 }
 
 async function getTarefasHoje() {
-  const rows = await dbQuery(sql`
+  const rows = await dbQuery<{ id: string; titulo: string; cotador_name: string }>(sql`
     SELECT t.id, t.titulo, u.name as cotador_name
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
+    WHERE t.status NOT IN ('Concluída','Cancelada')
       AND DATE(t.data_vencimento) = CURDATE()
     ORDER BY t.created_at ASC LIMIT 20
   `);
-  return fmtTarefasHoje(rows as never);
+  return fmtTarefasHoje(rows as never) ?? "✅ Nenhuma tarefa vence hoje.";
 }
 
 async function getTratativas() {
-  const hojeRows = await dbQuery(sql`
-    SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, u.name as assignee_name
+  const hojeRows = await dbQuery<{ id: string; name: string; proxima_tratativa: string; assignee_name: string }>(sql`
+    SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) AS proxima_tratativa, u.name as assignee_name
     FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE()
     ORDER BY c.proxima_tratativa ASC LIMIT 15
   `);
-  const amanhaRows = await dbQuery(sql`
-    SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, u.name as assignee_name
+  const amanhaRows = await dbQuery<{ id: string; name: string; proxima_tratativa: string; assignee_name: string }>(sql`
+    SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) AS proxima_tratativa, u.name as assignee_name
     FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE() + INTERVAL 1 DAY
     ORDER BY c.proxima_tratativa ASC LIMIT 15
   `);
   const h = fmtTratativas(hojeRows as never, "hoje");
   const a = fmtTratativas(amanhaRows as never, "amanha");
-  return [h, a].filter(Boolean).join("\n\n") || "\u2705 Nenhuma tratativa para hoje ou amanh\u00e3.";
+  return [h, a].filter(Boolean).join("\n\n") || "✅ Nenhuma tratativa para hoje ou amanhã.";
 }
 
 async function getTarefasPendentes() {
-  const rows = await dbQuery(sql`
-    SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
+  const rows = await dbQuery<{ titulo: string; cotador_name: string; data_vencimento: string }>(sql`
+    SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) AS data_vencimento
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
-      AND (t.data_vencimento IS NULL OR t.data_vencimento < NOW())
+    WHERE t.status NOT IN ('Concluída','Cancelada')
+      AND (t.data_vencimento IS NULL OR t.data_vencimento < now())
     ORDER BY t.data_vencimento ASC LIMIT 20
   `);
-  return fmtTarefasPendentes(rows as never);
+  return fmtTarefasPendentes(rows as never) ?? "✅ Nenhuma tarefa pendente atrasada.";
 }
 
 async function getRelatorio() {
   const ano = new Date().getFullYear();
-  const kpiRows = await dbQuery(sql`
+  const [kpi] = await dbQuery<Record<string, unknown>>(sql`
     SELECT
       CAST(count(*) AS SIGNED) as totalCotacoes,
       CAST(sum(case when status='fechado' then 1 else 0 end) AS SIGNED) as fechadas,
       CAST(sum(case when status='perda' then 1 else 0 end) AS SIGNED) as perdas,
       CAST(sum(case when status not in ('fechado','perda','concluido ocultar') then 1 else 0 end) AS SIGNED) as emAndamento,
-      coalesce(sum(case when status='fechado' then cast(a_receber as decimal(12,2)) else 0 end),0) as totalAReceber
+      CAST(coalesce(sum(case when status='fechado' then cast(a_receber as decimal(12,2)) else 0 end),0) AS DECIMAL(12,2)) as totalAReceber
     FROM cotacoes WHERE deleted_at IS NULL AND ano_referencia=${ano}
   `);
-  const kpi = kpiRows[0];
-  const rankingRows = await dbQuery(sql`
+  const ranking = await dbQuery<Record<string, unknown>>(sql`
     SELECT u.name, CAST(count(c.id) AS SIGNED) as fechadas,
-      coalesce(sum(case when c.status='fechado' then cast(c.a_receber as decimal(12,2)) else 0 end),0) as faturamento
+      CAST(coalesce(sum(case when c.status='fechado' then cast(c.a_receber as decimal(12,2)) else 0 end),0) AS DECIMAL(12,2)) as faturamento
     FROM cotacoes c JOIN users u ON u.id = c.assignee_id
     WHERE c.deleted_at IS NULL AND c.ano_referencia=${ano}
     GROUP BY u.name ORDER BY faturamento DESC LIMIT 5
   `);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return fmtRelatorio({ ...(kpi as any), ranking: rankingRows as never });
+  return fmtRelatorio({ ...(kpi as any), ranking: ranking as never });
 }
 
 async function getResumo() {
-  const countsRows = await dbQuery(sql`
+  const [counts] = await dbQuery<{ atrasadas: number; tratativas_hoje: number; tratativas_amanha: number }>(sql`
     SELECT
       CAST(sum(case when status='atrasado' then 1 else 0 end) AS SIGNED) as atrasadas,
       CAST(sum(case when proxima_tratativa = CURDATE() then 1 else 0 end) AS SIGNED) as tratativas_hoje,
       CAST(sum(case when proxima_tratativa = CURDATE() + INTERVAL 1 DAY then 1 else 0 end) AS SIGNED) as tratativas_amanha
     FROM cotacoes WHERE deleted_at IS NULL
   `);
-  const counts = countsRows[0] as { atrasadas: number; tratativas_hoje: number; tratativas_amanha: number };
 
-  const tarefasRows = await dbQuery(sql`
+  const [tarefas] = await dbQuery<{ hoje: number; pendentes: number }>(sql`
     SELECT
-      CAST(sum(case when status not in ('Conclu\u00edda','Cancelada') and DATE(data_vencimento) = CURDATE() then 1 else 0 end) AS SIGNED) as hoje,
-      CAST(sum(case when status not in ('Conclu\u00edda','Cancelada') and (data_vencimento is null or data_vencimento < now()) then 1 else 0 end) AS SIGNED) as pendentes
+      CAST(sum(case when status not in ('Concluída','Cancelada') and DATE(data_vencimento) = CURDATE() then 1 else 0 end) AS SIGNED) as hoje,
+      CAST(sum(case when status not in ('Concluída','Cancelada') and (data_vencimento is null or data_vencimento < now()) then 1 else 0 end) AS SIGNED) as pendentes
     FROM tarefas
   `);
-  const tarefas = tarefasRows[0] as { hoje: number; pendentes: number };
 
   return (
-    `\ud83d\udcca <b>RESUMO DO DIA \u2014 ${new Date().toLocaleDateString("pt-BR")}</b>\n\n` +
-    `\ud83d\udea8 Cota\u00e7\u00f5es atrasadas: <b>${counts?.atrasadas ?? 0}</b>\n` +
-    `\ud83d\udcde Tratativas hoje: <b>${counts?.tratativas_hoje ?? 0}</b>\n` +
-    `\ud83d\udcc5 Tratativas amanh\u00e3: <b>${counts?.tratativas_amanha ?? 0}</b>\n` +
-    `\u23f0 Tarefas para hoje: <b>${tarefas?.hoje ?? 0}</b>\n` +
-    `\ud83d\udccb Tarefas pendentes: <b>${tarefas?.pendentes ?? 0}</b>\n\n` +
+    `📊 <b>RESUMO DO DIA — ${new Date().toLocaleDateString("pt-BR")}</b>\n\n` +
+    `🚨 Cotações atrasadas: <b>${counts?.atrasadas ?? 0}</b>\n` +
+    `📞 Tratativas hoje: <b>${counts?.tratativas_hoje ?? 0}</b>\n` +
+    `📅 Tratativas amanhã: <b>${counts?.tratativas_amanha ?? 0}</b>\n` +
+    `⏰ Tarefas para hoje: <b>${tarefas?.hoje ?? 0}</b>\n` +
+    `📋 Tarefas pendentes: <b>${tarefas?.pendentes ?? 0}</b>\n\n` +
     `Use /consulta para mais comandos.`
   );
 }

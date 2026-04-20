@@ -7,6 +7,8 @@ export default auth((req) => {
   // Public routes — no auth required
   const isPublic =
     pathname.startsWith("/login") ||
+    pathname === "/pedido" ||                  // Formulário público de pedidos externos
+    pathname.startsWith("/api/pedido") ||      // API pública de pedidos externos
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/telegram/") ||   // Telegram webhook (sem sessão)
     pathname.startsWith("/api/cron/");          // Cron jobs (autenticados por CRON_SECRET)

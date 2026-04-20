@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { eq, and, isNull, sql, count, gte, lte } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory } from "@/lib/schema";
+import { eq, and, isNull, sql, count, gte, lte, inArray, desc } from "drizzle-orm";
+import { db, dbQuery } from "@/lib/db";
+import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
 import { validateStatusFields } from "@/lib/status-validation";
@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
     const ano = searchParams.get("ano");
     const mes = searchParams.get("mes");
     const assignee = searchParams.get("assignee");
+    const grupos = searchParams.getAll("grupo");
     const search = searchParams.get("search");
-    // Story 11.5: filtros avançados
     const produto = searchParams.get("produto");
     const seguradora = searchParams.get("seguradora");
     const prioridade = searchParams.get("prioridade");
@@ -39,24 +39,24 @@ export async function GET(req: NextRequest) {
     const dateTo = searchParams.get("dateTo");
     const situacao = searchParams.get("situacao");
 
-    // Param validation (Story 10.2)
     if (!validateStatus(status)) return apiError("Status invalido", 400);
     if (!validateAno(ano)) return apiError("Ano invalido", 400);
     if (!validateMes(mes)) return apiError("Mes invalido", 400);
     if (!validateUuid(assignee)) return apiError("Assignee ID invalido", 400);
+    if (grupos.some((g) => !validateUuid(g))) return apiError("Grupo ID invalido", 400);
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
-    // Todos os perfis veem todas as cotações na lista; filtro de assignee é opcional
-    if (assignee) {
-      conditions.push(eq(cotacoes.assigneeId, assignee));
+    if (assignee) conditions.push(eq(cotacoes.assigneeId, assignee));
+    if (grupos.length === 1) {
+      conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id = ${grupos[0]})`);
+    } else if (grupos.length > 1) {
+      conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id IN (${sql.join(grupos.map((g) => sql`${g}`), sql`, `)}))`);
     }
-
     if (status) conditions.push(eq(cotacoes.status, status));
     if (ano) conditions.push(eq(cotacoes.anoReferencia, Number(ano)));
     if (mes) conditions.push(eq(cotacoes.mesReferencia, mes));
     if (search) {
-      // Busca em múltiplos campos
       conditions.push(sql`(
         ${cotacoes.name} LIKE ${'%' + search + '%'}
         OR ${cotacoes.observacao} LIKE ${'%' + search + '%'}
@@ -65,7 +65,6 @@ export async function GET(req: NextRequest) {
         OR ${cotacoes.contatoCliente} LIKE ${'%' + search + '%'}
       )`);
     }
-    // Story 11.5: novos filtros
     if (produto) conditions.push(eq(cotacoes.produto, produto));
     if (seguradora) conditions.push(eq(cotacoes.seguradora, seguradora));
     if (prioridade) conditions.push(eq(cotacoes.priority, prioridade));
@@ -76,10 +75,7 @@ export async function GET(req: NextRequest) {
 
     const where = and(...conditions);
 
-    const [totalResult] = await db
-      .select({ value: count() })
-      .from(cotacoes)
-      .where(where);
+    const [totalResult] = await db.select({ value: count() }).from(cotacoes).where(where);
 
     const rows = await db
       .select()
@@ -89,7 +85,35 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    const data = rows.map(formatCotacao);
+    // Enrich with assignee name + group (isolated — never breaks the main list)
+    const assigneeMap = new Map<string, { name: string; grupoNomes: string[] }>();
+    try {
+      const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter((id): id is string => !!id))];
+      if (assigneeIds.length > 0) {
+        const infoRows = await dbQuery<{ id: string; name: string; grupo_nomes: string }>(sql`
+          SELECT
+            u.id,
+            u.name,
+            COALESCE(GROUP_CONCAT(g.nome ORDER BY g.nome SEPARATOR ','), '') AS grupo_nomes
+          FROM users u
+          LEFT JOIN grupo_membros gm ON gm.user_id = u.id
+          LEFT JOIN grupos_usuarios g ON g.id = gm.grupo_id
+          WHERE u.id IN (${sql.join(assigneeIds.map((id) => sql`${id}`), sql`, `)})
+          GROUP BY u.id, u.name
+        `);
+        for (const r of infoRows) {
+          assigneeMap.set(r.id, { name: r.name, grupoNomes: r.grupo_nomes ? r.grupo_nomes.split(",") : [] });
+        }
+      }
+    } catch (enrichErr) {
+      console.error("Assignee enrichment failed (non-fatal):", enrichErr);
+    }
+
+    const data = rows.map((row) => ({
+      ...formatCotacao(row),
+      assigneeNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.name ?? null) : null,
+      assigneeGrupoNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.grupoNomes?.join(", ") ?? null) : null,
+    }));
 
     return apiPaginated(data, { page, limit, total: totalResult.value });
   } catch (error) {
@@ -120,7 +144,8 @@ export async function POST(req: NextRequest) {
       return apiError(`Campos obrigatorios para status "${input.status ?? "não iniciado"}": ${missing}`, 422);
     }
 
-    const insertData = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insertValues: any = {
       name: input.name,
       status: input.status,
       priority: input.priority,
@@ -132,28 +157,29 @@ export async function POST(req: NextRequest) {
       produto: input.produto,
       situacao: input.situacao,
       indicacao: input.indicacao,
-      inicioVigencia: input.inicioVigencia ? new Date(input.inicioVigencia) : null,
-      fimVigencia: input.fimVigencia ? new Date(input.fimVigencia) : null,
-      primeiroPagamento: input.primeiroPagamento ? new Date(input.primeiroPagamento) : null,
+      inicioVigencia: input.inicioVigencia,
+      fimVigencia: input.fimVigencia,
+      primeiroPagamento: input.primeiroPagamento,
       parceladoEm: input.parceladoEm,
       premioSemIof: input.premioSemIof,
       comissao: input.comissao,
       aReceber: input.aReceber,
       valorPerda: input.valorPerda,
-      proximaTratativa: input.proximaTratativa ? new Date(input.proximaTratativa) : null,
+      proximaTratativa: input.proximaTratativa,
       observacao: input.observacao,
       mesReferencia: input.mesReferencia,
       anoReferencia: input.anoReferencia,
       comissaoParcelada: input.comissaoParcelada ?? null,
-      tags: input.tags ?? null,
+      tags: input.tags,
       isRenovacao: input.isRenovacao,
     };
-    await db.insert(cotacoes).values(insertData);
+    await db.insert(cotacoes).values(insertValues);
+
     const [created] = await db
       .select()
       .from(cotacoes)
-      .where(and(eq(cotacoes.name, input.name), eq(cotacoes.assigneeId, insertData.assigneeId!), isNull(cotacoes.deletedAt)))
-      .orderBy(sql`${cotacoes.createdAt} DESC`)
+      .where(eq(cotacoes.name, input.name))
+      .orderBy(desc(cotacoes.createdAt))
       .limit(1);
 
     // Registrar evento de criação no histórico

@@ -18,6 +18,7 @@ const MES_OPTIONS_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","
 type Meta = {
   id: string;
   userId: string | null;
+  grupoId: string | null;
   ano: number;
   mes: number;
   metaValor: string | null;
@@ -29,6 +30,7 @@ type KPIs = {
   totalCotacoes: number;
   fechadas: number;
   totalAReceber: number;
+  fechadasRenovacao?: number;
 };
 
 type CotadorData = {
@@ -124,7 +126,7 @@ export function MetasCard({ isAdmin }: { isAdmin: boolean }) {
   const mesNum = MES_OPTIONS_ARR.indexOf(mes) + 1; // 1-12, or 0 if not found
 
   // Meta global da empresa (userId = null)
-  const metaEmpresa = metas.find((m) => m.mes === mesNum && m.userId === null);
+  const metaEmpresa = metas.find((m) => m.mes === mesNum && m.userId === null && !m.grupoId);
   const metaValor = metaEmpresa?.metaValor ? parseFloat(metaEmpresa.metaValor) : null;
   const metaQtd = metaEmpresa?.metaQtdCotacoes ?? null;
   const metaRenovacoes = metaEmpresa?.metaRenovacoes ?? null;
@@ -135,9 +137,9 @@ export function MetasCard({ isAdmin }: { isAdmin: boolean }) {
   // Metas individuais dos cotadores
   const metasCotadores = metas.filter((m) => m.userId !== null && m.mes === mesNum);
 
-  const fmtCur = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const fmtK = (v: number) =>
-    v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : fmtCur(v);
+  const fmtCur = (v: number | null | undefined) => (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtK = (v: number | null | undefined) =>
+    (v ?? 0) >= 1000 ? `R$${((v ?? 0) / 1000).toFixed(0)}k` : fmtCur(v);
 
   const temMeta = pctValor !== null || pctQtd !== null;
   const temMetaCotador = metasCotadores.length > 0;
@@ -210,13 +212,17 @@ export function MetasCard({ isAdmin }: { isAdmin: boolean }) {
                       color={pctQtd >= 100 ? "#10b981" : pctQtd >= 50 ? "#8b5cf6" : "#f97316"}
                     />
                   )}
-                  {metaRenovacoes && (
+                  {metaRenovacoes && kpis && (
                     <GaugeChart
-                      pct={0}
+                      pct={metaRenovacoes > 0 ? Math.min(((kpis.fechadasRenovacao ?? 0) / metaRenovacoes) * 100, 100) : 0}
                       label="Renovacoes"
-                      current="—"
+                      current={String(kpis.fechadasRenovacao ?? 0)}
                       goal={String(metaRenovacoes)}
-                      color="#94a3b8"
+                      color={
+                        metaRenovacoes > 0 && (kpis.fechadasRenovacao ?? 0) >= metaRenovacoes ? "#10b981"
+                        : metaRenovacoes > 0 && (kpis.fechadasRenovacao ?? 0) >= metaRenovacoes * 0.5 ? "#8b5cf6"
+                        : "#f97316"
+                      }
                     />
                   )}
                 </div>

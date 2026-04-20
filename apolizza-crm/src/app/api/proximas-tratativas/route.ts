@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { and, isNull, isNotNull, gte, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes } from "@/lib/schema";
+import { cotacoes, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import { eq } from "drizzle-orm";
@@ -20,7 +20,6 @@ export async function GET(_req: NextRequest) {
       gte(cotacoes.proximaTratativa, today),
     ];
 
-    // Cotador vê apenas suas próprias cotações
     if (user.role === "cotador") {
       conditions.push(eq(cotacoes.assigneeId, user.id));
     }
@@ -34,11 +33,14 @@ export async function GET(_req: NextRequest) {
         seguradora: cotacoes.seguradora,
         proximaTratativa: cotacoes.proximaTratativa,
         priority: cotacoes.priority,
+        assigneeId: cotacoes.assigneeId,
+        assigneeName: users.name,
       })
       .from(cotacoes)
+      .leftJoin(users, eq(cotacoes.assigneeId, users.id))
       .where(and(...conditions))
       .orderBy(asc(cotacoes.proximaTratativa))
-      .limit(20);
+      .limit(100);
 
     return apiSuccess(rows);
   } catch (err) {

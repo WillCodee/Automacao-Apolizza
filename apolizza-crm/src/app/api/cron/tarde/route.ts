@@ -1,10 +1,11 @@
 /**
  * Cron da Tarde — 18:00 UTC (15:00 BRT)
- * - Tarefas vencendo hoje -> Telegram + notificacoes cotadores
- * - Tarefas nao finalizadas (pendentes) -> Telegram
- * - Tarefas atrasadas -> email cotadores + admins
- * - Alertas de prazo (due_date = hoje) -> email responsaveis
- * - Resumo diario -> email admins
+ * - Tarefas vencendo hoje → Telegram + notificações cotadores
+ * - Seguros vencendo hoje (fim_vigencia) → Telegram
+ * - Cotações com prazo hoje (due_date) → Telegram
+ * - Tarefas atrasadas → email cotadores + admins
+ * - Alertas de prazo (due_date = hoje) → email responsáveis
+ * - Resumo diário → email admins
  */
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
@@ -14,44 +15,40 @@ import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
   sendTelegram,
   fmtTarefasHoje,
-  fmtTarefasPendentes,
+  fmtVigenciaHoje,
+  fmtCotacoesVencendoHoje,
+  fmtTarefasAtrasadasTarde,
+  fmtResumoDiario,
 } from "@/lib/telegram";
-import {
-  getAdminEmails,
-  sendAlertEmail,
-  buildPrazoHtml,
-  buildResumoHtml,
-  buildTarefaAtrasadaHtml,
-  type CotacaoAlerta,
-} from "@/lib/email";
 
 function verifyCron(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-// --- 1. Tarefas vencendo hoje ---
+// ─── 1. Tarefas vencendo hoje ────────────────────────────────────────────────
 
 async function processarTarefasHoje() {
-  const rows = await dbQuery(sql`
+  const rows = await dbQuery<{ id: string; titulo: string; cotador_id: string; cotador_name: string }>(sql`
     SELECT t.id, t.titulo, t.cotador_id, u.name as cotador_name
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
+    WHERE t.status NOT IN ('Concluída','Cancelada')
       AND DATE(t.data_vencimento) = CURDATE()
     ORDER BY t.created_at ASC LIMIT 30
   `);
 
   if (rows.length > 0) {
-    await sendTelegram(fmtTarefasHoje(rows as never));
+    const msg = fmtTarefasHoje(rows as never);
+    if (msg) await sendTelegram(msg);
 
     await db.insert(cotacaoNotificacoes).values(
-      (rows as { id: string; titulo: string; cotador_id: string; cotador_name: string }[]).map((t) => ({
+      rows.map((t) => ({
         cotacaoId: t.id,
         cotacaoNome: t.titulo,
         autorId: null as string | null,
         autorNome: "Auditor",
         tipo: "mensagem",
-        texto: `\u23f0 Sua tarefa *"${t.titulo}"* deve ser finalizada hoje!`,
+        texto: `⏰ Sua tarefa *"${t.titulo}"* deve ser finalizada hoje!`,
         destinatarioId: t.cotador_id,
         lida: false,
       }))
@@ -61,116 +58,76 @@ async function processarTarefasHoje() {
   return rows.length;
 }
 
-// --- 2. Tarefas nao finalizadas (pendentes) ---
+// ─── 2. Seguros vencendo hoje (Telegram) ────────────────────────────────────
 
-async function processarTarefasPendentes() {
-  const rows = await dbQuery(sql`
-    SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
-    FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.status NOT IN ('Conclu\u00edda','Cancelada')
-      AND t.data_vencimento IS NOT NULL
-      AND t.data_vencimento < NOW()
-    ORDER BY t.data_vencimento ASC LIMIT 30
+async function processarVigenciaHoje() {
+  const rows = await dbQuery<{ id: string; name: string; seguradora: string | null; assignee_name: string | null }>(sql`
+    SELECT c.id, c.name, c.seguradora, u.name as assignee_name
+    FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
+    WHERE c.deleted_at IS NULL
+      AND c.fim_vigencia = CURDATE()
+      AND c.status NOT IN ('perda', 'cancelado', 'concluido ocultar')
+    ORDER BY c.name ASC LIMIT 30
   `);
 
-  if (rows.length > 0) {
-    await sendTelegram(fmtTarefasPendentes(rows as never));
-  }
+  const msg = fmtVigenciaHoje(rows);
+  if (msg) await sendTelegram(msg);
 
   return rows.length;
 }
 
-// --- 3. Tarefas atrasadas (email) ---
+// ─── 3. Cotações com prazo hoje (Telegram) ───────────────────────────────────
 
-interface TarefaRow extends Record<string, unknown> {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  data_vencimento: string | null;
-  status: string;
-  cotador_id: string;
-  cotador_name: string;
-  cotador_email: string;
-  criador_name: string;
-}
-
-async function processarTarefasAtrasadas() {
-  const admins = await getAdminEmails();
-  const rows = await dbQuery(sql`
-    SELECT t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
-           u.name as cotador_name, u.email as cotador_email,
-           criador.name as criador_name
-    FROM tarefas t
-    JOIN users u ON t.cotador_id = u.id
-    JOIN users criador ON t.criador_id = criador.id
-    WHERE t.data_vencimento < NOW()
-      AND t.status NOT IN ('Conclu\u00edda', 'Cancelada')
-      AND u.is_active = true
-  `);
-
-  let emailsEnviados = 0;
-  for (const t of rows as TarefaRow[]) {
-    const res = await sendAlertEmail({
-      to: [t.cotador_email, ...admins],
-      subject: `\u26a0\ufe0f Tarefa Atrasada: ${t.titulo}`,
-      html: buildTarefaAtrasadaHtml(t),
-    });
-    if (res.success) emailsEnviados++;
-  }
-
-  return { tarefas: rows.length, emailsEnviados };
-}
-
-// --- 4. Alertas de prazo cotacoes (email) ---
-
-async function processarAlertasPrazo() {
-  const resultRows = await dbQuery(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, CAST(c.due_date AS CHAR) as due_date,
-           u.name as assignee_name, u.email as assignee_email
+async function processarCotacoesVencendoHoje() {
+  const rows = await dbQuery<{ id: string; name: string; assignee_name: string | null; status: string }>(sql`
+    SELECT c.id, c.name, c.status, u.name as assignee_name
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
-      AND c.status NOT IN ('fechado', 'perda', 'cancelado', 'atrasado')
       AND DATE(c.due_date) = CURDATE()
-    ORDER BY c.due_date ASC
+      AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
+    ORDER BY c.name ASC LIMIT 30
   `);
 
-  const rows = resultRows as unknown as CotacaoAlerta[];
-  if (rows.length === 0) return { sent: 0, cotacoes: 0 };
+  const msg = fmtCotacoesVencendoHoje(rows);
+  if (msg) await sendTelegram(msg);
 
-  const byAssignee = new Map<string, CotacaoAlerta[]>();
-  for (const row of rows) {
-    const email = row.assignee_email || "admins";
-    const list = byAssignee.get(email) || [];
-    list.push(row);
-    byAssignee.set(email, list);
-  }
-
-  const admins = await getAdminEmails();
-  let sent = 0;
-  for (const [email, cotacoes] of byAssignee) {
-    const to = email === "admins" ? admins : [email];
-    if (to.length === 0) continue;
-    const res = await sendAlertEmail({ to, subject: `\u23f0 ${cotacoes.length} cota\u00e7\u00e3o(\u00f5es) com prazo hoje`, html: buildPrazoHtml(cotacoes) });
-    if (res.success) sent++;
-  }
-
-  return { sent, cotacoes: rows.length };
+  return rows.length;
 }
 
-// --- 5. Resumo diario (email admins) ---
+// ─── 5. Tarefas atrasadas (Telegram) ────────────────────────────────────────
+
+async function processarTarefasAtrasadas() {
+  const rows = await dbQuery<{ id: string; titulo: string; cotador_name: string; data_vencimento: string | null }>(sql`
+    SELECT t.id, t.titulo, CAST(t.data_vencimento AS CHAR) as data_vencimento, u.name as cotador_name
+    FROM tarefas t
+    JOIN users u ON t.cotador_id = u.id
+    WHERE t.data_vencimento < NOW()
+      AND t.status NOT IN ('Concluída', 'Cancelada')
+      AND u.is_active = true
+    ORDER BY t.data_vencimento ASC LIMIT 30
+  `);
+
+  const msg = fmtTarefasAtrasadasTarde(rows);
+  if (msg) await sendTelegram(msg);
+
+  return rows.length;
+}
+
+
+// ─── 6. Resumo diário (Telegram) ────────────────────────────────────────────
 
 async function processarResumoDiario() {
-  const resultRows = await dbQuery(sql`
+  const rows = await dbQuery<Record<string, unknown>>(sql`
     SELECT
-      CAST(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as novas_hoje,
-      CAST(SUM(CASE WHEN status = 'atrasado' THEN 1 ELSE 0 END) AS SIGNED) as atrasadas,
-      CAST(SUM(CASE WHEN status = 'fechado' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as fechadas_hoje,
-      CAST(SUM(CASE WHEN fim_vigencia IS NOT NULL AND fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 30 DAY THEN 1 ELSE 0 END) AS SIGNED) as vencendo_30d
+      SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as novas_hoje,
+      SUM(CASE WHEN status = 'atrasado' THEN 1 ELSE 0 END) as atrasadas,
+      SUM(CASE WHEN status = 'fechado' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) as fechadas_hoje,
+      SUM(CASE WHEN fim_vigencia IS NOT NULL AND fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 30 DAY THEN 1 ELSE 0 END) as vencendo_30d
     FROM cotacoes WHERE deleted_at IS NULL
   `);
 
-  const row = resultRows[0] as Record<string, unknown>;
+  const row = rows[0] as Record<string, unknown>;
   const kpis = {
     novas_hoje: Number(row.novas_hoje) || 0,
     atrasadas: Number(row.atrasadas) || 0,
@@ -178,38 +135,32 @@ async function processarResumoDiario() {
     vencendo_30d: Number(row.vencendo_30d) || 0,
   };
 
-  const admins = await getAdminEmails();
-  if (admins.length === 0) return { sent: 0 };
+  const msg = fmtResumoDiario(kpis);
+  await sendTelegram(msg);
 
-  const res = await sendAlertEmail({
-    to: admins,
-    subject: `\ud83d\udcca Resumo di\u00e1rio \u2014 ${kpis.novas_hoje} novas, ${kpis.atrasadas} atrasadas`,
-    html: buildResumoHtml(kpis),
-  });
-
-  return { sent: res.success ? 1 : 0 };
+  return kpis;
 }
 
-// --- Handler ---
+// ─── Handler ─────────────────────────────────────────────────────────────────
 
 async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
 
   try {
-    const [tarefasHoje, tarefasPendentes, tarefasAtrasadas, alertasPrazo, resumo] = await Promise.all([
+    const [tarefasHoje, vigenciaHoje, cotacoesVencendoHoje, tarefasAtrasadas, resumo] = await Promise.all([
       processarTarefasHoje(),
-      processarTarefasPendentes(),
+      processarVigenciaHoje(),
+      processarCotacoesVencendoHoje(),
       processarTarefasAtrasadas(),
-      processarAlertasPrazo(),
       processarResumoDiario(),
     ]);
 
     return apiSuccess({
       message: "Cron da tarde executado com sucesso",
       tarefasHoje,
-      tarefasPendentes,
+      vigenciaHoje,
+      cotacoesVencendoHoje,
       tarefasAtrasadas,
-      alertasPrazo,
       resumo,
     });
   } catch (error) {
