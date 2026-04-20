@@ -41,14 +41,13 @@ export default async function CotacaoDetailPage({ params }: Params) {
       .where(eq(users.id, row.assigneeId));
     if (a) assigneeName = a.name;
 
-    const [gm] = await db
+    const gmRows = await db
       .select({ nome: gruposUsuarios.nome })
       .from(grupoMembros)
       .innerJoin(gruposUsuarios, eq(grupoMembros.grupoId, gruposUsuarios.id))
       .where(eq(grupoMembros.userId, row.assigneeId))
-      .orderBy(gruposUsuarios.nome)
-      .limit(1);
-    assigneeGrupoNome = gm?.nome ?? null;
+      .orderBy(gruposUsuarios.nome);
+    if (gmRows.length > 0) assigneeGrupoNome = gmRows.map((g) => g.nome).join(", ");
   }
 
   const fmt = (v: string | null) =>

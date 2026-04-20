@@ -82,23 +82,23 @@ export async function GET(req: NextRequest) {
       .offset(offset);
 
     // Enrich with assignee name + group (isolated — never breaks the main list)
-    const assigneeMap = new Map<string, { name: string; grupoNome: string | null }>();
+    const assigneeMap = new Map<string, { name: string; grupoNomes: string[] }>();
     try {
       const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter((id): id is string => !!id))];
       if (assigneeIds.length > 0) {
         const infoRows = await db.execute(sql`
-          SELECT DISTINCT ON (u.id)
+          SELECT
             u.id,
             u.name,
-            g.nome AS grupo_nome
+            COALESCE(array_agg(g.nome ORDER BY g.nome) FILTER (WHERE g.nome IS NOT NULL), '{}') AS grupo_nomes
           FROM users u
           LEFT JOIN grupo_membros gm ON gm.user_id = u.id
           LEFT JOIN grupos_usuarios g ON g.id = gm.grupo_id
           WHERE u.id = ANY(ARRAY[${sql.join(assigneeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
-          ORDER BY u.id, g.nome ASC NULLS LAST
+          GROUP BY u.id, u.name
         `);
-        for (const r of infoRows.rows as { id: string; name: string; grupo_nome: string | null }[]) {
-          assigneeMap.set(r.id, { name: r.name, grupoNome: r.grupo_nome });
+        for (const r of infoRows.rows as { id: string; name: string; grupo_nomes: string[] }[]) {
+          assigneeMap.set(r.id, { name: r.name, grupoNomes: r.grupo_nomes ?? [] });
         }
       }
     } catch (enrichErr) {
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     const data = rows.map((row) => ({
       ...formatCotacao(row),
       assigneeNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.name ?? null) : null,
-      assigneeGrupoNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.grupoNome ?? null) : null,
+      assigneeGrupoNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.grupoNomes?.join(", ") ?? null) : null,
     }));
 
     return apiPaginated(data, { page, limit, total: totalResult.value });
