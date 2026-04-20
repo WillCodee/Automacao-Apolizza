@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { eq, and, ilike, isNull, sql, count, gte, lte } from "drizzle-orm";
+import { eq, and, isNull, sql, count, gte, lte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
 import { validateStatusFields } from "@/lib/status-validation";
@@ -85,16 +85,23 @@ export async function GET(req: NextRequest) {
     const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter((id): id is string => !!id))];
     const assigneeMap = new Map<string, { name: string; grupoNome: string | null }>();
     if (assigneeIds.length > 0) {
-      const infoRows = await db.execute(sql`
-        SELECT DISTINCT ON (u.id) u.id, u.name, g.nome AS grupo_nome
-        FROM users u
-        LEFT JOIN grupo_membros gm ON gm.user_id = u.id
-        LEFT JOIN grupos_usuarios g ON g.id = gm.grupo_id
-        WHERE u.id = ANY(${assigneeIds}::uuid[])
-        ORDER BY u.id, g.nome ASC NULLS LAST
-      `);
-      for (const r of infoRows.rows as { id: string; name: string; grupo_nome: string | null }[]) {
-        assigneeMap.set(r.id, { name: r.name, grupoNome: r.grupo_nome });
+      const infoRows = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          grupoNome: gruposUsuarios.nome,
+        })
+        .from(users)
+        .leftJoin(grupoMembros, eq(grupoMembros.userId, users.id))
+        .leftJoin(gruposUsuarios, eq(grupoMembros.grupoId, gruposUsuarios.id))
+        .where(inArray(users.id, assigneeIds))
+        .orderBy(users.id, gruposUsuarios.nome);
+
+      for (const r of infoRows) {
+        // Keep first group alphabetically (DISTINCT ON behaviour)
+        if (!assigneeMap.has(r.id)) {
+          assigneeMap.set(r.id, { name: r.name, grupoNome: r.grupoNome ?? null });
+        }
       }
     }
 
