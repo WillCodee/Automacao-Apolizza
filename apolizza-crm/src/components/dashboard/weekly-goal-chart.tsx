@@ -8,7 +8,6 @@ import {
   BarElement,
   LineElement,
   PointElement,
-  Filler,
   Title,
   Tooltip,
   Legend,
@@ -22,13 +21,13 @@ ChartJS.register(
   BarElement,
   LineElement,
   PointElement,
-  Filler,
   Title,
   Tooltip,
   Legend
 );
 
 const MES_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+const MES_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 type Semana = {
   semana: number;
@@ -41,22 +40,118 @@ type Semana = {
 
 const fmtCur = (v: number) =>
   v >= 1000
-    ? `R$${(v / 1000).toFixed(1)}k`
+    ? `R$${(v / 1000).toFixed(0)}k`
     : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const fmtCurFull = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Returns the week number (1-4) for today given year/mesIndex (0-based)
+function getCurrentWeek(year: number, mesIndex: number): number {
+  const today = new Date();
+  if (today.getFullYear() !== year || today.getMonth() !== mesIndex) return -1;
+  const day = today.getDate();
+  if (day <= 7) return 1;
+  if (day <= 14) return 2;
+  if (day <= 21) return 3;
+  return 4;
+}
+
+// Date range strings per week: ["01/04 - 07/04", "08/04 - 14/04", ...]
+function getWeekDateRanges(year: number, mesIndex: number): string[] {
+  const lastDay = new Date(year, mesIndex + 1, 0).getDate();
+  const mm = String(mesIndex + 1).padStart(2, "0");
+  return [
+    `01/${mm} - 07/${mm}`,
+    `08/${mm} - 14/${mm}`,
+    `15/${mm} - 21/${mm}`,
+    `22/${mm} - ${String(lastDay).padStart(2, "0")}/${mm}`,
+  ];
+}
+
+// ── Termômetro SVG ─────────────────────────────────────────────────────────────
+function Thermometer({
+  pct,
+  metaMensal,
+  ganhoAtual,
+}: {
+  pct: number;
+  metaMensal: number;
+  ganhoAtual: number;
+}) {
+  const safe = Math.min(Math.max(pct, 0), 100);
+  const tubeH = 150;
+  const fillH = (safe / 100) * tubeH;
+  const color = safe >= 100 ? "#10b981" : safe >= 60 ? "#03a4ed" : "#ff695f";
+  const tubeTop = 18;
+
+  return (
+    <div className="flex flex-col items-center select-none">
+      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide text-center leading-tight mb-2">
+        Termômetro de<br />Meta Mensal
+      </p>
+
+      <svg viewBox="0 0 64 230" width={64} height={230}>
+        {/* Scale labels */}
+        <text x="20" y={tubeTop + 4}  fontSize="7" fill="#94a3b8" textAnchor="end">{fmtCur(metaMensal)}</text>
+        <text x="20" y={tubeTop + tubeH / 2 + 4} fontSize="7" fill="#94a3b8" textAnchor="end">{fmtCur(metaMensal * 0.5)}</text>
+        <text x="20" y={tubeTop + tubeH + 4} fontSize="7" fill="#94a3b8" textAnchor="end">0</text>
+
+        {/* Tick marks */}
+        <line x1="22" y1={tubeTop}              x2="28" y2={tubeTop}              stroke="#cbd5e1" strokeWidth="1" />
+        <line x1="22" y1={tubeTop + tubeH / 2}  x2="28" y2={tubeTop + tubeH / 2}  stroke="#cbd5e1" strokeWidth="1" />
+        <line x1="22" y1={tubeTop + tubeH}       x2="28" y2={tubeTop + tubeH}       stroke="#cbd5e1" strokeWidth="1" />
+
+        {/* Tube background */}
+        <rect x="28" y={tubeTop} width="14" height={tubeH} rx="7" fill="#e2e8f0" />
+
+        {/* Fill clip */}
+        <clipPath id="tubeClip">
+          <rect x="28" y={tubeTop} width="14" height={tubeH} rx="7" />
+        </clipPath>
+        <rect
+          x="28"
+          y={tubeTop + tubeH - fillH}
+          width="14"
+          height={fillH}
+          fill={color}
+          clipPath="url(#tubeClip)"
+        />
+
+        {/* Bulb */}
+        <circle cx="35" cy={tubeTop + tubeH + 22} r="20" fill="#e2e8f0" />
+        <circle cx="35" cy={tubeTop + tubeH + 22} r="16" fill={color} />
+        <text
+          x="35"
+          y={tubeTop + tubeH + 27}
+          fontSize="11"
+          fontWeight="bold"
+          fill="white"
+          textAnchor="middle"
+        >
+          {safe.toFixed(0)}%
+        </text>
+      </svg>
+
+      <p className="text-[9px] text-slate-400 text-center leading-tight mt-1">
+        {fmtCur(ganhoAtual)}<br />de {fmtCur(metaMensal)}
+      </p>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 export function WeeklyGoalChart() {
   const now = new Date();
-  const currentMes = MES_ARR[now.getMonth()];
   const [ano, setAno] = useState(now.getFullYear());
-  const [mes, setMes] = useState(currentMes);
+  const [mes, setMes] = useState(MES_ARR[now.getMonth()]);
   const [semanas, setSemanas] = useState<Semana[]>([]);
   const [metaMensal, setMetaMensal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const years = Array.from({ length: 4 }, (_, i) => now.getFullYear() - i);
+  const mesIndex = MES_ARR.indexOf(mes);
+  const mesName = MES_NAMES[mesIndex];
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -72,69 +167,69 @@ export function WeeklyGoalChart() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const labels = ["Sem. 1", "Sem. 2", "Sem. 3", "Sem. 4"];
-  const totalCotacoes = semanas.reduce((s, w) => s + w.novas, 0);
-  const totalFechadas = semanas.reduce((s, w) => s + w.fechadas, 0);
-  const totalGanho = semanas[3]?.ganhoAcumulado ?? semanas.at(-1)?.ganhoAcumulado ?? 0;
+  // ── Derived values ──────────────────────────────────────────────────────────
+  const totalGanho = semanas.at(-1)?.ganhoAcumulado ?? 0;
   const pct = metaMensal && metaMensal > 0 ? (totalGanho / metaMensal) * 100 : null;
-  const pctBar = pct !== null ? Math.min(pct, 100) : null;
+  const falta = metaMensal ? Math.max(metaMensal - totalGanho, 0) : null;
 
-  // Meta linear: onde deveria estar ao fim de cada semana
-  const metaLinear = metaMensal
-    ? labels.map((_, i) => parseFloat(((metaMensal / 4) * (i + 1)).toFixed(2)))
-    : null;
+  // % change from previous week to last week with data
+  const lastWithData = [...semanas].reverse().find((s) => s.ganho > 0);
+  const prevIndex = lastWithData ? semanas.findIndex((s) => s.semana === lastWithData.semana) - 1 : -1;
+  const prevGanho = prevIndex >= 0 ? semanas[prevIndex].ganho : 0;
+  const progressoSemanal =
+    lastWithData && prevGanho > 0
+      ? ((lastWithData.ganho - prevGanho) / prevGanho) * 100
+      : null;
+
+  // ── Chart setup ──────────────────────────────────────────────────────────────
+  const dateRanges = getWeekDateRanges(ano, mesIndex);
+  const currentWeek = getCurrentWeek(ano, mesIndex);
+
+  // Determine last week index that has data
+  const lastDataIdx = [...semanas].reduce(
+    (acc, s, i) => (s.ganho > 0 ? i : acc),
+    -1
+  );
+
+  const barColors = semanas.map((s, i) => {
+    if (i === lastDataIdx && currentWeek === s.semana) return "#03a4ed";   // current week — solid blue
+    if (i <= lastDataIdx) return "rgba(3,164,237,0.55)";                   // past weeks — lighter
+    return "rgba(203,213,225,0.5)";                                        // future weeks — gray
+  });
+
+  const ganhoData = semanas.map((s) => s.ganho);
+  const metaLineData = metaMensal ? semanas.map(() => metaMensal) : null;
+
+  const yMax = Math.ceil(
+    Math.max(...(metaMensal ? [metaMensal] : []), ...ganhoData, 1) * 1.25 / 100000
+  ) * 100000 || 100000;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartData: any = {
-    labels,
+    labels: semanas.map((s) => [`Semana ${s.semana}`, dateRanges[s.semana - 1]]),
     datasets: [
       {
         type: "bar" as const,
-        label: "Cotações no período",
-        data: semanas.map((s) => s.novas),
-        backgroundColor: "rgba(3,164,237,0.75)",
+        label: "Actuals atual (R$)",
+        data: ganhoData,
+        backgroundColor: barColors,
         borderRadius: 4,
-        yAxisID: "yQtd",
-        order: 3,
-      },
-      {
-        type: "bar" as const,
-        label: "Fechadas",
-        data: semanas.map((s) => s.fechadas),
-        backgroundColor: "rgba(16,185,129,0.85)",
-        borderRadius: 4,
-        yAxisID: "yQtd",
+        borderSkipped: false,
         order: 2,
       },
-      {
-        type: "line" as const,
-        label: "Ganho acumulado",
-        data: semanas.map((s) => s.ganhoAcumulado),
-        borderColor: "#ff695f",
-        backgroundColor: "rgba(255,105,95,0.1)",
-        borderWidth: 2.5,
-        pointRadius: 4,
-        pointBackgroundColor: "#ff695f",
-        fill: true,
-        tension: 0.3,
-        yAxisID: "yValor",
-        order: 1,
-      },
-      ...(metaLinear
+      ...(metaLineData
         ? [
             {
               type: "line" as const,
-              label: "Ritmo ideal (meta)",
-              data: metaLinear,
-              borderColor: "#8b5cf6",
+              label: `META MENSAL: ${fmtCurFull(metaMensal!)}`,
+              data: metaLineData,
+              borderColor: "#ef4444",
               borderWidth: 2,
-              borderDash: [6, 4],
-              pointRadius: 3,
-              pointBackgroundColor: "#8b5cf6",
+              borderDash: [8, 5],
+              pointRadius: 0,
               fill: false,
               tension: 0,
-              yAxisID: "yValor",
-              order: 0,
+              order: 1,
             },
           ]
         : []),
@@ -144,21 +239,31 @@ export function WeeklyGoalChart() {
   const options: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: { mode: "index", intersect: false },
     plugins: {
       legend: {
-        position: "top",
-        labels: { boxWidth: 12, font: { size: 11 }, padding: 12 },
+        position: "bottom" as const,
+        labels: {
+          boxWidth: 12,
+          font: { size: 10 },
+          padding: 12,
+        },
       },
       tooltip: {
         callbacks: {
           label(ctx) {
-            const label = ctx.dataset.label ?? "";
             const val = ctx.parsed.y ?? 0;
-            if (ctx.dataset.yAxisID === "yValor") {
-              return ` ${label}: ${fmtCurFull(val)}`;
-            }
-            return ` ${label}: ${val}`;
+            return ` ${ctx.dataset.label}: ${fmtCurFull(val)}`;
+          },
+          afterBody(items) {
+            const idx = items[0]?.dataIndex ?? -1;
+            const s = semanas[idx];
+            if (!s) return [];
+            const lines = [];
+            if (s.ganhoAcumulado > 0)
+              lines.push(` Acumulado: ${fmtCurFull(s.ganhoAcumulado)}`);
+            if (pct !== null && idx === lastDataIdx)
+              lines.push(` Progresso: ${pct.toFixed(0)}% da meta`);
+            return lines;
           },
         },
       },
@@ -166,142 +271,123 @@ export function WeeklyGoalChart() {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: 12 } },
+        ticks: { font: { size: 9 } },
       },
-      yQtd: {
-        type: "linear",
-        position: "left",
+      y: {
         beginAtZero: true,
-        ticks: { stepSize: 1, font: { size: 11 } },
+        max: yMax,
         grid: { color: "rgba(0,0,0,0.05)" },
-        title: { display: true, text: "Qtd. Cotações", font: { size: 10 } },
-      },
-      yValor: {
-        type: "linear",
-        position: "right",
-        beginAtZero: true,
-        grid: { display: false },
         ticks: {
-          font: { size: 11 },
+          font: { size: 10 },
           callback: (v) => fmtCur(Number(v)),
         },
-        title: { display: true, text: "Faturamento", font: { size: 10 } },
       },
     },
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+
+      {/* ── Dark header ─────────────────────────────────────────────────────── */}
+      <div className="px-5 py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">Progresso Semanal</h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Cotações e faturamento por semana — mesmos dados do dashboard
+          <h3 className="text-xs font-bold text-white uppercase tracking-widest">
+            Visão Semanal de Progresso da Meta Mensal
+          </h3>
+          <p className="text-[11px] text-slate-400 font-medium uppercase mt-0.5">
+            {mesName} {ano}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={mes}
             onChange={(e) => setMes(e.target.value)}
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-sm focus:border-[#03a4ed] focus:outline-none"
+            className="h-7 rounded-lg border border-slate-600 bg-slate-700 px-2 text-[11px] text-white focus:outline-none"
           >
-            {MES_ARR.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
+            {MES_ARR.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
           <select
             value={ano}
             onChange={(e) => setAno(Number(e.target.value))}
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-sm focus:border-[#03a4ed] focus:outline-none"
+            className="h-7 rounded-lg border border-slate-600 bg-slate-700 px-2 text-[11px] text-white focus:outline-none"
           >
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>
 
-      {/* KPI Strip */}
-      <div className="px-5 pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Total no período</p>
-          <p className="text-lg font-bold text-[#03a4ed] mt-0.5">{totalCotacoes}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Fechadas</p>
-          <p className="text-lg font-bold text-emerald-600 mt-0.5">{totalFechadas}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Ganho total</p>
-          <p className="text-lg font-bold text-[#ff695f] mt-0.5">{fmtCur(totalGanho)}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">
-            {metaMensal ? "% da meta mensal" : "Meta mensal"}
+      {/* ── KPI strip ───────────────────────────────────────────────────────── */}
+      <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b border-slate-100 bg-slate-50/50">
+
+        {/* Meta Mensal */}
+        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Meta Mensal</p>
+          <p className="text-sm font-bold text-slate-800 mt-1 truncate">
+            {metaMensal ? fmtCurFull(metaMensal) : "—"}
           </p>
-          {metaMensal ? (
-            <div className="mt-1">
-              <p className={`text-lg font-bold ${(pct ?? 0) >= 100 ? "text-emerald-600" : (pct ?? 0) >= 50 ? "text-[#03a4ed]" : "text-amber-500"}`}>
-                {pct?.toFixed(0)}%
+        </div>
+
+        {/* Total Atingido — highlighted */}
+        <div className="rounded-xl border border-[#03a4ed] bg-[#03a4ed] px-3 py-2.5 shadow-sm">
+          <p className="text-[9px] font-bold text-blue-100 uppercase tracking-wide">Total Atingido</p>
+          <p className="text-sm font-bold text-white mt-1 truncate">{fmtCurFull(totalGanho)}</p>
+          {pct !== null && (
+            <p className="text-[10px] font-semibold text-blue-100 mt-0.5">({pct.toFixed(0)}%)</p>
+          )}
+        </div>
+
+        {/* Faltam */}
+        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Faltam</p>
+          <p className="text-sm font-bold text-slate-800 mt-1 truncate">
+            {falta !== null ? fmtCurFull(falta) : "—"}
+          </p>
+        </div>
+
+        {/* Progresso Semanal */}
+        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Progresso Semanal</p>
+          {progressoSemanal !== null ? (
+            <>
+              <p className={`text-sm font-bold mt-1 ${progressoSemanal >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                {progressoSemanal >= 0 ? "+" : ""}{progressoSemanal.toFixed(0)}%
               </p>
-              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${pctBar ?? 0}%`,
-                    backgroundColor: (pct ?? 0) >= 100 ? "#10b981" : (pct ?? 0) >= 50 ? "#03a4ed" : "#f59e0b",
-                  }}
-                />
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Meta: {fmtCur(metaMensal)}
-              </p>
-            </div>
+              <p className="text-[9px] text-slate-400 mt-0.5">vs. Semana Anterior</p>
+            </>
           ) : (
-            <p className="text-sm text-slate-400 mt-0.5">Não definida</p>
+            <p className="text-sm text-slate-400 mt-1">—</p>
           )}
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="px-5 pb-5 pt-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-56">
-            <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : totalCotacoes === 0 ? (
-          <div className="flex items-center justify-center h-56 text-slate-400 text-sm">
-            Nenhuma cotação encontrada para {mes}/{ano}
-          </div>
-        ) : (
-          <div className="h-56">
-            <Chart type="bar" data={chartData} options={options} />
-          </div>
-        )}
-      </div>
+      {/* ── Body: chart + thermometer ───────────────────────────────────────── */}
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="w-6 h-6 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="px-4 pt-3 pb-4 flex items-start gap-4">
 
-      {/* Legend explicativa */}
-      {totalCotacoes > 0 && (
-        <div className="px-5 pb-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-slate-50 pt-3">
-          <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "rgba(3,164,237,0.75)" }} />
-            Cotações no período (por semana de atualização)
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "rgba(16,185,129,0.85)" }} />
-            Fechadas naquela semana
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#ff695f" }} />
-            Faturamento acumulado
-          </span>
-          {metaMensal && (
-            <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="inline-block w-5 border-t-2 border-dashed border-violet-500" />
-              Ritmo ideal para bater a meta
-            </span>
-          )}
+          {/* Chart */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold text-slate-600 text-center mb-2">
+              Progresso Semanal vs. Meta Mensal — {mesName} {ano}
+            </p>
+            <div className="h-52">
+              <Chart type="bar" data={chartData} options={options} />
+            </div>
+          </div>
+
+          {/* Thermometer */}
+          {metaMensal ? (
+            <div className="shrink-0 pt-1">
+              <Thermometer
+                pct={pct ?? 0}
+                metaMensal={metaMensal}
+                ganhoAtual={totalGanho}
+              />
+            </div>
+          ) : null}
         </div>
       )}
     </div>

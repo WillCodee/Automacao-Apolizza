@@ -186,6 +186,29 @@ export const metas = pgTable(
 );
 
 // ============================================================
+// METAS_PRODUTO
+// ============================================================
+
+export const metasProduto = pgTable(
+  "metas_produto",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ano: integer("ano").notNull(),
+    mes: integer("mes").notNull(),
+    produto: varchar("produto", { length: 100 }).notNull(),
+    metaValor: decimal("meta_valor", { precision: 12, scale: 2 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("metas_produto_ano_mes_produto_idx").on(table.ano, table.mes, table.produto),
+  ]
+);
+
+// ============================================================
 // COTACAO_HISTORY (Audit Trail)
 // ============================================================
 

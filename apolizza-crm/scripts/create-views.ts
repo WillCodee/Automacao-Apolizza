@@ -5,32 +5,11 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
 
-// Normaliza mes_referencia para sempre retornar 3 letras (ex: "MAIO" → "MAI", "ABRIL" → "ABR")
-const MES_NORM = `
-  CASE UPPER(mes_referencia)
-    WHEN 'JANEIRO'   THEN 'JAN'
-    WHEN 'FEVEREIRO' THEN 'FEV'
-    WHEN 'MARÇO'     THEN 'MAR'
-    WHEN 'MARCO'     THEN 'MAR'
-    WHEN 'ABRIL'     THEN 'ABR'
-    WHEN 'MAIO'      THEN 'MAI'
-    WHEN 'JUNHO'     THEN 'JUN'
-    WHEN 'JULHO'     THEN 'JUL'
-    WHEN 'AGOSTO'    THEN 'AGO'
-    WHEN 'SETEMBRO'  THEN 'SET'
-    WHEN 'OUTUBRO'   THEN 'OUT'
-    WHEN 'NOVEMBRO'  THEN 'NOV'
-    WHEN 'DEZEMBRO'  THEN 'DEZ'
-    ELSE UPPER(mes_referencia)
-  END
-`;
-
 async function createViews() {
-  // Drop all views first to allow column type changes
   await sql`DROP VIEW IF EXISTS vw_cotadores, vw_kpis, vw_status_breakdown, vw_monthly_trend CASCADE`;
   console.log("Views antigas removidas");
 
-  // View: KPIs globais por ano/mês
+  // ── vw_kpis ──────────────────────────────────────────────────────────────────
   await sql`
     CREATE VIEW vw_kpis AS
     SELECT
@@ -45,6 +24,8 @@ async function createViews() {
         WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(mes_referencia)
       END AS mes,
       assignee_id,
+
+      -- Totais (novas + renovações)
       count(*)::int AS total_cotacoes,
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
       count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
@@ -55,7 +36,19 @@ async function createViews() {
       ROUND(
         count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::numeric
         / NULLIF(count(*), 0) * 100, 1
-      )::float AS taxa_conversao
+      )::float AS taxa_conversao,
+
+      -- Renovações (tipo_cliente = 'RENOVAÇÃO' ou is_renovacao = true)
+      count(*) FILTER (WHERE UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)::int AS total_renovacoes,
+      count(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS fechadas_renovacao,
+      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS a_receber_renovacao,
+      count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate') AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS perdas_renovacao,
+
+      -- Novas (não renovação)
+      count(*) FILTER (WHERE NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS total_novas,
+      count(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS fechadas_novas,
+      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS a_receber_novas
+
     FROM cotacoes
     WHERE deleted_at IS NULL
       AND ano_referencia IS NOT NULL
@@ -64,7 +57,7 @@ async function createViews() {
   `;
   console.log("vw_kpis criada");
 
-  // View: Status breakdown
+  // ── vw_status_breakdown ───────────────────────────────────────────────────────
   await sql`
     CREATE VIEW vw_status_breakdown AS
     SELECT
@@ -94,7 +87,7 @@ async function createViews() {
   `;
   console.log("vw_status_breakdown criada");
 
-  // View: Desempenho por cotador
+  // ── vw_cotadores ──────────────────────────────────────────────────────────────
   await sql`
     CREATE VIEW vw_cotadores AS
     SELECT
@@ -111,6 +104,8 @@ async function createViews() {
         WHEN 'OUTUBRO'   THEN 'OUT' WHEN 'NOVEMBRO'  THEN 'NOV'
         WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(c.mes_referencia)
       END AS mes,
+
+      -- Totais
       count(c.id)::int AS total_cotacoes,
       count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
       count(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
@@ -118,7 +113,17 @@ async function createViews() {
       ROUND(
         count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
         / NULLIF(count(c.id), 0) * 100, 1
-      )::float AS taxa_conversao
+      )::float AS taxa_conversao,
+
+      -- Renovações
+      count(c.id) FILTER (WHERE UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true)::int AS total_renovacoes,
+      count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS fechadas_renovacao,
+      COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true)), 0)::float AS faturamento_renovacao,
+
+      -- Novas
+      count(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true))::int AS fechadas_novas,
+      COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = true)), 0)::float AS faturamento_novas
+
     FROM users u
     LEFT JOIN cotacoes c ON c.assignee_id = u.id
       AND c.deleted_at IS NULL
@@ -129,7 +134,7 @@ async function createViews() {
   `;
   console.log("vw_cotadores criada");
 
-  // View: Monthly trend
+  // ── vw_monthly_trend ──────────────────────────────────────────────────────────
   await sql`
     CREATE VIEW vw_monthly_trend AS
     SELECT
@@ -144,10 +149,21 @@ async function createViews() {
         WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(mes_referencia)
       END AS mes,
       assignee_id,
+
+      -- Totais
       count(*) FILTER (WHERE LOWER(situacao) = 'fechado')::int AS fechadas,
       count(*) FILTER (WHERE LOWER(situacao) IN ('perda','perda/resgate'))::int AS perdas,
       count(*)::int AS total,
-      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS a_receber
+      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado'), 0)::float AS a_receber,
+
+      -- Renovações
+      count(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS fechadas_renovacao,
+      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS a_receber_renovacao,
+
+      -- Novas
+      count(*) FILTER (WHERE LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true))::int AS fechadas_novas,
+      COALESCE(SUM(a_receber::numeric) FILTER (WHERE LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true)), 0)::float AS a_receber_novas
+
     FROM cotacoes
     WHERE deleted_at IS NULL
       AND ano_referencia IS NOT NULL

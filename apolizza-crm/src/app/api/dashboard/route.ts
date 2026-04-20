@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
     if (!user) return apiError("Nao autenticado", 401);
 
     const { searchParams } = req.nextUrl;
-    const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
-    const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
-    const ano = searchParams.get("ano");           // e.g. "2026"
-    const mes = searchParams.get("mes");           // e.g. "JAN"
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo   = searchParams.get("dateTo");
+    const ano      = searchParams.get("ano");
+    const mes      = searchParams.get("mes");
     const isCotador = user.role === "cotador";
 
     let anoFilter = sql``;
@@ -29,9 +29,7 @@ export async function GET(req: NextRequest) {
         const dTo = new Date(dateTo);
         if (dFrom.getMonth() !== dTo.getMonth() || dFrom.getFullYear() !== dTo.getFullYear()) {
           mesFilter = sql``;
-          if (dFrom.getFullYear() !== dTo.getFullYear()) {
-            anoFilter = sql``;
-          }
+          if (dFrom.getFullYear() !== dTo.getFullYear()) anoFilter = sql``;
         }
       }
     } else if (ano) {
@@ -41,45 +39,62 @@ export async function GET(req: NextRequest) {
 
     const userFilter = isCotador ? sql`and assignee_id = ${user.id}` : sql``;
 
-    // Story 10.5: Parallel queries with Promise.all
     const [kpiResult, statusResult, monthlyResult, cotadoresResult] = await Promise.all([
-      // KPIs from view
+      // KPIs — inclui colunas de renovação e novas
       db.execute(sql`
         select
-          coalesce(sum(total_cotacoes), 0)::int as "totalCotacoes",
-          coalesce(sum(fechadas), 0)::int as "fechadas",
-          coalesce(sum(perdas), 0)::int as "perdas",
-          coalesce(sum(em_andamento), 0)::int as "emAndamento",
-          coalesce(sum(total_a_receber), 0)::float as "totalAReceber",
-          coalesce(sum(total_valor_perda), 0)::float as "totalValorPerda",
-          coalesce(sum(total_premio), 0)::float as "totalPremio",
+          coalesce(sum(total_cotacoes), 0)::int                        as "totalCotacoes",
+          coalesce(sum(fechadas), 0)::int                              as "fechadas",
+          coalesce(sum(perdas), 0)::int                                as "perdas",
+          coalesce(sum(em_andamento), 0)::int                          as "emAndamento",
+          coalesce(sum(total_a_receber), 0)::float                     as "totalAReceber",
+          coalesce(sum(total_valor_perda), 0)::float                   as "totalValorPerda",
+          coalesce(sum(total_premio), 0)::float                        as "totalPremio",
           round(
             coalesce(sum(fechadas), 0)::numeric
             / nullif(coalesce(sum(total_cotacoes), 0), 0) * 100, 1
-          )::float as "taxaConversao"
+          )::float                                                     as "taxaConversao",
+
+          -- Renovações
+          coalesce(sum(total_renovacoes), 0)::int                      as "totalRenovacoes",
+          coalesce(sum(fechadas_renovacao), 0)::int                    as "fechadasRenovacao",
+          coalesce(sum(a_receber_renovacao), 0)::float                 as "aReceberRenovacao",
+          coalesce(sum(perdas_renovacao), 0)::int                      as "perdasRenovacao",
+
+          -- Novas
+          coalesce(sum(total_novas), 0)::int                           as "totalNovas",
+          coalesce(sum(fechadas_novas), 0)::int                        as "fechadasNovas",
+          coalesce(sum(a_receber_novas), 0)::float                     as "aReceberNovas"
+
         from vw_kpis
         where true ${anoFilter} ${mesFilter} ${userFilter}
       `),
-      // Status breakdown from view
+
+      // Status breakdown
       db.execute(sql`
         select
           status,
-          sum(count)::int as "count",
-          sum(total)::float as "total"
+          sum(count)::int    as "count",
+          sum(total)::float  as "total"
         from vw_status_breakdown
         where true ${anoFilter} ${mesFilter} ${userFilter}
         group by status
         order by sum(count) desc
       `),
-      // Monthly trend from view
+
+      // Monthly trend — inclui renovação e novas
       db.execute(sql`
         select
           mes,
           ano,
-          sum(fechadas)::int as "fechadas",
-          sum(perdas)::int as "perdas",
-          sum(total)::int as "total",
-          sum(a_receber)::float as "aReceber"
+          sum(fechadas)::int              as "fechadas",
+          sum(perdas)::int                as "perdas",
+          sum(total)::int                 as "total",
+          sum(a_receber)::float           as "aReceber",
+          sum(fechadas_renovacao)::int    as "fechadasRenovacao",
+          sum(a_receber_renovacao)::float as "aReceberRenovacao",
+          sum(fechadas_novas)::int        as "fechadasNovas",
+          sum(a_receber_novas)::float     as "aReceberNovas"
         from vw_monthly_trend
         where true ${anoFilter} ${userFilter}
         group by mes, ano
@@ -92,31 +107,42 @@ export async function GET(req: NextRequest) {
             ELSE 99
           END asc
       `),
-      // Cotadores — todos ativos, com LEFT JOIN nos dados do período
+
+      // Cotadores — inclui renovação e novas
       isCotador
         ? Promise.resolve({ rows: [] })
         : db.execute(sql`
             select
-              u.id as "userId",
+              u.id                                                          as "userId",
               u.name,
-              u.photo_url as "photoUrl",
-              coalesce(v.total_cotacoes, 0)::int as "totalCotacoes",
-              coalesce(v.fechadas, 0)::int as "fechadas",
-              coalesce(v.perdas, 0)::int as "perdas",
-              coalesce(v.faturamento, 0)::float as "faturamento",
-              coalesce(v.taxa_conversao, 0)::float as "taxaConversao"
+              u.photo_url                                                   as "photoUrl",
+              coalesce(v.total_cotacoes, 0)::int                            as "totalCotacoes",
+              coalesce(v.fechadas, 0)::int                                  as "fechadas",
+              coalesce(v.perdas, 0)::int                                    as "perdas",
+              coalesce(v.faturamento, 0)::float                             as "faturamento",
+              coalesce(v.taxa_conversao, 0)::float                          as "taxaConversao",
+              coalesce(v.total_renovacoes, 0)::int                          as "totalRenovacoes",
+              coalesce(v.fechadas_renovacao, 0)::int                        as "fechadasRenovacao",
+              coalesce(v.faturamento_renovacao, 0)::float                   as "faturamentoRenovacao",
+              coalesce(v.fechadas_novas, 0)::int                            as "fechadasNovas",
+              coalesce(v.faturamento_novas, 0)::float                       as "faturamentoNovas"
             from users u
             left join (
               select
                 user_id,
-                coalesce(sum(total_cotacoes), 0)::int as total_cotacoes,
-                coalesce(sum(fechadas), 0)::int as fechadas,
-                coalesce(sum(perdas), 0)::int as perdas,
-                coalesce(sum(faturamento), 0)::float as faturamento,
+                coalesce(sum(total_cotacoes), 0)::int       as total_cotacoes,
+                coalesce(sum(fechadas), 0)::int             as fechadas,
+                coalesce(sum(perdas), 0)::int               as perdas,
+                coalesce(sum(faturamento), 0)::float        as faturamento,
                 round(
                   coalesce(sum(fechadas), 0)::numeric
                   / nullif(coalesce(sum(total_cotacoes), 0), 0) * 100, 1
-                )::float as taxa_conversao
+                )::float                                    as taxa_conversao,
+                coalesce(sum(total_renovacoes), 0)::int     as total_renovacoes,
+                coalesce(sum(fechadas_renovacao), 0)::int   as fechadas_renovacao,
+                coalesce(sum(faturamento_renovacao), 0)::float as faturamento_renovacao,
+                coalesce(sum(fechadas_novas), 0)::int       as fechadas_novas,
+                coalesce(sum(faturamento_novas), 0)::float  as faturamento_novas
               from vw_cotadores
               where true ${anoFilter} ${mesFilter}
               group by user_id
@@ -129,10 +155,7 @@ export async function GET(req: NextRequest) {
     const kpis = kpiResult.rows[0] as Record<string, unknown>;
 
     return apiSuccess({
-      kpis: {
-        ...kpis,
-        taxaConversao: kpis.taxaConversao ?? 0,
-      },
+      kpis: { ...kpis, taxaConversao: kpis.taxaConversao ?? 0 },
       statusBreakdown: statusResult.rows,
       monthlyTrend: monthlyResult.rows,
       cotadores: cotadoresResult.rows,

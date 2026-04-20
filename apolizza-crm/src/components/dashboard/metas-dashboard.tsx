@@ -25,6 +25,12 @@ type CotadorPerf = {
   perdas: number | string;
   ganhos: number | string;
   taxaConversao: number | string | null;
+  // Renovações
+  totalRenovacoes?: number | string;
+  fechadasRenovacao?: number | string;
+  ganhosRenovacao?: number | string;
+  fechadasNovas?: number | string;
+  ganhosNovas?: number | string;
 };
 
 type GrupoPerf = {
@@ -36,6 +42,12 @@ type GrupoPerf = {
   perdas: number | string;
   ganhos: number | string;
   taxaConversao: number | string | null;
+  // Renovações
+  totalRenovacoes?: number | string;
+  fechadasRenovacao?: number | string;
+  ganhosRenovacao?: number | string;
+  fechadasNovas?: number | string;
+  ganhosNovas?: number | string;
 };
 
 type Kpis = {
@@ -43,6 +55,12 @@ type Kpis = {
   fechadas: number;
   totalAReceber: number;
   perdas: number;
+  // Renovações
+  totalRenovacoes?: number;
+  fechadasRenovacao?: number;
+  aReceberRenovacao?: number;
+  fechadasNovas?: number;
+  aReceberNovas?: number;
 };
 
 const fmtCur = (v: number | null | undefined) =>
@@ -250,6 +268,21 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                 {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas da empresa →</Link> : "Nenhuma meta definida para o período."}
               </p>
             )}
+
+            {/* Faixa renovações empresa */}
+            {(kpis?.totalRenovacoes ?? 0) > 0 && (
+              <div className="mt-3 rounded-xl bg-violet-50 border border-violet-100 px-3 py-2 flex flex-wrap gap-x-4 gap-y-1 items-center">
+                <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Renovações</span>
+                <span className="text-[11px] text-violet-700">{kpis!.totalRenovacoes} no período</span>
+                <span className="text-[11px] text-violet-700">{kpis!.fechadasRenovacao} fechadas</span>
+                <span className="text-[11px] font-semibold text-violet-800">{fmtCur(kpis!.aReceberRenovacao ?? 0)}</span>
+                {(kpis?.aReceberRenovacao ?? 0) > 0 && ganhoAtual > 0 && (
+                  <span className="text-[10px] text-violet-500 ml-auto">
+                    {Math.round(((kpis!.aReceberRenovacao ?? 0) / ganhoAtual) * 100)}% do faturamento
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Cotadores / Grupos ────────────────────────────────── */}
@@ -299,11 +332,21 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                             {pct !== null && <PctBadge pct={pct} />}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 mb-1.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mb-1.5">
                           <span className="text-[11px] text-slate-400">{fechadas} fechadas</span>
                           {mQtd && <span className="text-[11px] text-slate-400">/ {mQtd} meta</span>}
                           <span className="text-[11px] text-slate-400">{perdas} perdas</span>
                           <span className="text-[11px] text-slate-400">{taxa.toFixed(0)}% taxa</span>
+                          {Number(c.fechadasRenovacao ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full">
+                              ↻ {Number(c.fechadasRenovacao)} renov. · {fmtCur(Number(c.ganhosRenovacao ?? 0))}
+                            </span>
+                          )}
+                          {Number(c.fechadasNovas ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-[#03a4ed] bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              ✦ {Number(c.fechadasNovas)} novas · {fmtCur(Number(c.ganhosNovas ?? 0))}
+                            </span>
+                          )}
                         </div>
                         <ProgressBar pct={pct ?? 0} color={barColor} />
                         {pct === null && (
@@ -348,11 +391,21 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
                             {pValorG !== null && <PctBadge pct={pValorG} />}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 mb-1.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mb-1.5">
                           <span className="text-[11px] text-slate-400">{total} cotações</span>
                           <span className="text-[11px] text-emerald-600">{fechadas} fechadas</span>
                           <span className="text-[11px] text-red-400">{perdas} perdas</span>
                           <span className="text-[11px] text-slate-400">{taxa.toFixed(0)}% taxa</span>
+                          {Number(g.fechadasRenovacao ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full">
+                              ↻ {Number(g.fechadasRenovacao)} renov. · {fmtCur(Number(g.ganhosRenovacao ?? 0))}
+                            </span>
+                          )}
+                          {Number(g.fechadasNovas ?? 0) > 0 && (
+                            <span className="text-[10px] font-medium text-[#03a4ed] bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              ✦ {Number(g.fechadasNovas)} novas · {fmtCur(Number(g.ganhosNovas ?? 0))}
+                            </span>
+                          )}
                         </div>
                         <ProgressBar pct={pValorG ?? (fechadas > 0 ? Math.min((fechadas / Math.max(total, 1)) * 100, 100) : 0)} color={barColor} />
                         {pValorG === null && (

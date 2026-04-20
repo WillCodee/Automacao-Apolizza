@@ -12,6 +12,7 @@ import { AdminKanban } from "./admin-kanban";
 import { AnálisePanel } from "./analise-panel";
 import { MetasDashboard } from "./metas-dashboard";
 import { WeeklyGoalChart } from "./weekly-goal-chart";
+import { MetasProdutoChart } from "./metas-produto-chart";
 
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const isAdminOrProprietario = userRole === "admin" || userRole === "proprietario";
@@ -53,8 +54,11 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
       {/* Row 5: Progresso semanal vs meta */}
       <WeeklyGoalChart />
 
-      {/* Row 6: Metas & Desempenho detalhado */}
-      <MetasDashboard isAdmin={isAdminOrProprietario} />
+      {/* Row 6: Metas & Desempenho detalhado + Meta por Produto */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MetasDashboard isAdmin={isAdminOrProprietario} />
+        <MetasProdutoChart />
+      </div>
 
       {/* Row 6: Cards de cotadores (admin/proprietario) */}
       {isAdminOrProprietario && (
