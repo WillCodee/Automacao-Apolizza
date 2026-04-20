@@ -2,10 +2,10 @@
  * Cron da Manhã — 11:00 UTC (08:00 BRT)
  * - Marca cotações como atrasado + notificações sistema + Telegram
  * - Tratativas de hoje e amanhã → Telegram + notificações cotadores
- * - Alertas de vigência (60/30/15 dias) → email admins + responsáveis
- * - Alertas de tratativa → email responsáveis
- * - Novas tarefas criadas hoje → email cotadores
- * - Tarefas concluídas hoje → email admins
+ * - Alertas de vigência (60/30/15 dias) → Telegram
+ * - Novas tarefas criadas hoje → Telegram
+ * - Tarefas concluídas hoje → Telegram
+ * - Tarefas pendentes atrasadas → Telegram
  */
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
@@ -17,16 +17,10 @@ import {
   fmtAtrasado,
   fmtTratativas,
   fmtTarefasPendentes,
+  fmtVigenciaAlerta,
+  fmtNovasTarefas,
+  fmtTarefasConcluidas,
 } from "@/lib/telegram";
-import {
-  getAdminEmails,
-  sendAlertEmail,
-  buildVigenciaHtml,
-  buildTratativaHtml,
-  buildNovaTarefaHtml,
-  buildTarefaConcluidaHtml,
-  type CotacaoAlerta,
-} from "@/lib/email";
 
 function verifyCron(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -117,12 +111,12 @@ async function processarTratativas() {
   return { hoje: hoje.rows.length, amanha: amanha.rows.length };
 }
 
-// ─── 3. Alertas de vigência (email) ─────────────────────────────────────────
+// ─── 3. Alertas de vigência (Telegram) ──────────────────────────────────────
 
 async function processarAlertasVigencia() {
   const result = await db.execute(sql`
     SELECT c.id, c.name, c.status, c.seguradora, c.fim_vigencia::text,
-           u.name as assignee_name, u.email as assignee_email
+           u.name as assignee_name
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
@@ -132,151 +126,42 @@ async function processarAlertasVigencia() {
     ORDER BY c.fim_vigencia ASC
   `);
 
-  const rows = result.rows as unknown as CotacaoAlerta[];
-  if (rows.length === 0) return { sent: 0, cotacoes: 0 };
+  const rows = result.rows as { id: string; name: string; seguradora: string | null; fim_vigencia: string; assignee_name: string | null }[];
+  const msg = fmtVigenciaAlerta(rows);
+  if (msg) await sendTelegram(msg);
 
-  const now = new Date();
-  const d15 = new Date(now); d15.setDate(d15.getDate() + 15);
-  const d30 = new Date(now); d30.setDate(d30.getDate() + 30);
-
-  const groups = [
-    { label: "Até 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
-    { label: "16–30 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
-    { label: "31–60 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
-  ];
-  for (const row of rows) {
-    const fv = new Date(row.fim_vigencia!);
-    if (fv <= d15) groups[0].cotacoes.push(row);
-    else if (fv <= d30) groups[1].cotacoes.push(row);
-    else groups[2].cotacoes.push(row);
-  }
-
-  const admins = await getAdminEmails();
-  let sent = 0;
-
-  if (admins.length > 0) {
-    const res = await sendAlertEmail({ to: admins, subject: `⚠️ ${rows.length} cotação(ões) com vigência próxima`, html: buildVigenciaHtml(groups) });
-    if (res.success) sent++;
-  }
-
-  const byAssignee = new Map<string, CotacaoAlerta[]>();
-  for (const row of rows) {
-    if (row.assignee_email) {
-      const list = byAssignee.get(row.assignee_email) || [];
-      list.push(row);
-      byAssignee.set(row.assignee_email, list);
-    }
-  }
-  for (const [email, cotacoes] of byAssignee) {
-    if (admins.includes(email)) continue;
-    const pg = [
-      { label: "Até 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
-      { label: "16–30 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
-      { label: "31–60 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
-    ];
-    for (const c of cotacoes) {
-      const fv = new Date(c.fim_vigencia!);
-      if (fv <= d15) pg[0].cotacoes.push(c);
-      else if (fv <= d30) pg[1].cotacoes.push(c);
-      else pg[2].cotacoes.push(c);
-    }
-    const res = await sendAlertEmail({ to: email, subject: `⚠️ ${cotacoes.length} cotação(ões) com vigência próxima`, html: buildVigenciaHtml(pg) });
-    if (res.success) sent++;
-  }
-
-  return { sent, cotacoes: rows.length };
+  return rows.length;
 }
 
-// ─── 4. Alertas de tratativa (email) ────────────────────────────────────────
-
-async function processarAlertasTratativa() {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.proxima_tratativa::text,
-           u.name as assignee_name, u.email as assignee_email
-    FROM cotacoes c
-    LEFT JOIN users u ON c.assignee_id = u.id
-    WHERE c.deleted_at IS NULL
-      AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
-      AND c.proxima_tratativa IS NOT NULL
-      AND c.proxima_tratativa BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day'
-    ORDER BY c.proxima_tratativa ASC
-  `);
-
-  const rows = result.rows as unknown as CotacaoAlerta[];
-  if (rows.length === 0) return { sent: 0, cotacoes: 0 };
-
-  const byAssignee = new Map<string, CotacaoAlerta[]>();
-  for (const row of rows) {
-    const email = row.assignee_email || "admins";
-    const list = byAssignee.get(email) || [];
-    list.push(row);
-    byAssignee.set(email, list);
-  }
-
-  const admins = await getAdminEmails();
-  let sent = 0;
-  for (const [email, cotacoes] of byAssignee) {
-    const to = email === "admins" ? admins : [email];
-    if (to.length === 0) continue;
-    const res = await sendAlertEmail({ to, subject: `📋 ${cotacoes.length} tratativa(s) agendada(s) para hoje/amanhã`, html: buildTratativaHtml(cotacoes) });
-    if (res.success) sent++;
-  }
-
-  return { sent, cotacoes: rows.length };
-}
-
-// ─── 5. Novas tarefas + concluídas (email) ──────────────────────────────────
-
-interface TarefaRow extends Record<string, unknown> {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  data_vencimento: string | null;
-  status: string;
-  cotador_id: string;
-  cotador_name: string;
-  cotador_email: string;
-  criador_name: string;
-}
+// ─── 4. Novas tarefas + concluídas (Telegram) ───────────────────────────────
 
 async function processarNotificacoesTarefas() {
-  const admins = await getAdminEmails();
-  let emailsEnviados = 0;
-
-  // Novas tarefas criadas hoje → email para cotador
-  const novas = await db.execute<TarefaRow>(sql`
-    SELECT t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
-           u.name as cotador_name, u.email as cotador_email,
-           criador.name as criador_name
+  const novas = await db.execute(sql`
+    SELECT t.id, t.titulo, t.data_vencimento::text,
+           u.name as cotador_name, criador.name as criador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
     JOIN users criador ON t.criador_id = criador.id
     WHERE t.created_at::date = NOW()::date AND u.is_active = true
   `);
-  for (const t of novas.rows) {
-    const res = await sendAlertEmail({ to: t.cotador_email, subject: `🆕 Nova Tarefa: ${t.titulo}`, html: buildNovaTarefaHtml(t) });
-    if (res.success) emailsEnviados++;
-  }
 
-  // Tarefas concluídas hoje → email para admins
-  const concluidas = await db.execute<TarefaRow>(sql`
-    SELECT t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
-           u.name as cotador_name, u.email as cotador_email,
-           criador.name as criador_name
+  const concluidas = await db.execute(sql`
+    SELECT t.id, t.titulo, u.name as cotador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
-    JOIN users criador ON t.criador_id = criador.id
     WHERE t.updated_at::date = NOW()::date AND t.status = 'Concluída' AND u.is_active = true
   `);
-  for (const t of concluidas.rows) {
-    const res = await sendAlertEmail({ to: admins, subject: `✅ Tarefa Concluída: ${t.titulo}`, html: buildTarefaConcluidaHtml(t) });
-    if (res.success) emailsEnviados++;
-  }
 
-  return { novas: novas.rows.length, concluidas: concluidas.rows.length, emailsEnviados };
+  const msgNovas = fmtNovasTarefas(novas.rows as { id: string; titulo: string; cotador_name: string; criador_name: string; data_vencimento: string | null }[]);
+  const msgConcluidas = fmtTarefasConcluidas(concluidas.rows as { id: string; titulo: string; cotador_name: string }[]);
+
+  if (msgNovas) await sendTelegram(msgNovas);
+  if (msgConcluidas) await sendTelegram(msgConcluidas);
+
+  return { novas: novas.rows.length, concluidas: concluidas.rows.length };
 }
 
-// ─── 6. Tarefas pendentes atrasadas (Telegram) ──────────────────────────────
+// ─── 5. Tarefas pendentes atrasadas (Telegram) ──────────────────────────────
 
 async function processarTarefasPendentes() {
   const r = await db.execute(sql`
@@ -300,11 +185,10 @@ async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
 
   try {
-    const [atrasados, tratativas, vigencia, alertaTratativa, tarefas, tarefasPendentes] = await Promise.all([
+    const [atrasados, tratativas, vigencia, tarefas, tarefasPendentes] = await Promise.all([
       processarAtrasados(),
       processarTratativas(),
       processarAlertasVigencia(),
-      processarAlertasTratativa(),
       processarNotificacoesTarefas(),
       processarTarefasPendentes(),
     ]);
@@ -314,7 +198,6 @@ async function handler(req: NextRequest) {
       atrasados,
       tratativas,
       vigencia,
-      alertaTratativa,
       tarefas,
       tarefasPendentes,
     });

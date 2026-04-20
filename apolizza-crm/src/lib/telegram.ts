@@ -95,6 +95,61 @@ export function fmtCotacoesVencendoHoje(rows: { id: string; name: string; assign
   return `📅 <b>COTAÇÕES COM PRAZO HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
 }
 
+export function fmtVigenciaAlerta(rows: { id: string; name: string; seguradora: string | null; fim_vigencia: string; assignee_name: string | null }[]) {
+  if (rows.length === 0) return null;
+  const now = new Date();
+  const d15 = new Date(now); d15.setDate(d15.getDate() + 15);
+  const d30 = new Date(now); d30.setDate(d30.getDate() + 30);
+  const grupos: { emoji: string; label: string; items: typeof rows }[] = [
+    { emoji: "🔴", label: "Até 15 dias", items: [] },
+    { emoji: "🟠", label: "16–30 dias", items: [] },
+    { emoji: "🔵", label: "31–60 dias", items: [] },
+  ];
+  for (const r of rows) {
+    const fv = new Date(r.fim_vigencia);
+    if (fv <= d15) grupos[0].items.push(r);
+    else if (fv <= d30) grupos[1].items.push(r);
+    else grupos[2].items.push(r);
+  }
+  const parts = grupos
+    .filter((g) => g.items.length > 0)
+    .map((g) => {
+      const lines = g.items.map((r) => `  • ${linkCotacao(r.id, r.name)}\n    🏢 ${esc(r.seguradora || "—")} | 👤 ${esc(r.assignee_name || "—")} | 📅 ${fmtDate(r.fim_vigencia)}`);
+      return `${g.emoji} <b>${g.label} (${g.items.length})</b>\n${lines.join("\n")}`;
+    });
+  return `⚠️ <b>VIGÊNCIAS PRÓXIMAS (${rows.length})</b>\n\n${parts.join("\n\n")}`;
+}
+
+export function fmtNovasTarefas(rows: { id: string; titulo: string; cotador_name: string; criador_name: string; data_vencimento: string | null }[]) {
+  if (rows.length === 0) return null;
+  const lines = rows.map((r) => `• ${linkTarefa(r.id, r.titulo)}\n  👤 ${esc(r.cotador_name)} | 🧑‍💼 ${esc(r.criador_name)}${r.data_vencimento ? ` | 📅 ${fmtDate(r.data_vencimento)}` : ""}`);
+  return `🆕 <b>NOVAS TAREFAS HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
+}
+
+export function fmtTarefasConcluidas(rows: { id: string; titulo: string; cotador_name: string }[]) {
+  if (rows.length === 0) return null;
+  const lines = rows.map((r) => `• ${linkTarefa(r.id, r.titulo)}\n  👤 ${esc(r.cotador_name)}`);
+  return `✅ <b>TAREFAS CONCLUÍDAS HOJE (${rows.length})</b>\n\n${lines.join("\n\n")}`;
+}
+
+export function fmtTarefasAtrasadasTarde(rows: { id: string; titulo: string; cotador_name: string; data_vencimento: string | null }[]) {
+  if (rows.length === 0) return null;
+  const lines = rows.map((r) => `• ${linkTarefa(r.id, r.titulo)}\n  👤 ${esc(r.cotador_name)} | 📅 ${r.data_vencimento ? fmtDate(r.data_vencimento) : "Sem prazo"}`);
+  return `⚠️ <b>TAREFAS ATRASADAS (${rows.length})</b>\n\n${lines.join("\n\n")}`;
+}
+
+export function fmtResumoDiario(kpis: { novas_hoje: number; atrasadas: number; fechadas_hoje: number; vencendo_30d: number }) {
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  return (
+    `📊 <b>RESUMO DIÁRIO — ${hoje}</b>\n\n` +
+    `🆕 Novas hoje: <b>${kpis.novas_hoje}</b>\n` +
+    `✅ Fechadas hoje: <b>${kpis.fechadas_hoje}</b>\n` +
+    `🚨 Atrasadas: <b>${kpis.atrasadas}</b>\n` +
+    `⏳ Vencendo em 30d: <b>${kpis.vencendo_30d}</b>\n\n` +
+    `🔗 ${APP_URL}/dashboard`
+  );
+}
+
 export function fmtRelatorio(data: {
   totalCotacoes: number; fechadas: number; perdas: number; emAndamento: number;
   totalAReceber: number; ranking: { name: string; fechadas: number; faturamento: number }[];

@@ -1,16 +1,40 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { cotacoes, cotacaoHistory } from "@/lib/schema";
+import { cotacoes, cotacaoDocs, cotacaoHistory } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import { sendTelegram } from "@/lib/telegram";
+import { put } from "@vercel/blob";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://apolizza-crm.vercel.app";
 const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { nomeCliente, contatoCliente, prioridade, indicacao, produto, mes, ano, descricao } = body;
+    const contentType = req.headers.get("content-type") || "";
+    const fields: Record<string, string> = {};
+    const files: { name: string; url: string; size: number; mime: string }[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      for (const [key, value] of formData.entries()) {
+        if (typeof value === "string") {
+          fields[key] = value;
+        } else {
+          const file = value as File;
+          if (file.size > 0 && process.env.BLOB_READ_WRITE_TOKEN) {
+            try {
+              const blob = await put(`pedidos/${Date.now()}-${file.name}`, file, { access: "public" });
+              files.push({ name: file.name, url: blob.url, size: file.size, mime: file.type });
+            } catch {}
+          }
+        }
+      }
+    } else {
+      const json = await req.json();
+      Object.assign(fields, json);
+    }
+
+    const { nomeCliente, contatoCliente, prioridade, indicacao, produto, mes, ano, descricao } = fields;
 
     if (!nomeCliente || !contatoCliente || !prioridade || !produto || !mes || !ano || !descricao) {
       return apiError("Campos obrigatórios: nome, contato, prioridade, produto, mês, ano e descrição", 422);
@@ -41,6 +65,17 @@ export async function POST(req: NextRequest) {
       newValue: `Pedido externo — ${produto} ${mes}/${ano}`,
     });
 
+    for (const f of files) {
+      await db.insert(cotacaoDocs).values({
+        cotacaoId: cotacao.id,
+        fileName: f.name,
+        fileUrl: f.url,
+        fileSize: f.size,
+        mimeType: f.mime,
+        uploadedBy: null,
+      });
+    }
+
     const cotacaoUrl = `${APP_URL}/cotacoes/${cotacao.id}`;
 
     await sendTelegram([
@@ -52,11 +87,12 @@ export async function POST(req: NextRequest) {
       `📦 <b>Produto:</b> ${esc(produto)}`,
       `📅 <b>Referência:</b> ${esc(mes)}/${esc(ano)}`,
       `💡 <b>Indicação:</b> ${esc(indicacao || "—")}`,
+      files.length > 0 ? `📎 <b>Anexos:</b> ${files.length} arquivo(s)` : "",
       ``,
       `📝 ${esc(descricao)}`,
       ``,
       `🔗 <a href="${cotacaoUrl}">Ver Cotação</a>`,
-    ].join("\n")).catch(() => {});
+    ].filter(Boolean).join("\n")).catch(() => {});
 
     return apiSuccess({ cotacaoId: cotacao.id }, 201);
   } catch (error: unknown) {

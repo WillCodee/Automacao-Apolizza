@@ -17,15 +17,9 @@ import {
   fmtTarefasHoje,
   fmtVigenciaHoje,
   fmtCotacoesVencendoHoje,
+  fmtTarefasAtrasadasTarde,
+  fmtResumoDiario,
 } from "@/lib/telegram";
-import {
-  getAdminEmails,
-  sendAlertEmail,
-  buildPrazoHtml,
-  buildResumoHtml,
-  buildTarefaAtrasadaHtml,
-  type CotacaoAlerta,
-} from "@/lib/email";
 
 function verifyCron(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -101,85 +95,27 @@ async function processarCotacoesVencendoHoje() {
   return r.rows.length;
 }
 
-// ─── 5. Tarefas atrasadas (email) ────────────────────────────────────────────
-
-interface TarefaRow extends Record<string, unknown> {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  data_vencimento: string | null;
-  status: string;
-  cotador_id: string;
-  cotador_name: string;
-  cotador_email: string;
-  criador_name: string;
-}
+// ─── 5. Tarefas atrasadas (Telegram) ────────────────────────────────────────
 
 async function processarTarefasAtrasadas() {
-  const admins = await getAdminEmails();
-  const r = await db.execute<TarefaRow>(sql`
-    SELECT t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
-           u.name as cotador_name, u.email as cotador_email,
-           criador.name as criador_name
+  const r = await db.execute(sql`
+    SELECT t.id, t.titulo, t.data_vencimento::text, u.name as cotador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
-    JOIN users criador ON t.criador_id = criador.id
     WHERE t.data_vencimento < NOW()
       AND t.status NOT IN ('Concluída', 'Cancelada')
       AND u.is_active = true
+    ORDER BY t.data_vencimento ASC LIMIT 30
   `);
 
-  let emailsEnviados = 0;
-  for (const t of r.rows) {
-    const res = await sendAlertEmail({
-      to: [t.cotador_email, ...admins],
-      subject: `⚠️ Tarefa Atrasada: ${t.titulo}`,
-      html: buildTarefaAtrasadaHtml(t),
-    });
-    if (res.success) emailsEnviados++;
-  }
+  const msg = fmtTarefasAtrasadasTarde(r.rows as { id: string; titulo: string; cotador_name: string; data_vencimento: string | null }[]);
+  if (msg) await sendTelegram(msg);
 
-  return { tarefas: r.rows.length, emailsEnviados };
+  return r.rows.length;
 }
 
-// ─── 6. Alertas de prazo cotações (email) ────────────────────────────────────
 
-async function processarAlertasPrazo() {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.due_date::text,
-           u.name as assignee_name, u.email as assignee_email
-    FROM cotacoes c
-    LEFT JOIN users u ON c.assignee_id = u.id
-    WHERE c.deleted_at IS NULL
-      AND c.status NOT IN ('fechado', 'perda', 'cancelado', 'atrasado')
-      AND c.due_date::date = CURRENT_DATE
-    ORDER BY c.due_date ASC
-  `);
-
-  const rows = result.rows as unknown as CotacaoAlerta[];
-  if (rows.length === 0) return { sent: 0, cotacoes: 0 };
-
-  const byAssignee = new Map<string, CotacaoAlerta[]>();
-  for (const row of rows) {
-    const email = row.assignee_email || "admins";
-    const list = byAssignee.get(email) || [];
-    list.push(row);
-    byAssignee.set(email, list);
-  }
-
-  const admins = await getAdminEmails();
-  let sent = 0;
-  for (const [email, cotacoes] of byAssignee) {
-    const to = email === "admins" ? admins : [email];
-    if (to.length === 0) continue;
-    const res = await sendAlertEmail({ to, subject: `⏰ ${cotacoes.length} cotação(ões) com prazo hoje`, html: buildPrazoHtml(cotacoes) });
-    if (res.success) sent++;
-  }
-
-  return { sent, cotacoes: rows.length };
-}
-
-// ─── 7. Resumo diário (email admins) ────────────────────────────────────────
+// ─── 6. Resumo diário (Telegram) ────────────────────────────────────────────
 
 async function processarResumoDiario() {
   const result = await db.execute(sql`
@@ -199,16 +135,10 @@ async function processarResumoDiario() {
     vencendo_30d: Number(row.vencendo_30d) || 0,
   };
 
-  const admins = await getAdminEmails();
-  if (admins.length === 0) return { sent: 0 };
+  const msg = fmtResumoDiario(kpis);
+  await sendTelegram(msg);
 
-  const res = await sendAlertEmail({
-    to: admins,
-    subject: `📊 Resumo diário — ${kpis.novas_hoje} novas, ${kpis.atrasadas} atrasadas`,
-    html: buildResumoHtml(kpis),
-  });
-
-  return { sent: res.success ? 1 : 0 };
+  return kpis;
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
@@ -217,12 +147,11 @@ async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
 
   try {
-    const [tarefasHoje, vigenciaHoje, cotacoesVencendoHoje, tarefasAtrasadas, alertasPrazo, resumo] = await Promise.all([
+    const [tarefasHoje, vigenciaHoje, cotacoesVencendoHoje, tarefasAtrasadas, resumo] = await Promise.all([
       processarTarefasHoje(),
       processarVigenciaHoje(),
       processarCotacoesVencendoHoje(),
       processarTarefasAtrasadas(),
-      processarAlertasPrazo(),
       processarResumoDiario(),
     ]);
 
@@ -232,7 +161,6 @@ async function handler(req: NextRequest) {
       vigenciaHoje,
       cotacoesVencendoHoje,
       tarefasAtrasadas,
-      alertasPrazo,
       resumo,
     });
   } catch (error) {
