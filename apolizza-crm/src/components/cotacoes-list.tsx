@@ -682,14 +682,6 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                       >
                         Editar
                       </Link>
-                      {c.situacao !== "FECHADO" && (
-                        <button
-                          onClick={() => handleConcluir(c.id)}
-                          className="text-emerald-600 hover:text-emerald-700 text-xs font-medium min-h-[44px] flex items-center"
-                        >
-                          Concluído
-                        </button>
-                      )}
                       {canBulk && (
                         <button
                           onClick={() => handleDelete(c.id, c.name)}
@@ -790,14 +782,6 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                           >
                             Editar
                           </Link>
-                          {c.situacao !== "FECHADO" && (
-                            <button
-                              onClick={() => handleConcluir(c.id)}
-                              className="text-emerald-600 hover:text-emerald-700 text-xs font-medium"
-                            >
-                              Concluído
-                            </button>
-                          )}
                           {canBulk && (
                             <button
                               onClick={() => handleDelete(c.id, c.name)}
