@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { STATUS_OPTIONS, MES_OPTIONS, PRODUTO_OPTIONS, PRIORITY_OPTIONS } from "@/lib/constants";
@@ -44,7 +44,7 @@ type SavedFilters = {
   prioridadeFilter: string;
   renovacaoFilter: boolean;
   responsavelFilter: string;
-  grupoFilter: string;
+  grupoFilter: string[];
   dateFrom: string;
   dateTo: string;
   page: number;
@@ -81,7 +81,13 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
   const [prioridadeFilter, setPrioridadeFilter] = useState(() => sp("prioridade") ?? saved.prioridadeFilter ?? "");
   const [renovacaoFilter, setRenovacaoFilter] = useState(() => sp("isRenovacao") === "true" || (saved.renovacaoFilter ?? false));
   const [responsavelFilter, setResponsavelFilter] = useState(() => saved.responsavelFilter ?? "");
-  const [grupoFilter, setGrupoFilter] = useState(() => sp("grupo") ?? saved.grupoFilter ?? "");
+  const [grupoFilter, setGrupoFilter] = useState<string[]>(() => {
+    const fromUrl = sp("grupo");
+    if (fromUrl) return [fromUrl];
+    return saved.grupoFilter ?? [];
+  });
+  const [grupoDropdownOpen, setGrupoDropdownOpen] = useState(false);
+  const grupoDropdownRef = useRef<HTMLDivElement>(null);
   const [dateFrom, setDateFrom] = useState(() => sp("dateFrom") ?? saved.dateFrom ?? "");
   const [dateTo, setDateTo] = useState(() => sp("dateTo") ?? saved.dateTo ?? "");
   const [page, setPage] = useState(() => Math.max(1, Number(sp("page")) || saved.page || 1));
@@ -89,8 +95,19 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     !!(sp("produto") || sp("seguradora") || sp("prioridade") || sp("isRenovacao") || sp("dateFrom") || sp("dateTo") ||
       sp("grupo") ||
       saved.produtoFilter || saved.seguradoraFilter || saved.prioridadeFilter || saved.renovacaoFilter || saved.dateFrom || saved.dateTo ||
-      saved.responsavelFilter || saved.grupoFilter)
+      saved.responsavelFilter || (saved.grupoFilter && saved.grupoFilter.length > 0))
   );
+  // Close grupo dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (grupoDropdownRef.current && !grupoDropdownRef.current.contains(e.target as Node)) {
+        setGrupoDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   const [seguradoras, setSeguradoras] = useState<string[]>([]);
   const [usuariosOpts, setUsuariosOpts] = useState<{ id: string; name: string }[]>([]);
   const [gruposOpts, setGruposOpts] = useState<{ id: string; nome: string }[]>([]);
@@ -104,7 +121,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
         search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter,
-        prioridadeFilter, renovacaoFilter, responsavelFilter, grupoFilter, dateFrom, dateTo, page, showAdvanced,
+        prioridadeFilter, renovacaoFilter, responsavelFilter, grupoFilter: grupoFilter, dateFrom, dateTo, page, showAdvanced,
       } satisfies SavedFilters));
     } catch { /* sessionStorage indisponível */ }
   }, [search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, responsavelFilter, grupoFilter, dateFrom, dateTo, page, showAdvanced]);
@@ -134,7 +151,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     // Form-based responsável filter takes priority over URL assignee banner
     const effectiveAssignee = responsavelFilter || assigneeFilter;
     if (effectiveAssignee) params.set("assignee", effectiveAssignee);
-    if (grupoFilter) params.set("grupo", grupoFilter);
+    grupoFilter.forEach((gid) => params.append("grupo", gid));
     if (produtoFilter) params.set("produto", produtoFilter);
     if (seguradoraFilter) params.set("seguradora", seguradoraFilter);
     if (prioridadeFilter) params.set("prioridade", prioridadeFilter);
@@ -142,7 +159,8 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     return params;
-  }, [search, statusFilter, mesFilter, anoFilter, assigneeFilter, responsavelFilter, grupoFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter, mesFilter, anoFilter, assigneeFilter, responsavelFilter, JSON.stringify(grupoFilter), produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
 
   // Sync filters to URL (AC10)
   useEffect(() => {
@@ -287,14 +305,14 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     setPrioridadeFilter("");
     setRenovacaoFilter(false);
     setResponsavelFilter("");
-    setGrupoFilter("");
+    setGrupoFilter([]);
     setDateFrom("");
     setDateTo("");
     setPage(1);
     try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }
 
-  const hasActiveFilters = statusFilter || mesFilter || anoFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || responsavelFilter || grupoFilter || dateFrom || dateTo;
+  const hasActiveFilters = statusFilter || mesFilter || anoFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || responsavelFilter || grupoFilter.length > 0 || dateFrom || dateTo;
 
   const currentYear = new Date().getFullYear();
   const ANO_OPTIONS = Array.from({ length: 6 }, (_, i) => String(currentYear - i));
@@ -401,16 +419,58 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
-              <select
-                value={grupoFilter}
-                onChange={(e) => { setGrupoFilter(e.target.value); setPage(1); }}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
-              >
-                <option value="">Todos os grupos</option>
-                {gruposOpts.map((g) => (
-                  <option key={g.id} value={g.id}>{g.nome}</option>
-                ))}
-              </select>
+              <div className="relative" ref={grupoDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setGrupoDropdownOpen((v) => !v)}
+                  className={`px-3 py-2 border rounded-xl text-sm bg-white outline-none transition flex items-center gap-2 min-w-[160px] ${grupoFilter.length > 0 ? "border-[#03a4ed] text-[#03a4ed] font-medium" : "border-slate-200 text-slate-500"}`}
+                >
+                  <span className="flex-1 text-left truncate">
+                    {grupoFilter.length === 0
+                      ? "Todos os grupos"
+                      : grupoFilter.length === 1
+                        ? (gruposOpts.find((g) => g.id === grupoFilter[0])?.nome ?? "1 grupo")
+                        : `${grupoFilter.length} grupos`}
+                  </span>
+                  <svg className={`w-3.5 h-3.5 shrink-0 transition-transform ${grupoDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {grupoDropdownOpen && (
+                  <div className="absolute z-50 top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-lg min-w-[200px] py-1 max-h-60 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => { setGrupoFilter([]); setPage(1); }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 ${grupoFilter.length === 0 ? "text-[#03a4ed] font-medium" : "text-slate-600"}`}
+                    >
+                      <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${grupoFilter.length === 0 ? "bg-[#03a4ed] border-[#03a4ed]" : "border-slate-300"}`}>
+                        {grupoFilter.length === 0 && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                      </span>
+                      Todos os grupos
+                    </button>
+                    {gruposOpts.map((g) => {
+                      const checked = grupoFilter.includes(g.id);
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => {
+                            setGrupoFilter((prev) => checked ? prev.filter((id) => id !== g.id) : [...prev, g.id]);
+                            setPage(1);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-[#03a4ed] border-[#03a4ed]" : "border-slate-300"}`}>
+                            {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                          </span>
+                          {g.nome}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
               <select
                 value={produtoFilter}
                 onChange={(e) => { setProdutoFilter(e.target.value); setPage(1); }}

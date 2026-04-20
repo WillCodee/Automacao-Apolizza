@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const ano = searchParams.get("ano");
     const mes = searchParams.get("mes");
     const assignee = searchParams.get("assignee");
-    const grupo = searchParams.get("grupo");
+    const grupos = searchParams.getAll("grupo");
     const search = searchParams.get("search");
     const produto = searchParams.get("produto");
     const seguradora = searchParams.get("seguradora");
@@ -43,12 +43,16 @@ export async function GET(req: NextRequest) {
     if (!validateAno(ano)) return apiError("Ano invalido", 400);
     if (!validateMes(mes)) return apiError("Mes invalido", 400);
     if (!validateUuid(assignee)) return apiError("Assignee ID invalido", 400);
-    if (!validateUuid(grupo)) return apiError("Grupo ID invalido", 400);
+    if (grupos.some((g) => !validateUuid(g))) return apiError("Grupo ID invalido", 400);
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
     if (assignee) conditions.push(eq(cotacoes.assigneeId, assignee));
-    if (grupo) conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id = ${grupo}::uuid)`);
+    if (grupos.length === 1) {
+      conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id = ${grupos[0]}::uuid)`);
+    } else if (grupos.length > 1) {
+      conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id = ANY(ARRAY[${sql.join(grupos.map((g) => sql`${g}::uuid`), sql`, `)}]))`)
+    }
     if (status) conditions.push(eq(cotacoes.status, status));
     if (ano) conditions.push(eq(cotacoes.anoReferencia, Number(ano)));
     if (mes) conditions.push(eq(cotacoes.mesReferencia, mes));
