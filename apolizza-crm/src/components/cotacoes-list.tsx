@@ -80,14 +80,14 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
   const [seguradoraFilter, setSeguradoraFilter] = useState(() => sp("seguradora") ?? saved.seguradoraFilter ?? "");
   const [prioridadeFilter, setPrioridadeFilter] = useState(() => sp("prioridade") ?? saved.prioridadeFilter ?? "");
   const [renovacaoFilter, setRenovacaoFilter] = useState(() => sp("isRenovacao") === "true" || (saved.renovacaoFilter ?? false));
-  const [responsavelFilter, setResponsavelFilter] = useState(() => sp("assignee") ?? saved.responsavelFilter ?? "");
+  const [responsavelFilter, setResponsavelFilter] = useState(() => saved.responsavelFilter ?? "");
   const [grupoFilter, setGrupoFilter] = useState(() => sp("grupo") ?? saved.grupoFilter ?? "");
   const [dateFrom, setDateFrom] = useState(() => sp("dateFrom") ?? saved.dateFrom ?? "");
   const [dateTo, setDateTo] = useState(() => sp("dateTo") ?? saved.dateTo ?? "");
   const [page, setPage] = useState(() => Math.max(1, Number(sp("page")) || saved.page || 1));
   const [showAdvanced, setShowAdvanced] = useState(() =>
     !!(sp("produto") || sp("seguradora") || sp("prioridade") || sp("isRenovacao") || sp("dateFrom") || sp("dateTo") ||
-      sp("assignee") || sp("grupo") ||
+      sp("grupo") ||
       saved.produtoFilter || saved.seguradoraFilter || saved.prioridadeFilter || saved.renovacaoFilter || saved.dateFrom || saved.dateTo ||
       saved.responsavelFilter || saved.grupoFilter)
   );
