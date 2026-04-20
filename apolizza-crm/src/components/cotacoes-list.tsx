@@ -84,7 +84,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
   const [grupoFilter, setGrupoFilter] = useState<string[]>(() => {
     const fromUrl = sp("grupo");
     if (fromUrl) return [fromUrl];
-    return saved.grupoFilter ?? [];
+    return Array.isArray(saved.grupoFilter) ? saved.grupoFilter : [];
   });
   const [grupoDropdownOpen, setGrupoDropdownOpen] = useState(false);
   const grupoDropdownRef = useRef<HTMLDivElement>(null);
