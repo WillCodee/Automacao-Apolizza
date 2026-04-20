@@ -5,8 +5,8 @@
  * Uso: npx tsx scripts/seed-status-config.ts
  */
 
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import mysql from "mysql2/promise";
+import { drizzle } from "drizzle-orm/mysql2";
 import { statusConfig } from "../src/lib/schema";
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
@@ -144,17 +144,17 @@ async function seed() {
     process.exit(1);
   }
 
-  const sql = neon(process.env.DATABASE_URL);
-  const db = drizzle(sql);
+  const pool = mysql.createPool(process.env.DATABASE_URL);
+  const db = drizzle(pool);
 
   console.log("Seeding status_config...");
 
   for (const status of STATUS_SEED) {
+    // MySQL: ON DUPLICATE KEY UPDATE
     await db
       .insert(statusConfig)
       .values(status)
-      .onConflictDoUpdate({
-        target: statusConfig.statusName,
+      .onDuplicateKeyUpdate({
         set: {
           displayLabel: status.displayLabel,
           color: status.color,
@@ -168,6 +168,7 @@ async function seed() {
   }
 
   console.log(`\nDone! ${STATUS_SEED.length} status seeded.`);
+  await pool.end();
 }
 
 seed().catch((err) => {

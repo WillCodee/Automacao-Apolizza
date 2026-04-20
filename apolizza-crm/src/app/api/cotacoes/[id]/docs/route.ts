@@ -90,7 +90,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
 
     // Save to DB
-    const [doc] = await db
+    await db
       .insert(cotacaoDocs)
       .values({
         cotacaoId: id,
@@ -99,8 +99,12 @@ export async function POST(req: NextRequest, { params }: Params) {
         fileSize: file.size,
         mimeType: file.type || null,
         uploadedBy: user.id,
-      })
-      .returning();
+      });
+    const [doc] = await db
+      .select()
+      .from(cotacaoDocs)
+      .where(eq(cotacaoDocs.fileUrl, blob.url))
+      .limit(1);
 
     return apiSuccess(doc);
   } catch (error) {

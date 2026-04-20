@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tarefas, tarefasBriefings } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -90,14 +90,18 @@ export async function POST(
     const validated = createBriefingSchema.parse(body);
 
     // Criar briefing
+    const briefingData = {
+      tarefaId: id,
+      usuarioId: user.id,
+      briefing: validated.briefing,
+    };
+    await db.insert(tarefasBriefings).values(briefingData);
     const [novoBriefing] = await db
-      .insert(tarefasBriefings)
-      .values({
-        tarefaId: id,
-        usuarioId: user.id,
-        briefing: validated.briefing,
-      })
-      .returning();
+      .select()
+      .from(tarefasBriefings)
+      .where(and(eq(tarefasBriefings.tarefaId, id), eq(tarefasBriefings.usuarioId, user.id)))
+      .orderBy(desc(tarefasBriefings.createdAt))
+      .limit(1);
 
     // Registrar atividade
     await logAtividade({

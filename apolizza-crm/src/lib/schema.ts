@@ -1,63 +1,47 @@
 import {
-  pgTable,
-  uuid,
+  mysqlTable,
+  char,
   varchar,
   text,
   boolean,
-  integer,
+  int,
   decimal,
   date,
-  timestamp,
-  jsonb,
-  pgEnum,
+  datetime,
+  json,
+  mysqlEnum,
   uniqueIndex,
   index,
-} from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+} from "drizzle-orm/mysql-core";
+import { relations, sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 // ============================================================
-// ENUMS
+// HELPER: UUID generator para MySQL (não tem uuid_generate_v4)
 // ============================================================
-
-export const userRoleEnum = pgEnum("user_role", ["admin", "cotador", "proprietario"]);
-
-export const tarefaStatusEnum = pgEnum("tarefa_status", [
-  "Pendente",
-  "Em Andamento",
-  "Concluída",
-  "Cancelada",
-]);
-
-export const atividadeTipoEnum = pgEnum("atividade_tipo", [
-  "CRIADA",
-  "EDITADA",
-  "STATUS_ALTERADO",
-  "BRIEFING_ADICIONADO",
-  "ANEXO_ADICIONADO",
-  "ANEXO_REMOVIDO",
-]);
+const genUUID = () => randomUUID();
 
 // ============================================================
 // USERS
 // ============================================================
 
-export const users = pgTable(
+export const users = mysqlTable(
   "users",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
     email: varchar("email", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     username: varchar("username", { length: 100 }).notNull(),
     passwordHash: text("password_hash").notNull(),
-    role: userRoleEnum("role").notNull().default("cotador"),
+    role: mysqlEnum("role", ["admin", "cotador", "proprietario"]).notNull().default("cotador"),
     photoUrl: text("photo_url"),
     isActive: boolean("is_active").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`NOW()`),
+    updatedAt: datetime("updated_at")
       .notNull()
-      .defaultNow()
+      .default(sql`NOW()`)
       .$onUpdate(() => new Date()),
   },
   (table) => [
@@ -70,16 +54,16 @@ export const users = pgTable(
 // COTACOES
 // ============================================================
 
-export const cotacoes = pgTable(
+export const cotacoes = mysqlTable(
   "cotacoes",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
     clickupId: varchar("clickup_id", { length: 20 }),
     name: varchar("name", { length: 500 }).notNull(),
     status: varchar("status", { length: 50 }).notNull().default("não iniciado"),
     priority: varchar("priority", { length: 20 }).default("normal"),
-    dueDate: timestamp("due_date", { withTimezone: true }),
-    assigneeId: uuid("assignee_id").references(() => users.id),
+    dueDate: datetime("due_date"),
+    assigneeId: char("assignee_id", { length: 36 }).references(() => users.id),
 
     // 19 custom fields mapeados do ClickUp
     tipoCliente: varchar("tipo_cliente", { length: 50 }),
@@ -91,27 +75,27 @@ export const cotacoes = pgTable(
     inicioVigencia: date("inicio_vigencia"),
     fimVigencia: date("fim_vigencia"),
     primeiroPagamento: date("primeiro_pagamento"),
-    parceladoEm: integer("parcelado_em"),
+    parceladoEm: int("parcelado_em"),
     valorParcelado: decimal("valor_parcelado", { precision: 12, scale: 2 }),
     premioSemIof: decimal("premio_sem_iof", { precision: 12, scale: 2 }),
-    comissao: text("comissao"), // Alterado de decimal para text (fórmulas complexas)
+    comissao: text("comissao"),
     aReceber: decimal("a_receber", { precision: 12, scale: 2 }),
     valorPerda: decimal("valor_perda", { precision: 12, scale: 2 }),
     proximaTratativa: date("proxima_tratativa"),
     observacao: text("observacao"),
-    mesReferencia: varchar("mes_referencia", { length: 10 }), // Alterado de 3 para 10 (ex: "MAIO", "SETEMBRO")
-    anoReferencia: integer("ano_referencia"),
+    mesReferencia: varchar("mes_referencia", { length: 10 }),
+    anoReferencia: int("ano_referencia"),
 
-    comissaoParcelada: jsonb("comissao_parcelada").$type<{ parcelas: number; percentuais: number[] } | null>(),
-    tags: jsonb("tags").$type<string[]>().default([]),
+    comissaoParcelada: json("comissao_parcelada").$type<{ parcelas: number; percentuais: number[] } | null>(),
+    tags: json("tags").$type<string[]>(),
     isRenovacao: boolean("is_renovacao").notNull().default(false),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    deletedAt: datetime("deleted_at"),
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`NOW()`),
+    updatedAt: datetime("updated_at")
       .notNull()
-      .defaultNow()
+      .default(sql`NOW()`)
       .$onUpdate(() => new Date()),
   },
   (table) => [
@@ -128,21 +112,21 @@ export const cotacoes = pgTable(
 // COTACAO_DOCS
 // ============================================================
 
-export const cotacaoDocs = pgTable(
+export const cotacaoDocs = mysqlTable(
   "cotacao_docs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    cotacaoId: uuid("cotacao_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    cotacaoId: char("cotacao_id", { length: 36 })
       .notNull()
       .references(() => cotacoes.id, { onDelete: "cascade" }),
     fileName: varchar("file_name", { length: 255 }).notNull(),
     fileUrl: text("file_url").notNull(),
-    fileSize: integer("file_size"),
+    fileSize: int("file_size"),
     mimeType: varchar("mime_type", { length: 100 }),
-    uploadedBy: uuid("uploaded_by").references(() => users.id),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    uploadedBy: char("uploaded_by", { length: 36 }).references(() => users.id),
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [index("cotacao_docs_cotacao_idx").on(table.cotacaoId)]
 );
@@ -151,22 +135,22 @@ export const cotacaoDocs = pgTable(
 // METAS
 // ============================================================
 
-export const metas = pgTable(
+export const metas = mysqlTable(
   "metas",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").references(() => users.id),
-    ano: integer("ano").notNull(),
-    mes: integer("mes").notNull(),
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    userId: char("user_id", { length: 36 }).references(() => users.id),
+    ano: int("ano").notNull(),
+    mes: int("mes").notNull(),
     metaValor: decimal("meta_valor", { precision: 12, scale: 2 }),
-    metaQtdCotacoes: integer("meta_qtd_cotacoes"),
-    metaRenovacoes: integer("meta_renovacoes"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    metaQtdCotacoes: int("meta_qtd_cotacoes"),
+    metaRenovacoes: int("meta_renovacoes"),
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`NOW()`),
+    updatedAt: datetime("updated_at")
       .notNull()
-      .defaultNow()
+      .default(sql`NOW()`)
       .$onUpdate(() => new Date()),
   },
   (table) => [
@@ -182,20 +166,20 @@ export const metas = pgTable(
 // COTACAO_HISTORY (Audit Trail)
 // ============================================================
 
-export const cotacaoHistory = pgTable(
+export const cotacaoHistory = mysqlTable(
   "cotacao_history",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    cotacaoId: uuid("cotacao_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    cotacaoId: char("cotacao_id", { length: 36 })
       .notNull()
       .references(() => cotacoes.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").references(() => users.id),
+    userId: char("user_id", { length: 36 }).references(() => users.id),
     fieldName: varchar("field_name", { length: 100 }).notNull(),
     oldValue: text("old_value"),
     newValue: text("new_value"),
-    changedAt: timestamp("changed_at", { withTimezone: true })
+    changedAt: datetime("changed_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("cotacao_history_cotacao_idx").on(table.cotacaoId),
@@ -207,14 +191,14 @@ export const cotacaoHistory = pgTable(
 // STATUS_CONFIG
 // ============================================================
 
-export const statusConfig = pgTable("status_config", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const statusConfig = mysqlTable("status_config", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
   statusName: varchar("status_name", { length: 50 }).notNull().unique(),
   displayLabel: varchar("display_label", { length: 100 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(),
   icon: varchar("icon", { length: 10 }),
-  orderIndex: integer("order_index").notNull().default(0),
-  requiredFields: jsonb("required_fields").$type<string[]>().default([]),
+  orderIndex: int("order_index").notNull().default(0),
+  requiredFields: json("required_fields").$type<string[]>(),
   isTerminal: boolean("is_terminal").notNull().default(false),
 });
 
@@ -222,32 +206,32 @@ export const statusConfig = pgTable("status_config", {
 // SITUACAO_CONFIG
 // ============================================================
 
-export const situacaoConfig = pgTable("situacao_config", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const situacaoConfig = mysqlTable("situacao_config", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
   nome: varchar("nome", { length: 100 }).notNull().unique(),
-  orderIndex: integer("order_index").notNull().default(0),
+  orderIndex: int("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  defaultCotadorId: uuid("default_cotador_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  defaultCotadorId: char("default_cotador_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
 // ============================================================
 // COMISSAO_TABELA
 // ============================================================
 
-export const comissaoTabela = pgTable(
+export const comissaoTabela = mysqlTable(
   "comissao_tabela",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
     seguradora: varchar("seguradora", { length: 255 }).notNull(),
     produto: varchar("produto", { length: 255 }),
     percentual: decimal("percentual", { precision: 5, scale: 2 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`NOW()`),
+    updatedAt: datetime("updated_at")
       .notNull()
-      .defaultNow()
+      .default(sql`NOW()`)
       .$onUpdate(() => new Date()),
   },
   (table) => [
@@ -259,29 +243,34 @@ export const comissaoTabela = pgTable(
 // TAREFAS (EPIC-003: Controle de Tarefas Diárias)
 // ============================================================
 
-export const tarefas = pgTable(
+export const tarefas = mysqlTable(
   "tarefas",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
     titulo: varchar("titulo", { length: 255 }).notNull(),
     descricao: text("descricao"),
-    dataVencimento: timestamp("data_vencimento", { withTimezone: true }),
-    status: tarefaStatusEnum("status").notNull().default("Pendente"),
-    cotadorId: uuid("cotador_id")
+    dataVencimento: datetime("data_vencimento"),
+    status: mysqlEnum("tarefa_status", [
+      "Pendente",
+      "Em Andamento",
+      "Concluída",
+      "Cancelada",
+    ]).notNull().default("Pendente"),
+    cotadorId: char("cotador_id", { length: 36 })
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    criadorId: uuid("criador_id")
+    criadorId: char("criador_id", { length: 36 })
       .notNull()
       .references(() => users.id),
-    visualizadaEm: timestamp("visualizada_em", { withTimezone: true }),
-    iniciadaEm: timestamp("iniciada_em", { withTimezone: true }),
-    concluidaEm: timestamp("concluida_em", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    visualizadaEm: datetime("visualizada_em"),
+    iniciadaEm: datetime("iniciada_em"),
+    concluidaEm: datetime("concluida_em"),
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`NOW()`),
+    updatedAt: datetime("updated_at")
       .notNull()
-      .defaultNow()
+      .default(sql`NOW()`)
       .$onUpdate(() => new Date()),
   },
   (table) => [
@@ -296,20 +285,20 @@ export const tarefas = pgTable(
 // TAREFAS_BRIEFINGS (EPIC-003: Story 13.2)
 // ============================================================
 
-export const tarefasBriefings = pgTable(
+export const tarefasBriefings = mysqlTable(
   "tarefas_briefings",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    tarefaId: uuid("tarefa_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    tarefaId: char("tarefa_id", { length: 36 })
       .notNull()
       .references(() => tarefas.id, { onDelete: "cascade" }),
-    usuarioId: uuid("usuario_id")
+    usuarioId: char("usuario_id", { length: 36 })
       .notNull()
       .references(() => users.id),
     briefing: text("briefing").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("tarefas_briefings_tarefa_idx").on(table.tarefaId),
@@ -321,23 +310,23 @@ export const tarefasBriefings = pgTable(
 // TAREFAS_ANEXOS (EPIC-003: Story 13.6)
 // ============================================================
 
-export const tarefasAnexos = pgTable(
+export const tarefasAnexos = mysqlTable(
   "tarefas_anexos",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    tarefaId: uuid("tarefa_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    tarefaId: char("tarefa_id", { length: 36 })
       .notNull()
       .references(() => tarefas.id, { onDelete: "cascade" }),
-    usuarioId: uuid("usuario_id")
+    usuarioId: char("usuario_id", { length: 36 })
       .notNull()
       .references(() => users.id),
     nomeArquivo: varchar("nome_arquivo", { length: 255 }).notNull(),
     urlBlob: text("url_blob").notNull(),
-    tamanho: integer("tamanho").notNull(), // em bytes
+    tamanho: int("tamanho").notNull(),
     mimeType: varchar("mime_type", { length: 100 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("tarefas_anexos_tarefa_idx").on(table.tarefaId),
@@ -350,21 +339,28 @@ export const tarefasAnexos = pgTable(
 // TAREFAS_ATIVIDADES (EPIC-003: Story 13.5)
 // ============================================================
 
-export const tarefasAtividades = pgTable(
+export const tarefasAtividades = mysqlTable(
   "tarefas_atividades",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    tarefaId: uuid("tarefa_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    tarefaId: char("tarefa_id", { length: 36 })
       .notNull()
       .references(() => tarefas.id, { onDelete: "cascade" }),
-    usuarioId: uuid("usuario_id")
+    usuarioId: char("usuario_id", { length: 36 })
       .notNull()
       .references(() => users.id),
-    tipoAcao: atividadeTipoEnum("tipo_acao").notNull(),
-    detalhes: jsonb("detalhes"), // {campo?: string, valorAnterior?: any, valorNovo?: any, ...}
-    createdAt: timestamp("created_at", { withTimezone: true })
+    tipoAcao: mysqlEnum("tipo_acao", [
+      "CRIADA",
+      "EDITADA",
+      "STATUS_ALTERADO",
+      "BRIEFING_ADICIONADO",
+      "ANEXO_ADICIONADO",
+      "ANEXO_REMOVIDO",
+    ]).notNull(),
+    detalhes: json("detalhes"),
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("tarefas_atividades_tarefa_idx").on(table.tarefaId, table.createdAt),
@@ -377,21 +373,21 @@ export const tarefasAtividades = pgTable(
 // TAREFAS_CHECKLIST
 // ============================================================
 
-export const tarefasChecklist = pgTable(
+export const tarefasChecklist = mysqlTable(
   "tarefas_checklist",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    tarefaId: uuid("tarefa_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    tarefaId: char("tarefa_id", { length: 36 })
       .notNull()
       .references(() => tarefas.id, { onDelete: "cascade" }),
     texto: varchar("texto", { length: 500 }).notNull(),
     concluido: boolean("concluido").notNull().default(false),
-    concluidoPor: uuid("concluido_por").references(() => users.id),
-    concluidoEm: timestamp("concluido_em", { withTimezone: true }),
-    ordem: integer("ordem").notNull().default(0),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    concluidoPor: char("concluido_por", { length: 36 }).references(() => users.id),
+    concluidoEm: datetime("concluido_em"),
+    ordem: int("ordem").notNull().default(0),
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("tarefas_checklist_tarefa_idx").on(table.tarefaId),
@@ -403,24 +399,23 @@ export const tarefasChecklist = pgTable(
 // COTACAO_NOTIFICACOES (feed de notificações de alterações/mensagens)
 // ============================================================
 
-export const cotacaoNotificacoes = pgTable(
+export const cotacaoNotificacoes = mysqlTable(
   "cotacao_notificacoes",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    cotacaoId: uuid("cotacao_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    cotacaoId: char("cotacao_id", { length: 36 })
       .notNull()
       .references(() => cotacoes.id, { onDelete: "cascade" }),
     cotacaoNome: varchar("cotacao_nome", { length: 500 }).notNull(),
-    autorId: uuid("autor_id").references(() => users.id, { onDelete: "set null" }),
+    autorId: char("autor_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
     autorNome: varchar("autor_nome", { length: 255 }),
-    tipo: varchar("tipo", { length: 20 }).notNull(), // 'mensagem' | 'observacao' | 'atrasado'
+    tipo: varchar("tipo", { length: 20 }).notNull(),
     texto: text("texto").notNull(),
-    // destinatarioId = NULL → visível a admin/proprietario; set → visível ao cotador específico
-    destinatarioId: uuid("destinatario_id").references(() => users.id, { onDelete: "cascade" }),
+    destinatarioId: char("destinatario_id", { length: 36 }).references(() => users.id, { onDelete: "cascade" }),
     lida: boolean("lida").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("cotacao_notif_cotacao_idx").on(table.cotacaoId),
@@ -434,21 +429,21 @@ export const cotacaoNotificacoes = pgTable(
 // COTACAO_MENSAGENS
 // ============================================================
 
-export const cotacaoMensagens = pgTable(
+export const cotacaoMensagens = mysqlTable(
   "cotacao_mensagens",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    cotacaoId: uuid("cotacao_id")
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    cotacaoId: char("cotacao_id", { length: 36 })
       .notNull()
       .references(() => cotacoes.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
+    userId: char("user_id", { length: 36 })
       .notNull()
       .references(() => users.id),
     texto: text("texto").notNull(),
     imageUrl: text("image_url"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: datetime("created_at")
       .notNull()
-      .defaultNow(),
+      .default(sql`NOW()`),
   },
   (table) => [
     index("cotacao_mensagens_cotacao_idx").on(table.cotacaoId),
@@ -460,22 +455,22 @@ export const cotacaoMensagens = pgTable(
 // GRUPOS DE USUARIOS
 // ============================================================
 
-export const gruposUsuarios = pgTable("grupos_usuarios", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const gruposUsuarios = mysqlTable("grupos_usuarios", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
   nome: varchar("nome", { length: 100 }).notNull(),
   descricao: text("descricao"),
   cor: varchar("cor", { length: 7 }).notNull().default("#03a4ed"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
+  updatedAt: datetime("updated_at").notNull().default(sql`NOW()`).$onUpdate(() => new Date()),
 }, (table) => [
   uniqueIndex("grupos_usuarios_nome_idx").on(table.nome),
 ]);
 
-export const grupoMembros = pgTable("grupo_membros", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  grupoId: uuid("grupo_id").notNull().references(() => gruposUsuarios.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+export const grupoMembros = mysqlTable("grupo_membros", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+  grupoId: char("grupo_id", { length: 36 }).notNull().references(() => gruposUsuarios.id, { onDelete: "cascade" }),
+  userId: char("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 }, (table) => [
   uniqueIndex("grupo_membros_unique_idx").on(table.grupoId, table.userId),
   index("grupo_membros_grupo_idx").on(table.grupoId),
@@ -486,14 +481,14 @@ export const grupoMembros = pgTable("grupo_membros", {
 // CHAT GLOBAL
 // ============================================================
 
-export const chatMensagens = pgTable(
+export const chatMensagens = mysqlTable(
   "chat_mensagens",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    fromUserId: uuid("from_user_id").notNull().references(() => users.id),
-    toUserId: uuid("to_user_id").references(() => users.id), // null = broadcast (Todos)
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    fromUserId: char("from_user_id", { length: 36 }).notNull().references(() => users.id),
+    toUserId: char("to_user_id", { length: 36 }).references(() => users.id),
     texto: text("texto").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: datetime("created_at").notNull().default(sql`NOW()`),
   },
   (table) => [
     index("chat_mensagens_from_idx").on(table.fromUserId),
@@ -502,13 +497,13 @@ export const chatMensagens = pgTable(
   ]
 );
 
-export const chatLeituras = pgTable(
+export const chatLeituras = mysqlTable(
   "chat_leituras",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    mensagemId: uuid("mensagem_id").notNull().references(() => chatMensagens.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    lidaEm: timestamp("lida_em", { withTimezone: true }).notNull().defaultNow(),
+    id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
+    mensagemId: char("mensagem_id", { length: 36 }).notNull().references(() => chatMensagens.id, { onDelete: "cascade" }),
+    userId: char("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    lidaEm: datetime("lida_em").notNull().default(sql`NOW()`),
   },
   (table) => [
     uniqueIndex("chat_leituras_unique").on(table.mensagemId, table.userId),
@@ -520,14 +515,14 @@ export const chatLeituras = pgTable(
 // REGRAS DE AUDITORIA
 // ============================================================
 
-export const regrasAuditoria = pgTable("regras_auditoria", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const regrasAuditoria = mysqlTable("regras_auditoria", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(genUUID),
   nome: varchar("nome", { length: 100 }).notNull(),
-  comando: varchar("comando", { length: 50 }).notNull(), // ex: /relatorio_seg
-  tipo: varchar("tipo", { length: 50 }).notNull(),       // atrasados | tarefas_hoje | tratativas | pendentes | relatorio | resumo
+  comando: varchar("comando", { length: 50 }).notNull(),
+  tipo: varchar("tipo", { length: 50 }).notNull(),
   descricao: varchar("descricao", { length: 200 }),
   ativo: boolean("ativo").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
 // ============================================================

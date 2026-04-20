@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, isNull, or, eq, ilike, sql } from "drizzle-orm";
+import { and, isNull, or, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -29,10 +29,10 @@ export async function GET(req: NextRequest) {
     if (search) {
       conditions.push(
         sql`(
-          ${cotacoes.name} ILIKE ${"%" + search + "%"}
-          OR ${cotacoes.contatoCliente} ILIKE ${"%" + search + "%"}
-          OR ${cotacoes.produto} ILIKE ${"%" + search + "%"}
-          OR ${cotacoes.seguradora} ILIKE ${"%" + search + "%"}
+          ${cotacoes.name} LIKE ${"%" + search + "%"}
+          OR ${cotacoes.contatoCliente} LIKE ${"%" + search + "%"}
+          OR ${cotacoes.produto} LIKE ${"%" + search + "%"}
+          OR ${cotacoes.seguradora} LIKE ${"%" + search + "%"}
         )`
       );
     }

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const anosParam = searchParams.get("anos") || String(new Date().getFullYear());
 
-    // Valida e sanitiza — apenas inteiros no range aceitável
+    // Valida e sanitiza — apenas inteiros no range aceitavel
     const anos = anosParam
       .split(",")
       .map((s) => parseInt(s.trim(), 10))
@@ -22,16 +22,16 @@ export async function GET(req: NextRequest) {
     if (anos.length === 0) return apiError("Nenhum ano valido informado", 400);
     if (anos.length > 10) return apiError("Maximo 10 anos por consulta", 400);
 
-    // Constrói lista segura de inteiros para o IN (já validados acima)
+    // Constroi lista segura de inteiros para o IN (ja validados acima)
     const anosLiteral = anos.join(",");
 
-    const result = await db.execute(sql`
+    const rows = await dbQuery(sql`
       select
-        c.ano_referencia::int  as "ano",
-        c.mes_referencia       as "mes",
-        count(*)::int          as "total",
-        coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0)::int   as "fechadas",
-        coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as float) else 0 end), 0)::float as "faturamento"
+        CAST(c.ano_referencia AS SIGNED)  as ano,
+        c.mes_referencia       as mes,
+        CAST(count(*) AS SIGNED)          as total,
+        CAST(coalesce(sum(case when c.status = 'fechado' then 1 else 0 end), 0) AS SIGNED)   as fechadas,
+        coalesce(sum(case when c.status = 'fechado' then cast(c.a_receber as decimal(12,2)) else 0 end), 0) as faturamento
       from cotacoes c
       where c.deleted_at is null
         and c.ano_referencia in (${sql.raw(anosLiteral)})
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       order by c.ano_referencia, c.mes_referencia
     `);
 
-    return apiSuccess({ evolucao: result.rows });
+    return apiSuccess({ evolucao: rows });
   } catch (error) {
     console.error("API GET /api/relatorios/evolucao:", error);
     return apiError("Erro ao buscar evolucao", 500);

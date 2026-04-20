@@ -2,13 +2,13 @@
  * API ENDPOINT: HEALTH CHECK
  *
  * GET /api/health
- * Verifica saúde do sistema e retorna status
+ * Verifica saude do sistema e retorna status
  * Pode ser usado por monitoramento externo (UptimeRobot, etc.)
  */
 
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbQuery } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -45,7 +45,7 @@ export async function GET() {
   };
 
   try {
-    // 1. Verificar conexão com banco
+    // 1. Verificar conexao com banco
     await db.execute(sql`SELECT 1`);
     health.checks.database = true;
 
@@ -65,17 +65,17 @@ export async function GET() {
 
     health.checks.views = viewsOk.length === requiredViews.length;
 
-    // 3. Verificar dados críticos
-    const cotacoes = await db.execute(sql`
+    // 3. Verificar dados criticos
+    const cotacoesRows = await dbQuery(sql`
       SELECT COUNT(*) as total FROM cotacoes WHERE deleted_at IS NULL
     `);
 
-    const users = await db.execute(sql`
+    const usersRows = await dbQuery(sql`
       SELECT COUNT(*) as total FROM users WHERE is_active = true
     `);
 
-    health.details.cotacoes = Number(cotacoes.rows[0].total);
-    health.details.users = Number(users.rows[0].total);
+    health.details.cotacoes = Number(cotacoesRows[0].total);
+    health.details.users = Number(usersRows[0].total);
 
     if (health.details.cotacoes === 0 || health.details.users === 0) {
       health.status = "critical";

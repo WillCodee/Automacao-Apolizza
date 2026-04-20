@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
   getAdminEmails,
@@ -12,34 +12,34 @@ import {
   type CotacaoAlerta,
 } from "@/lib/email";
 
-// ─── Auth helper ────────────────────────────────────────────
+// --- Auth helper ---
 
 function verifyCron(req: NextRequest): Response | null {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return apiError("CRON_SECRET não configurado", 500);
+  if (!cronSecret) return apiError("CRON_SECRET nao configurado", 500);
 
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${cronSecret}`) return apiError("Não autorizado", 401);
+  if (auth !== `Bearer ${cronSecret}`) return apiError("Nao autorizado", 401);
 
   return null;
 }
 
-// ─── 1. Alertas de Vigência (60/30/15 dias) ────────────────
+// --- 1. Alertas de Vigencia (60/30/15 dias) ---
 
 async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.fim_vigencia::text,
+  const resultRows = await dbQuery(sql`
+    SELECT c.id, c.name, c.status, c.seguradora, CAST(c.fim_vigencia AS CHAR) as fim_vigencia,
            u.name as assignee_name, u.email as assignee_email
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
       AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
       AND c.fim_vigencia IS NOT NULL
-      AND c.fim_vigencia BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days'
+      AND c.fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 60 DAY
     ORDER BY c.fim_vigencia ASC
   `);
 
-  const rows = result.rows as unknown as CotacaoAlerta[];
+  const rows = resultRows as unknown as CotacaoAlerta[];
   if (rows.length === 0) return { sent: 0, cotacoes: 0 };
 
   // Agrupar por faixa
@@ -48,9 +48,9 @@ async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
   const d30 = new Date(now); d30.setDate(d30.getDate() + 30);
 
   const groups = [
-    { label: "Até 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
-    { label: "16–30 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
-    { label: "31–60 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
+    { label: "At\u00e9 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
+    { label: "16\u201330 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
+    { label: "31\u201360 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
   ];
 
   for (const row of rows) {
@@ -68,13 +68,13 @@ async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
   if (admins.length > 0) {
     const res = await sendAlertEmail({
       to: admins,
-      subject: `⚠️ ${rows.length} cotação(ões) com vigência próxima`,
+      subject: `\u26a0\ufe0f ${rows.length} cota\u00e7\u00e3o(\u00f5es) com vig\u00eancia pr\u00f3xima`,
       html,
     });
     if (res.success) sent++;
   }
 
-  // Enviar para cada responsável suas próprias cotações
+  // Enviar para cada responsavel suas proprias cotacoes
   const byAssignee = new Map<string, CotacaoAlerta[]>();
   for (const row of rows) {
     if (row.assignee_email) {
@@ -85,11 +85,11 @@ async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
   }
 
   for (const [email, cotacoes] of byAssignee) {
-    if (admins.includes(email)) continue; // já recebeu o consolidado
+    if (admins.includes(email)) continue; // ja recebeu o consolidado
     const personalGroups = [
-      { label: "Até 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
-      { label: "16–30 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
-      { label: "31–60 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
+      { label: "At\u00e9 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
+      { label: "16\u201330 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
+      { label: "31\u201360 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
     ];
     for (const c of cotacoes) {
       const fv = new Date(c.fim_vigencia!);
@@ -99,7 +99,7 @@ async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
     }
     const res = await sendAlertEmail({
       to: email,
-      subject: `⚠️ ${cotacoes.length} cotação(ões) com vigência próxima`,
+      subject: `\u26a0\ufe0f ${cotacoes.length} cota\u00e7\u00e3o(\u00f5es) com vig\u00eancia pr\u00f3xima`,
       html: buildVigenciaHtml(personalGroups),
     });
     if (res.success) sent++;
@@ -108,25 +108,25 @@ async function alertasVigencia(): Promise<{ sent: number; cotacoes: number }> {
   return { sent, cotacoes: rows.length };
 }
 
-// ─── 2. Alertas de Tratativa (hoje/amanhã) ─────────────────
+// --- 2. Alertas de Tratativa (hoje/amanha) ---
 
 async function alertasTratativa(): Promise<{ sent: number; cotacoes: number }> {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.proxima_tratativa::text,
+  const resultRows = await dbQuery(sql`
+    SELECT c.id, c.name, c.status, c.seguradora, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa,
            u.name as assignee_name, u.email as assignee_email
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
       AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
       AND c.proxima_tratativa IS NOT NULL
-      AND c.proxima_tratativa BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day'
+      AND c.proxima_tratativa BETWEEN CURDATE() AND CURDATE() + INTERVAL 1 DAY
     ORDER BY c.proxima_tratativa ASC
   `);
 
-  const rows = result.rows as unknown as CotacaoAlerta[];
+  const rows = resultRows as unknown as CotacaoAlerta[];
   if (rows.length === 0) return { sent: 0, cotacoes: 0 };
 
-  // Agrupar por responsável e enviar
+  // Agrupar por responsavel e enviar
   const byAssignee = new Map<string, CotacaoAlerta[]>();
   for (const row of rows) {
     const email = row.assignee_email || "admins";
@@ -144,7 +144,7 @@ async function alertasTratativa(): Promise<{ sent: number; cotacoes: number }> {
 
     const res = await sendAlertEmail({
       to,
-      subject: `📋 ${cotacoes.length} tratativa(s) agendada(s) para hoje/amanhã`,
+      subject: `\ud83d\udccb ${cotacoes.length} tratativa(s) agendada(s) para hoje/amanh\u00e3`,
       html: buildTratativaHtml(cotacoes),
     });
     if (res.success) sent++;
@@ -153,21 +153,21 @@ async function alertasTratativa(): Promise<{ sent: number; cotacoes: number }> {
   return { sent, cotacoes: rows.length };
 }
 
-// ─── 3. Alertas de Prazo (due_date = hoje) ─────────────────
+// --- 3. Alertas de Prazo (due_date = hoje) ---
 
 async function alertasPrazo(): Promise<{ sent: number; cotacoes: number }> {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.due_date::text,
+  const resultRows = await dbQuery(sql`
+    SELECT c.id, c.name, c.status, c.seguradora, CAST(c.due_date AS CHAR) as due_date,
            u.name as assignee_name, u.email as assignee_email
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
       AND c.status NOT IN ('fechado', 'perda', 'cancelado', 'atrasado')
-      AND c.due_date::date = CURRENT_DATE
+      AND DATE(c.due_date) = CURDATE()
     ORDER BY c.due_date ASC
   `);
 
-  const rows = result.rows as unknown as CotacaoAlerta[];
+  const rows = resultRows as unknown as CotacaoAlerta[];
   if (rows.length === 0) return { sent: 0, cotacoes: 0 };
 
   const byAssignee = new Map<string, CotacaoAlerta[]>();
@@ -187,7 +187,7 @@ async function alertasPrazo(): Promise<{ sent: number; cotacoes: number }> {
 
     const res = await sendAlertEmail({
       to,
-      subject: `⏰ ${cotacoes.length} cotação(ões) com prazo hoje`,
+      subject: `\u23f0 ${cotacoes.length} cota\u00e7\u00e3o(\u00f5es) com prazo hoje`,
       html: buildPrazoHtml(cotacoes),
     });
     if (res.success) sent++;
@@ -196,19 +196,19 @@ async function alertasPrazo(): Promise<{ sent: number; cotacoes: number }> {
   return { sent, cotacoes: rows.length };
 }
 
-// ─── 4. Resumo Diário (admins) ─────────────────────────────
+// --- 4. Resumo Diario (admins) ---
 
 async function resumoDiario(): Promise<{ sent: number }> {
-  const result = await db.execute(sql`
+  const resultRows = await dbQuery(sql`
     SELECT
-      COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE) as novas_hoje,
-      COUNT(*) FILTER (WHERE status = 'atrasado') as atrasadas,
-      COUNT(*) FILTER (WHERE status = 'fechado' AND updated_at::date = CURRENT_DATE) as fechadas_hoje,
-      COUNT(*) FILTER (WHERE fim_vigencia IS NOT NULL AND fim_vigencia BETWEEN CURRENT_DATE AND CURRENT_DATE + 30) as vencendo_30d
+      CAST(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as novas_hoje,
+      CAST(SUM(CASE WHEN status = 'atrasado' THEN 1 ELSE 0 END) AS SIGNED) as atrasadas,
+      CAST(SUM(CASE WHEN status = 'fechado' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as fechadas_hoje,
+      CAST(SUM(CASE WHEN fim_vigencia IS NOT NULL AND fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 30 DAY THEN 1 ELSE 0 END) AS SIGNED) as vencendo_30d
     FROM cotacoes WHERE deleted_at IS NULL
   `);
 
-  const row = result.rows[0] as Record<string, unknown>;
+  const row = resultRows[0] as Record<string, unknown>;
   const kpis = {
     novas_hoje: Number(row.novas_hoje) || 0,
     atrasadas: Number(row.atrasadas) || 0,
@@ -221,14 +221,14 @@ async function resumoDiario(): Promise<{ sent: number }> {
 
   const res = await sendAlertEmail({
     to: admins,
-    subject: `📊 Resumo diário — ${kpis.novas_hoje} novas, ${kpis.atrasadas} atrasadas`,
+    subject: `\ud83d\udcca Resumo di\u00e1rio \u2014 ${kpis.novas_hoje} novas, ${kpis.atrasadas} atrasadas`,
     html: buildResumoHtml(kpis),
   });
 
   return { sent: res.success ? 1 : 0 };
 }
 
-// ─── Handler ────────────────────────────────────────────────
+// --- Handler ---
 
 async function handler(req: NextRequest) {
   const authError = verifyCron(req);

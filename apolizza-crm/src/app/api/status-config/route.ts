@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { statusConfig } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 export async function GET() {
   try {
@@ -35,18 +35,20 @@ export async function POST(req: NextRequest) {
       return apiError("statusName, displayLabel e color sao obrigatorios", 400);
     }
 
+    const insertData = {
+      statusName: statusName.trim().toLowerCase(),
+      displayLabel: displayLabel.trim(),
+      color,
+      icon: icon || null,
+      orderIndex: orderIndex ?? 0,
+      isTerminal: isTerminal ?? false,
+      requiredFields: requiredFields ?? [],
+    };
+    await db.insert(statusConfig).values(insertData);
     const [created] = await db
-      .insert(statusConfig)
-      .values({
-        statusName: statusName.trim().toLowerCase(),
-        displayLabel: displayLabel.trim(),
-        color,
-        icon: icon || null,
-        orderIndex: orderIndex ?? 0,
-        isTerminal: isTerminal ?? false,
-        requiredFields: requiredFields ?? [],
-      })
-      .returning();
+      .select()
+      .from(statusConfig)
+      .where(eq(statusConfig.statusName, insertData.statusName));
 
     return apiSuccess(created, 201);
   } catch (error: unknown) {

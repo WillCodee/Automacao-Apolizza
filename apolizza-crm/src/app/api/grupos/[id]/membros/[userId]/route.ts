@@ -14,12 +14,14 @@ export async function DELETE(
 
   const { id: grupoId, userId } = await params;
 
-  const [deleted] = await db
-    .delete(grupoMembros)
-    .where(and(eq(grupoMembros.grupoId, grupoId), eq(grupoMembros.userId, userId)))
-    .returning();
+  const [toDelete] = await db
+    .select({ grupoId: grupoMembros.grupoId, userId: grupoMembros.userId })
+    .from(grupoMembros)
+    .where(and(eq(grupoMembros.grupoId, grupoId), eq(grupoMembros.userId, userId)));
 
-  if (!deleted) return apiError("Membro não encontrado neste grupo", 404);
+  if (!toDelete) return apiError("Membro não encontrado neste grupo", 404);
+
+  await db.delete(grupoMembros).where(and(eq(grupoMembros.grupoId, grupoId), eq(grupoMembros.userId, userId)));
 
   return apiSuccess({ ok: true });
 }

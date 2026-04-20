@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
     const conditions = [
       isNull(cotacoes.deletedAt),
       isNotNull(cotacoes.proximaTratativa),
-      gte(cotacoes.proximaTratativa, today.toISOString().split("T")[0]),
+      gte(cotacoes.proximaTratativa, today),
     ];
 
     // Cotador vê apenas suas próprias cotações

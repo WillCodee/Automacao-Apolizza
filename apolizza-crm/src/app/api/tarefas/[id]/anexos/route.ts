@@ -112,17 +112,20 @@ export async function POST(request: Request, { params }: RouteContext) {
     });
 
     // Salvar no banco
+    const anexoData = {
+      tarefaId,
+      usuarioId: user.id,
+      nomeArquivo: file.name,
+      urlBlob: blob.url,
+      tamanho: file.size,
+      mimeType: file.type,
+    };
+    await db.insert(tarefasAnexos).values(anexoData);
     const [anexo] = await db
-      .insert(tarefasAnexos)
-      .values({
-        tarefaId,
-        usuarioId: user.id,
-        nomeArquivo: file.name,
-        urlBlob: blob.url,
-        tamanho: file.size,
-        mimeType: file.type,
-      })
-      .returning();
+      .select()
+      .from(tarefasAnexos)
+      .where(eq(tarefasAnexos.urlBlob, blob.url))
+      .limit(1);
 
     // Registrar atividade
     await logAtividade({

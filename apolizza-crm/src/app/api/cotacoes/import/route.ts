@@ -154,10 +154,10 @@ export async function POST(req: NextRequest) {
             produto: (row.produto as string) || null,
             situacao: (row.situacao as string) || null,
             indicacao: (row.indicacao as string) || null,
-            inicioVigencia: (row.inicioVigencia as string) || null,
-            fimVigencia: (row.fimVigencia as string) || null,
-            primeiroPagamento: (row.primeiroPagamento as string) || null,
-            proximaTratativa: (row.proximaTratativa as string) || null,
+            inicioVigencia: row.inicioVigencia ? new Date(row.inicioVigencia as string) : null,
+            fimVigencia: row.fimVigencia ? new Date(row.fimVigencia as string) : null,
+            primeiroPagamento: row.primeiroPagamento ? new Date(row.primeiroPagamento as string) : null,
+            proximaTratativa: row.proximaTratativa ? new Date(row.proximaTratativa as string) : null,
             parceladoEm: (row.parceladoEm as number) || null,
             premioSemIof: (row.premioSemIof as string) || null,
             comissao: (row.comissao as string) || null,
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
             mesReferencia: (row.mesReferencia as string) || null,
             anoReferencia: (row.anoReferencia as number) || null,
             isRenovacao: (row.isRenovacao as boolean) || false,
-            tags: [],
+            tags: null,
           }))
         );
       }

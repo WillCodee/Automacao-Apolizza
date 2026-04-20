@@ -1,15 +1,15 @@
 /**
- * Cron da Manhã — 11:00 UTC (08:00 BRT)
- * - Marca cotações como atrasado + notificações sistema + Telegram
- * - Tratativas de hoje e amanhã → Telegram + notificações cotadores
- * - Alertas de vigência (60/30/15 dias) → email admins + responsáveis
- * - Alertas de tratativa → email responsáveis
- * - Novas tarefas criadas hoje → email cotadores
- * - Tarefas concluídas hoje → email admins
+ * Cron da Manha — 11:00 UTC (08:00 BRT)
+ * - Marca cotacoes como atrasado + notificacoes sistema + Telegram
+ * - Tratativas de hoje e amanha -> Telegram + notificacoes cotadores
+ * - Alertas de vigencia (60/30/15 dias) -> email admins + responsaveis
+ * - Alertas de tratativa -> email responsaveis
+ * - Novas tarefas criadas hoje -> email cotadores
+ * - Tarefas concluidas hoje -> email admins
  */
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbQuery } from "@/lib/db";
 import { cotacaoNotificacoes } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
@@ -32,19 +32,28 @@ function verifyCron(req: NextRequest): boolean {
   return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-// ─── 1. Cotações atrasadas ───────────────────────────────────────────────────
+// --- 1. Cotacoes atrasadas ---
 
 async function processarAtrasados() {
-  const result = await db.execute(sql`
+  // MySQL does not support RETURNING, so we need to do UPDATE + SELECT
+  await db.execute(sql`
     UPDATE cotacoes
-    SET status = 'atrasado', updated_at = now()
+    SET status = 'atrasado', updated_at = NOW()
     WHERE deleted_at IS NULL
-      AND due_date < now()
+      AND due_date < NOW()
       AND status NOT IN ('fechado', 'perda', 'concluido ocultar', 'atrasado')
-    RETURNING id, name, assignee_id, status
   `);
 
-  const updated = result.rows as { id: string; name: string; assignee_id: string | null; status: string }[];
+  const updatedRows = await dbQuery(sql`
+    SELECT id, name, assignee_id, status
+    FROM cotacoes
+    WHERE deleted_at IS NULL
+      AND status = 'atrasado'
+      AND updated_at >= NOW() - INTERVAL 1 MINUTE
+      AND due_date < NOW()
+  `);
+
+  const updated = updatedRows as { id: string; name: string; assignee_id: string | null; status: string }[];
 
   if (updated.length > 0) {
     await db.insert(cotacaoNotificacoes).values(
@@ -54,7 +63,7 @@ async function processarAtrasados() {
         autorId: null as string | null,
         autorNome: "Sistema",
         tipo: "atrasado",
-        texto: `Cotação "${c.name}" passou do prazo e foi marcada como atrasada.`,
+        texto: `Cota\u00e7\u00e3o "${c.name}" passou do prazo e foi marcada como atrasada.`,
         destinatarioId: null as string | null,
         lida: false,
       }))
@@ -67,36 +76,36 @@ async function processarAtrasados() {
   return updated.length;
 }
 
-// ─── 2. Tratativas (hoje + amanhã) ──────────────────────────────────────────
+// --- 2. Tratativas (hoje + amanha) ---
 
 async function processarTratativas() {
-  const hoje = await db.execute(sql`
-    SELECT c.id, c.name, c.proxima_tratativa::text, c.assignee_id,
+  const hojeRows = await dbQuery(sql`
+    SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, c.assignee_id,
            u.name as assignee_name
     FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
-    WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURRENT_DATE
+    WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE()
     ORDER BY c.proxima_tratativa ASC LIMIT 30
   `);
-  const amanha = await db.execute(sql`
-    SELECT c.id, c.name, c.proxima_tratativa::text, c.assignee_id,
+  const amanhaRows = await dbQuery(sql`
+    SELECT c.id, c.name, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa, c.assignee_id,
            u.name as assignee_name
     FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
-    WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURRENT_DATE + INTERVAL '1 day'
+    WHERE c.deleted_at IS NULL AND c.proxima_tratativa = CURDATE() + INTERVAL 1 DAY
     ORDER BY c.proxima_tratativa ASC LIMIT 30
   `);
 
-  const txtHoje = fmtTratativas(hoje.rows as never, "hoje");
-  const txtAmanha = fmtTratativas(amanha.rows as never, "amanha");
+  const txtHoje = fmtTratativas(hojeRows as never, "hoje");
+  const txtAmanha = fmtTratativas(amanhaRows as never, "amanha");
   if (txtHoje) await sendTelegram(txtHoje);
   if (txtAmanha) await sendTelegram(txtAmanha);
 
   type TRow = { id: string; name: string; proxima_tratativa: string; assignee_id: string | null; assignee_name: string | null };
-  const hojeRows = hoje.rows as TRow[];
-  const amanhaRows = amanha.rows as TRow[];
-  const allRows = [...hojeRows, ...amanhaRows];
+  const hoje = hojeRows as TRow[];
+  const amanha = amanhaRows as TRow[];
+  const allRows = [...hoje, ...amanha];
 
   if (allRows.length > 0) {
-    const hojeIds = new Set(hojeRows.map((r) => r.id));
+    const hojeIds = new Set(hoje.map((r) => r.id));
     await db.insert(cotacaoNotificacoes).values(
       allRows
         .filter((r) => r.assignee_id)
@@ -106,32 +115,32 @@ async function processarTratativas() {
           autorId: null as string | null,
           autorNome: "Auditor",
           tipo: "mensagem",
-          texto: `📞 Lembrete: você tem uma tratativa agendada para *${hojeIds.has(r.id) ? "hoje" : "amanhã"}* nesta cotação.`,
+          texto: `\ud83d\udcde Lembrete: voc\u00ea tem uma tratativa agendada para *${hojeIds.has(r.id) ? "hoje" : "amanh\u00e3"}* nesta cota\u00e7\u00e3o.`,
           destinatarioId: r.assignee_id,
           lida: false,
         }))
     );
   }
 
-  return { hoje: hoje.rows.length, amanha: amanha.rows.length };
+  return { hoje: hoje.length, amanha: amanha.length };
 }
 
-// ─── 3. Alertas de vigência (email) ─────────────────────────────────────────
+// --- 3. Alertas de vigencia (email) ---
 
 async function processarAlertasVigencia() {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.fim_vigencia::text,
+  const resultRows = await dbQuery(sql`
+    SELECT c.id, c.name, c.status, c.seguradora, CAST(c.fim_vigencia AS CHAR) as fim_vigencia,
            u.name as assignee_name, u.email as assignee_email
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
       AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
       AND c.fim_vigencia IS NOT NULL
-      AND c.fim_vigencia BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days'
+      AND c.fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 60 DAY
     ORDER BY c.fim_vigencia ASC
   `);
 
-  const rows = result.rows as unknown as CotacaoAlerta[];
+  const rows = resultRows as unknown as CotacaoAlerta[];
   if (rows.length === 0) return { sent: 0, cotacoes: 0 };
 
   const now = new Date();
@@ -139,9 +148,9 @@ async function processarAlertasVigencia() {
   const d30 = new Date(now); d30.setDate(d30.getDate() + 30);
 
   const groups = [
-    { label: "Até 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
-    { label: "16–30 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
-    { label: "31–60 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
+    { label: "At\u00e9 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
+    { label: "16\u201330 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
+    { label: "31\u201360 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
   ];
   for (const row of rows) {
     const fv = new Date(row.fim_vigencia!);
@@ -154,7 +163,7 @@ async function processarAlertasVigencia() {
   let sent = 0;
 
   if (admins.length > 0) {
-    const res = await sendAlertEmail({ to: admins, subject: `⚠️ ${rows.length} cotação(ões) com vigência próxima`, html: buildVigenciaHtml(groups) });
+    const res = await sendAlertEmail({ to: admins, subject: `\u26a0\ufe0f ${rows.length} cota\u00e7\u00e3o(\u00f5es) com vig\u00eancia pr\u00f3xima`, html: buildVigenciaHtml(groups) });
     if (res.success) sent++;
   }
 
@@ -169,9 +178,9 @@ async function processarAlertasVigencia() {
   for (const [email, cotacoes] of byAssignee) {
     if (admins.includes(email)) continue;
     const pg = [
-      { label: "Até 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
-      { label: "16–30 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
-      { label: "31–60 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
+      { label: "At\u00e9 15 dias", badge: "badge-red", cotacoes: [] as CotacaoAlerta[] },
+      { label: "16\u201330 dias", badge: "badge-orange", cotacoes: [] as CotacaoAlerta[] },
+      { label: "31\u201360 dias", badge: "badge-blue", cotacoes: [] as CotacaoAlerta[] },
     ];
     for (const c of cotacoes) {
       const fv = new Date(c.fim_vigencia!);
@@ -179,29 +188,29 @@ async function processarAlertasVigencia() {
       else if (fv <= d30) pg[1].cotacoes.push(c);
       else pg[2].cotacoes.push(c);
     }
-    const res = await sendAlertEmail({ to: email, subject: `⚠️ ${cotacoes.length} cotação(ões) com vigência próxima`, html: buildVigenciaHtml(pg) });
+    const res = await sendAlertEmail({ to: email, subject: `\u26a0\ufe0f ${cotacoes.length} cota\u00e7\u00e3o(\u00f5es) com vig\u00eancia pr\u00f3xima`, html: buildVigenciaHtml(pg) });
     if (res.success) sent++;
   }
 
   return { sent, cotacoes: rows.length };
 }
 
-// ─── 4. Alertas de tratativa (email) ────────────────────────────────────────
+// --- 4. Alertas de tratativa (email) ---
 
 async function processarAlertasTratativa() {
-  const result = await db.execute(sql`
-    SELECT c.id, c.name, c.status, c.seguradora, c.proxima_tratativa::text,
+  const resultRows = await dbQuery(sql`
+    SELECT c.id, c.name, c.status, c.seguradora, CAST(c.proxima_tratativa AS CHAR) as proxima_tratativa,
            u.name as assignee_name, u.email as assignee_email
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
       AND c.status NOT IN ('fechado', 'perda', 'concluido ocultar')
       AND c.proxima_tratativa IS NOT NULL
-      AND c.proxima_tratativa BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day'
+      AND c.proxima_tratativa BETWEEN CURDATE() AND CURDATE() + INTERVAL 1 DAY
     ORDER BY c.proxima_tratativa ASC
   `);
 
-  const rows = result.rows as unknown as CotacaoAlerta[];
+  const rows = resultRows as unknown as CotacaoAlerta[];
   if (rows.length === 0) return { sent: 0, cotacoes: 0 };
 
   const byAssignee = new Map<string, CotacaoAlerta[]>();
@@ -217,14 +226,14 @@ async function processarAlertasTratativa() {
   for (const [email, cotacoes] of byAssignee) {
     const to = email === "admins" ? admins : [email];
     if (to.length === 0) continue;
-    const res = await sendAlertEmail({ to, subject: `📋 ${cotacoes.length} tratativa(s) agendada(s) para hoje/amanhã`, html: buildTratativaHtml(cotacoes) });
+    const res = await sendAlertEmail({ to, subject: `\ud83d\udccb ${cotacoes.length} tratativa(s) agendada(s) para hoje/amanh\u00e3`, html: buildTratativaHtml(cotacoes) });
     if (res.success) sent++;
   }
 
   return { sent, cotacoes: rows.length };
 }
 
-// ─── 5. Novas tarefas + concluídas (email) ──────────────────────────────────
+// --- 5. Novas tarefas + concluidas (email) ---
 
 interface TarefaRow extends Record<string, unknown> {
   id: string;
@@ -242,40 +251,40 @@ async function processarNotificacoesTarefas() {
   const admins = await getAdminEmails();
   let emailsEnviados = 0;
 
-  // Novas tarefas criadas hoje → email para cotador
-  const novas = await db.execute<TarefaRow>(sql`
+  // Novas tarefas criadas hoje -> email para cotador
+  const novasRows = await dbQuery(sql`
     SELECT t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
            u.name as cotador_name, u.email as cotador_email,
            criador.name as criador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
     JOIN users criador ON t.criador_id = criador.id
-    WHERE t.created_at::date = NOW()::date AND u.is_active = true
+    WHERE DATE(t.created_at) = CURDATE() AND u.is_active = true
   `);
-  for (const t of novas.rows) {
-    const res = await sendAlertEmail({ to: t.cotador_email, subject: `🆕 Nova Tarefa: ${t.titulo}`, html: buildNovaTarefaHtml(t) });
+  for (const t of novasRows as TarefaRow[]) {
+    const res = await sendAlertEmail({ to: t.cotador_email, subject: `\ud83c\udd95 Nova Tarefa: ${t.titulo}`, html: buildNovaTarefaHtml(t) });
     if (res.success) emailsEnviados++;
   }
 
-  // Tarefas concluídas hoje → email para admins
-  const concluidas = await db.execute<TarefaRow>(sql`
+  // Tarefas concluidas hoje -> email para admins
+  const concluidasRows = await dbQuery(sql`
     SELECT t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
            u.name as cotador_name, u.email as cotador_email,
            criador.name as criador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
     JOIN users criador ON t.criador_id = criador.id
-    WHERE t.updated_at::date = NOW()::date AND t.status = 'Concluída' AND u.is_active = true
+    WHERE DATE(t.updated_at) = CURDATE() AND t.status = 'Conclu\u00edda' AND u.is_active = true
   `);
-  for (const t of concluidas.rows) {
-    const res = await sendAlertEmail({ to: admins, subject: `✅ Tarefa Concluída: ${t.titulo}`, html: buildTarefaConcluidaHtml(t) });
+  for (const t of concluidasRows as TarefaRow[]) {
+    const res = await sendAlertEmail({ to: admins, subject: `\u2705 Tarefa Conclu\u00edda: ${t.titulo}`, html: buildTarefaConcluidaHtml(t) });
     if (res.success) emailsEnviados++;
   }
 
-  return { novas: novas.rows.length, concluidas: concluidas.rows.length, emailsEnviados };
+  return { novas: novasRows.length, concluidas: concluidasRows.length, emailsEnviados };
 }
 
-// ─── Handler ─────────────────────────────────────────────────────────────────
+// --- Handler ---
 
 async function handler(req: NextRequest) {
   if (!verifyCron(req)) return apiError("Nao autorizado", 401);
@@ -290,7 +299,7 @@ async function handler(req: NextRequest) {
     ]);
 
     return apiSuccess({
-      message: "Cron da manhã executado com sucesso",
+      message: "Cron da manha executado com sucesso",
       atrasados,
       tratativas,
       vigencia,
@@ -299,7 +308,7 @@ async function handler(req: NextRequest) {
     });
   } catch (error) {
     console.error("API /api/cron/manha:", error);
-    return apiError("Erro ao executar cron da manhã", 500);
+    return apiError("Erro ao executar cron da manha", 500);
   }
 }
 

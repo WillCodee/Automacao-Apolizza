@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess, validateAno } from "@/lib/api-helpers";
 
@@ -26,23 +26,23 @@ export async function GET(req: NextRequest) {
     const isCotador = user.role === "cotador";
     const userFilter = isCotador ? sql`and c.assignee_id = ${user.id}` : sql``;
 
-    const result = await db.execute(sql`
+    const rows = await dbQuery(sql`
       select
         c.id,
         c.name,
         c.status,
-        c.proxima_tratativa as "proximaTratativa",
-        c.fim_vigencia as "fimVigencia",
-        c.primeiro_pagamento as "primeiroPagamento",
-        u.name as "cotador"
+        c.proxima_tratativa as proximaTratativa,
+        c.fim_vigencia as fimVigencia,
+        c.primeiro_pagamento as primeiroPagamento,
+        u.name as cotador
       from cotacoes c
       left join users u on u.id = c.assignee_id
       where c.deleted_at is null
         ${userFilter}
         and (
-          (c.proxima_tratativa >= ${startDate}::date and c.proxima_tratativa < ${endDate}::date)
-          or (c.fim_vigencia >= ${startDate}::date and c.fim_vigencia < ${endDate}::date)
-          or (c.primeiro_pagamento >= ${startDate}::date and c.primeiro_pagamento < ${endDate}::date)
+          (c.proxima_tratativa >= ${startDate} and c.proxima_tratativa < ${endDate})
+          or (c.fim_vigencia >= ${startDate} and c.fim_vigencia < ${endDate})
+          or (c.primeiro_pagamento >= ${startDate} and c.primeiro_pagamento < ${endDate})
         )
       order by c.name
     `);
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     return apiSuccess({
       ano: anoNum,
       mes: mesNum,
-      eventos: result.rows,
+      eventos: rows,
     });
   } catch (error) {
     console.error("API GET /api/calendario:", error);

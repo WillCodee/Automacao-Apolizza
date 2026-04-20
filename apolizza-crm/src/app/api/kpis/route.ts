@@ -35,12 +35,12 @@ export async function GET(req: NextRequest) {
 
     const [result] = await db
       .select({
-        totalCotacoes: sql<number>`count(*)::int`,
-        fechadas: sql<number>`count(*) filter (where ${cotacoes.status} = 'fechado')::int`,
-        perdas: sql<number>`count(*) filter (where ${cotacoes.status} = 'perda')::int`,
-        totalAReceber: sql<number>`coalesce(sum(${cotacoes.aReceber}::numeric) filter (where ${cotacoes.status} = 'fechado'), 0)::float`,
-        totalValorPerda: sql<number>`coalesce(sum(${cotacoes.valorPerda}::numeric) filter (where ${cotacoes.status} = 'perda'), 0)::float`,
-        taxaConversao: sql<number>`round(count(*) filter (where ${cotacoes.status} = 'fechado')::numeric / nullif(count(*), 0) * 100, 1)::float`,
+        totalCotacoes: sql<number>`CAST(count(*) AS SIGNED)`,
+        fechadas: sql<number>`CAST(SUM(CASE WHEN ${cotacoes.status} = 'fechado' THEN 1 ELSE 0 END) AS SIGNED)`,
+        perdas: sql<number>`CAST(SUM(CASE WHEN ${cotacoes.status} = 'perda' THEN 1 ELSE 0 END) AS SIGNED)`,
+        totalAReceber: sql<number>`COALESCE(SUM(CASE WHEN ${cotacoes.status} = 'fechado' THEN CAST(${cotacoes.aReceber} AS DECIMAL(12,2)) ELSE 0 END), 0)`,
+        totalValorPerda: sql<number>`COALESCE(SUM(CASE WHEN ${cotacoes.status} = 'perda' THEN CAST(${cotacoes.valorPerda} AS DECIMAL(12,2)) ELSE 0 END), 0)`,
+        taxaConversao: sql<number>`ROUND(CAST(SUM(CASE WHEN ${cotacoes.status} = 'fechado' THEN 1 ELSE 0 END) AS DECIMAL(12,2)) / NULLIF(COUNT(*), 0) * 100, 1)`,
       })
       .from(cotacoes)
       .where(where);

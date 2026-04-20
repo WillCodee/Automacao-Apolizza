@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, cotacaoDocs, cotacaoHistory, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -66,23 +66,27 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     // Cria a cotação
+    const insertData = {
+      name: nomeCliente,
+      status: "não iniciado" as const,
+      priority: (prioridade.toLowerCase() === "alta" ? "high" : prioridade.toLowerCase() === "urgente" ? "urgent" : "normal") as "high" | "urgent" | "normal",
+      assigneeId: responsavelId,
+      produto,
+      contatoCliente,
+      indicacao: indicacao || null,
+      situacao,
+      mesReferencia: mes,
+      anoReferencia: parseInt(ano),
+      observacao: descricao,
+      tags: ["pedido"],
+    };
+    await db.insert(cotacoes).values(insertData);
     const [cotacao] = await db
-      .insert(cotacoes)
-      .values({
-        name: nomeCliente,
-        status: "não iniciado",
-        priority: prioridade.toLowerCase() === "alta" ? "high" : prioridade.toLowerCase() === "urgente" ? "urgent" : "normal",
-        assigneeId: responsavelId,
-        produto,
-        contatoCliente,
-        indicacao: indicacao || null,
-        situacao,
-        mesReferencia: mes,
-        anoReferencia: parseInt(ano),
-        observacao: descricao,
-        tags: ["pedido"],
-      })
-      .returning();
+      .select()
+      .from(cotacoes)
+      .where(eq(cotacoes.name, nomeCliente))
+      .orderBy(sql`${cotacoes.createdAt} DESC`)
+      .limit(1);
 
     // Registra evento de criação no histórico
     await db.insert(cotacaoHistory).values({

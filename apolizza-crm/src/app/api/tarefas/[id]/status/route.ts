@@ -50,11 +50,11 @@ export async function PATCH(
       extraFields.concluidaEm = now;
     }
 
-    const [tarefaAtualizada] = await db
+    await db
       .update(tarefas)
       .set({ status: validated.status, ...extraFields })
-      .where(eq(tarefas.id, id))
-      .returning();
+      .where(eq(tarefas.id, id));
+    const [tarefaAtualizada] = await db.select().from(tarefas).where(eq(tarefas.id, id));
 
     // Registrar atividade
     await logAtividade({

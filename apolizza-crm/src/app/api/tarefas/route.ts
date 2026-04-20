@@ -39,10 +39,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (dateFrom) {
-      conditions.push(sql`${tarefas.dataVencimento}::date >= ${dateFrom}::date`);
+      conditions.push(sql`DATE(${tarefas.dataVencimento}) >= ${dateFrom}`);
     }
     if (dateTo) {
-      conditions.push(sql`${tarefas.dataVencimento}::date <= ${dateTo}::date`);
+      conditions.push(sql`DATE(${tarefas.dataVencimento}) <= ${dateTo}`);
     }
     if (mesFilter) {
       conditions.push(sql`EXTRACT(MONTH FROM ${tarefas.dataVencimento}) = ${Number(mesFilter)}`);
@@ -106,19 +106,23 @@ export async function POST(req: NextRequest) {
     const { checklistItems, ...rest } = body;
     const validated = tarefaCreateSchema.parse(rest);
 
+    const insertValues = {
+      titulo: validated.titulo,
+      descricao: validated.descricao,
+      dataVencimento: validated.dataVencimento
+        ? new Date(validated.dataVencimento)
+        : null,
+      status: validated.status,
+      cotadorId: validated.cotadorId,
+      criadorId: user.id,
+    };
+    await db.insert(tarefas).values(insertValues);
     const [novaTarefa] = await db
-      .insert(tarefas)
-      .values({
-        titulo: validated.titulo,
-        descricao: validated.descricao,
-        dataVencimento: validated.dataVencimento
-          ? new Date(validated.dataVencimento)
-          : null,
-        status: validated.status,
-        cotadorId: validated.cotadorId,
-        criadorId: user.id,
-      })
-      .returning();
+      .select()
+      .from(tarefas)
+      .where(and(eq(tarefas.criadorId, user.id), eq(tarefas.titulo, validated.titulo)))
+      .orderBy(sql`${tarefas.createdAt} DESC`)
+      .limit(1);
 
     // Salvar itens do checklist
     if (Array.isArray(checklistItems) && checklistItems.length > 0) {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { comissaoTabela } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -51,11 +51,18 @@ export async function POST(req: NextRequest) {
       return apiError("Percentual deve ser entre 0 e 100", 400);
     }
 
-    const [row] = await db.insert(comissaoTabela).values({
+    const insertData = {
       seguradora: seguradora.trim(),
       produto: produto?.trim() || null,
       percentual: String(percentual),
-    }).returning();
+    };
+    await db.insert(comissaoTabela).values(insertData);
+    const [row] = await db
+      .select()
+      .from(comissaoTabela)
+      .where(and(eq(comissaoTabela.seguradora, insertData.seguradora)))
+      .orderBy(sql`${comissaoTabela.createdAt} DESC`)
+      .limit(1);
 
     return apiSuccess(row, 201);
   } catch (error) {

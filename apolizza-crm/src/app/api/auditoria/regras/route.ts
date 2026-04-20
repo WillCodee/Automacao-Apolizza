@@ -41,10 +41,13 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return apiError(parsed.error.issues[0]?.message || "Dados inválidos", 400);
 
     const { nome, comando, tipo, descricao } = parsed.data;
-    const [row] = await db
+    await db
       .insert(regrasAuditoria)
-      .values({ nome, comando, tipo, descricao: descricao ?? null })
-      .returning();
+      .values({ nome, comando, tipo, descricao: descricao ?? null });
+    const [row] = await db
+      .select()
+      .from(regrasAuditoria)
+      .where(eq(regrasAuditoria.comando, comando));
     return apiSuccess(row, 201);
   } catch (err) {
     console.error("POST /api/auditoria/regras:", err);

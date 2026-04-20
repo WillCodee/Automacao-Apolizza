@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tarefas, tarefasChecklist } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -60,11 +60,18 @@ export async function POST(
       return apiError("Sem permissão", 403);
     }
 
-    const [item] = await db.insert(tarefasChecklist).values({
+    const insertData = {
       tarefaId: id,
       texto: texto.trim(),
       ordem: ordem ?? 0,
-    }).returning();
+    };
+    await db.insert(tarefasChecklist).values(insertData);
+    const [item] = await db
+      .select()
+      .from(tarefasChecklist)
+      .where(and(eq(tarefasChecklist.tarefaId, id), eq(tarefasChecklist.texto, insertData.texto)))
+      .orderBy(sql`${tarefasChecklist.createdAt} DESC`)
+      .limit(1);
 
     return apiSuccess(item, 201);
   } catch (error) {
@@ -93,15 +100,15 @@ export async function PATCH(
       return apiError("Sem permissão", 403);
     }
 
-    const [updated] = await db
+    await db
       .update(tarefasChecklist)
       .set({
         concluido,
         concluidoPor: concluido ? user.id : null,
         concluidoEm: concluido ? new Date() : null,
       })
-      .where(and(eq(tarefasChecklist.id, itemId), eq(tarefasChecklist.tarefaId, id)))
-      .returning();
+      .where(and(eq(tarefasChecklist.id, itemId), eq(tarefasChecklist.tarefaId, id)));
+    const [updated] = await db.select().from(tarefasChecklist).where(eq(tarefasChecklist.id, itemId));
 
     return apiSuccess(updated);
   } catch (error) {

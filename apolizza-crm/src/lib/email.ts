@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { sql } from "drizzle-orm";
 
 let resend: InstanceType<typeof Resend> | null = null;
@@ -11,7 +11,7 @@ function getResend() {
 
 const FROM = process.env.RESEND_FROM || "alertas@apolizza.com";
 
-// ─── Template HTML ──────────────────────────────────────────
+// --- Template HTML ---
 
 function htmlWrapper(title: string, body: string): string {
   return `<!DOCTYPE html>
@@ -47,13 +47,13 @@ function htmlWrapper(title: string, body: string): string {
       <div class="subtitle">${title}</div>
     </div>
     <div class="body">${body}</div>
-    <div class="footer">Enviado automaticamente pelo Apolizza CRM &mdash; não responda este email.</div>
+    <div class="footer">Enviado automaticamente pelo Apolizza CRM &mdash; n\u00e3o responda este email.</div>
   </div>
 </body>
 </html>`;
 }
 
-// ─── Cotação row type ───────────────────────────────────────
+// --- Cotacao row type ---
 
 export interface CotacaoAlerta {
   id: string;
@@ -78,14 +78,14 @@ export interface TarefaNotificacao {
   criador_name: string;
 }
 
-// ─── Helpers públicos ───────────────────────────────────────
+// --- Helpers publicos ---
 
 export async function getAdminEmails(): Promise<string[]> {
-  const result = await db.execute(sql`
+  const rows = await dbQuery(sql`
     SELECT email FROM users
     WHERE role = 'admin' AND is_active = true
   `);
-  return result.rows.map((r: Record<string, unknown>) => r.email as string);
+  return rows.map((r) => r.email as string);
 }
 
 export async function sendAlertEmail({
@@ -98,8 +98,8 @@ export async function sendAlertEmail({
   html: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn("[email] RESEND_API_KEY não configurada — email ignorado");
-    return { success: false, error: "RESEND_API_KEY não configurada" };
+    console.warn("[email] RESEND_API_KEY n\u00e3o configurada \u2014 email ignorado");
+    return { success: false, error: "RESEND_API_KEY n\u00e3o configurada" };
   }
 
   try {
@@ -119,7 +119,7 @@ export async function sendAlertEmail({
   }
 }
 
-// ─── Templates de email ─────────────────────────────────────
+// --- Templates de email ---
 
 function cotacaoTable(cotacoes: CotacaoAlerta[], extraCol?: { header: string; key: keyof CotacaoAlerta }): string {
   const rows = cotacoes
@@ -127,18 +127,18 @@ function cotacaoTable(cotacoes: CotacaoAlerta[], extraCol?: { header: string; ke
       (c) =>
         `<tr>
           <td><strong>${c.name}</strong></td>
-          <td>${c.seguradora || "—"}</td>
-          <td>${c.assignee_name || "—"}</td>
-          ${extraCol ? `<td>${(c[extraCol.key] as string) || "—"}</td>` : ""}
+          <td>${c.seguradora || "\u2014"}</td>
+          <td>${c.assignee_name || "\u2014"}</td>
+          ${extraCol ? `<td>${(c[extraCol.key] as string) || "\u2014"}</td>` : ""}
         </tr>`
     )
     .join("");
 
   return `<table>
     <tr>
-      <th>Cotação</th>
+      <th>Cota\u00e7\u00e3o</th>
       <th>Seguradora</th>
-      <th>Responsável</th>
+      <th>Respons\u00e1vel</th>
       ${extraCol ? `<th>${extraCol.header}</th>` : ""}
     </tr>
     ${rows}
@@ -150,18 +150,18 @@ export function buildVigenciaHtml(groups: { label: string; badge: string; cotaco
     .filter((g) => g.cotacoes.length > 0)
     .map(
       (g) =>
-        `<h3><span class="badge ${g.badge}">${g.label}</span> — ${g.cotacoes.length} cotação(ões)</h3>
-        ${cotacaoTable(g.cotacoes, { header: "Fim Vigência", key: "fim_vigencia" })}`
+        `<h3><span class="badge ${g.badge}">${g.label}</span> \u2014 ${g.cotacoes.length} cota\u00e7\u00e3o(\u00f5es)</h3>
+        ${cotacaoTable(g.cotacoes, { header: "Fim Vig\u00eancia", key: "fim_vigencia" })}`
     )
     .join("");
 
-  return htmlWrapper("Alerta de Vigência", sections || "<p>Nenhuma cotação com vigência próxima.</p>");
+  return htmlWrapper("Alerta de Vig\u00eancia", sections || "<p>Nenhuma cota\u00e7\u00e3o com vig\u00eancia pr\u00f3xima.</p>");
 }
 
 export function buildTratativaHtml(cotacoes: CotacaoAlerta[]): string {
   const body = cotacoes.length
-    ? `<p>Você tem <strong>${cotacoes.length}</strong> tratativa(s) agendada(s) para hoje/amanhã:</p>
-       ${cotacaoTable(cotacoes, { header: "Próx. Tratativa", key: "proxima_tratativa" })}`
+    ? `<p>Voc\u00ea tem <strong>${cotacoes.length}</strong> tratativa(s) agendada(s) para hoje/amanh\u00e3:</p>
+       ${cotacaoTable(cotacoes, { header: "Pr\u00f3x. Tratativa", key: "proxima_tratativa" })}`
     : "<p>Nenhuma tratativa pendente.</p>";
 
   return htmlWrapper("Alerta de Tratativa", body);
@@ -169,9 +169,9 @@ export function buildTratativaHtml(cotacoes: CotacaoAlerta[]): string {
 
 export function buildPrazoHtml(cotacoes: CotacaoAlerta[]): string {
   const body = cotacoes.length
-    ? `<p>Você tem <strong>${cotacoes.length}</strong> cotação(ões) com prazo hoje:</p>
+    ? `<p>Voc\u00ea tem <strong>${cotacoes.length}</strong> cota\u00e7\u00e3o(\u00f5es) com prazo hoje:</p>
        ${cotacaoTable(cotacoes, { header: "Prazo", key: "due_date" })}`
-    : "<p>Nenhuma cotação com prazo hoje.</p>";
+    : "<p>Nenhuma cota\u00e7\u00e3o com prazo hoje.</p>";
 
   return htmlWrapper("Alerta de Prazo", body);
 }
@@ -203,10 +203,10 @@ export function buildResumoHtml(kpis: {
       </div>
     </div>`;
 
-  return htmlWrapper("Resumo Diário", body);
+  return htmlWrapper("Resumo Di\u00e1rio", body);
 }
 
-// ─── Templates de Tarefas ───────────────────────────────────────
+// --- Templates de Tarefas ---
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "Sem prazo";
@@ -219,15 +219,15 @@ function formatDate(dateString: string | null): string {
 
 export function buildNovaTarefaHtml(tarefa: TarefaNotificacao): string {
   const body = `
-    <p>Olá <strong>${tarefa.cotador_name}</strong>,</p>
-    <p>Uma nova tarefa foi atribuída a você:</p>
+    <p>Ol\u00e1 <strong>${tarefa.cotador_name}</strong>,</p>
+    <p>Uma nova tarefa foi atribu\u00edda a voc\u00ea:</p>
 
     <h3><span class="badge badge-blue">NOVA</span> ${tarefa.titulo}</h3>
 
     ${tarefa.descricao ? `<p><em>${tarefa.descricao}</em></p>` : ""}
 
     <table>
-      <tr><th>Atribuído por</th><td>${tarefa.criador_name}</td></tr>
+      <tr><th>Atribu\u00eddo por</th><td>${tarefa.criador_name}</td></tr>
       <tr><th>Data de vencimento</th><td>${formatDate(tarefa.data_vencimento)}</td></tr>
       <tr><th>Status</th><td><span class="badge badge-blue">${tarefa.status}</span></td></tr>
     </table>
@@ -240,7 +240,7 @@ export function buildNovaTarefaHtml(tarefa: TarefaNotificacao): string {
     </p>
   `;
 
-  return htmlWrapper("Nova Tarefa Atribuída", body);
+  return htmlWrapper("Nova Tarefa Atribu\u00edda", body);
 }
 
 export function buildTarefaAtrasadaHtml(tarefa: TarefaNotificacao): string {
@@ -249,14 +249,14 @@ export function buildTarefaAtrasadaHtml(tarefa: TarefaNotificacao): string {
     : 0;
 
   const body = `
-    <p><strong>Atenção!</strong> A tarefa abaixo está atrasada:</p>
+    <p><strong>Aten\u00e7\u00e3o!</strong> A tarefa abaixo est\u00e1 atrasada:</p>
 
     <h3><span class="badge badge-red">ATRASADA</span> ${tarefa.titulo}</h3>
 
     ${tarefa.descricao ? `<p><em>${tarefa.descricao}</em></p>` : ""}
 
     <table>
-      <tr><th>Responsável</th><td>${tarefa.cotador_name}</td></tr>
+      <tr><th>Respons\u00e1vel</th><td>${tarefa.cotador_name}</td></tr>
       <tr><th>Vencimento</th><td style="color:#ff695f;font-weight:600;">${formatDate(tarefa.data_vencimento)} (${diasAtrasada} dia${diasAtrasada !== 1 ? "s" : ""} de atraso)</td></tr>
       <tr><th>Status</th><td><span class="badge badge-orange">${tarefa.status}</span></td></tr>
     </table>
@@ -269,27 +269,27 @@ export function buildTarefaAtrasadaHtml(tarefa: TarefaNotificacao): string {
     </p>
   `;
 
-  return htmlWrapper("⚠️ Tarefa Atrasada", body);
+  return htmlWrapper("\u26a0\ufe0f Tarefa Atrasada", body);
 }
 
 export function buildTarefaConcluidaHtml(tarefa: TarefaNotificacao): string {
   const body = `
-    <p>A seguinte tarefa foi concluída:</p>
+    <p>A seguinte tarefa foi conclu\u00edda:</p>
 
-    <h3><span class="badge" style="background:#22c55e;">CONCLUÍDA</span> ${tarefa.titulo}</h3>
+    <h3><span class="badge" style="background:#22c55e;">CONCLU\u00cdDA</span> ${tarefa.titulo}</h3>
 
     ${tarefa.descricao ? `<p><em>${tarefa.descricao}</em></p>` : ""}
 
     <table>
-      <tr><th>Responsável</th><td>${tarefa.cotador_name}</td></tr>
+      <tr><th>Respons\u00e1vel</th><td>${tarefa.cotador_name}</td></tr>
       <tr><th>Vencimento original</th><td>${formatDate(tarefa.data_vencimento)}</td></tr>
-      <tr><th>Status</th><td><span class="badge" style="background:#22c55e;">Concluída</span></td></tr>
+      <tr><th>Status</th><td><span class="badge" style="background:#22c55e;">Conclu\u00edda</span></td></tr>
     </table>
 
     <p style="margin-top:20px;color:#10b981;">
-      ✅ Tarefa completada com sucesso!
+      \u2705 Tarefa completada com sucesso!
     </p>
   `;
 
-  return htmlWrapper("✅ Tarefa Concluída", body);
+  return htmlWrapper("\u2705 Tarefa Conclu\u00edda", body);
 }

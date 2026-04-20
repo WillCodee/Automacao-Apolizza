@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and, ilike, isNull, sql, gte, lte } from "drizzle-orm";
+import { eq, and, isNull, sql, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
     if (mes) conditions.push(eq(cotacoes.mesReferencia, mes));
     if (search) {
       conditions.push(sql`(
-        ${cotacoes.name} ILIKE ${'%' + search + '%'}
-        OR ${cotacoes.seguradora} ILIKE ${'%' + search + '%'}
+        ${cotacoes.name} LIKE ${'%' + search + '%'}
+        OR ${cotacoes.seguradora} LIKE ${'%' + search + '%'}
       )`);
     }
     if (produto) conditions.push(eq(cotacoes.produto, produto));

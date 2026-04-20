@@ -133,11 +133,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     const updated = await db.transaction(async (tx) => {
-      const [row] = await tx
+      await tx
         .update(cotacoes)
         .set(updateData)
-        .where(eq(cotacoes.id, id))
-        .returning();
+        .where(eq(cotacoes.id, id));
 
       if (historyEntries.length > 0) {
         await tx.insert(cotacaoHistory).values(
@@ -163,6 +162,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         });
       }
 
+      const [row] = await tx.select().from(cotacoes).where(eq(cotacoes.id, id));
       return row;
     });
 
@@ -184,15 +184,21 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     const { id } = await params;
 
-    const [deleted] = await db
+    // Check if cotacao exists before soft-deleting
+    const [toDelete] = await db
+      .select({ id: cotacoes.id })
+      .from(cotacoes)
+      .where(and(eq(cotacoes.id, id), isNull(cotacoes.deletedAt)));
+
+    if (!toDelete) return apiError("Cotacao nao encontrada", 404);
+
+    const deletedAt = new Date();
+    await db
       .update(cotacoes)
-      .set({ deletedAt: new Date() })
-      .where(and(eq(cotacoes.id, id), isNull(cotacoes.deletedAt)))
-      .returning();
+      .set({ deletedAt })
+      .where(eq(cotacoes.id, id));
 
-    if (!deleted) return apiError("Cotacao nao encontrada", 404);
-
-    return apiSuccess({ id: deleted.id, deletedAt: deleted.deletedAt });
+    return apiSuccess({ id: toDelete.id, deletedAt });
   } catch (error) {
     console.error("API DELETE /api/cotacoes/[id]:", error);
     return apiError("Erro ao excluir cotacao", 500);

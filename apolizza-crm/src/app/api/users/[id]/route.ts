@@ -28,18 +28,22 @@ export async function PUT(req: NextRequest, { params }: Params) {
       updateData.passwordHash = await bcrypt.hash(password, 12);
     }
 
-    const [updated] = await db
+    await db
       .update(users)
       .set(updateData)
-      .where(eq(users.id, id))
-      .returning({
+      .where(eq(users.id, id));
+
+    const [updated] = await db
+      .select({
         id: users.id,
         name: users.name,
         email: users.email,
         username: users.username,
         role: users.role,
         isActive: users.isActive,
-      });
+      })
+      .from(users)
+      .where(eq(users.id, id));
 
     if (!updated) return apiError("Usuario nao encontrado", 404);
 
@@ -69,15 +73,18 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       .from(cotacoes)
       .where(eq(cotacoes.assigneeId, id));
 
+    // Buscar dados antes de deletar
+    const [toDelete] = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.id, id));
+
+    if (!toDelete) return apiError("Usuario nao encontrado", 404);
+
     // Exclui o usuário — cotações terão assignee_id = NULL (ON DELETE SET NULL)
-    const [deleted] = await db
-      .delete(users)
-      .where(eq(users.id, id))
-      .returning({ id: users.id, name: users.name });
+    await db.delete(users).where(eq(users.id, id));
 
-    if (!deleted) return apiError("Usuario nao encontrado", 404);
-
-    return apiSuccess({ ...deleted, cotacoesDesvinculadas: Number(cotacoesCount) });
+    return apiSuccess({ ...toDelete, cotacoesDesvinculadas: Number(cotacoesCount) });
   } catch (error) {
     console.error("API DELETE /api/users/[id]:", error);
     return apiError("Erro ao excluir usuario", 500);

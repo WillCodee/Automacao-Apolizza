@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { grupoMembros, users } from "@/lib/schema";
 import { apiSuccess, apiError } from "@/lib/api-helpers";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 const addMembroSchema = z.object({
   userId: z.string().uuid(),
@@ -32,10 +32,12 @@ export async function POST(
   if (!userExists) return apiError("Usuário não encontrado", 404);
 
   try {
+    const insertData = { grupoId, userId };
+    await db.insert(grupoMembros).values(insertData);
     const [inserted] = await db
-      .insert(grupoMembros)
-      .values({ grupoId, userId })
-      .returning();
+      .select()
+      .from(grupoMembros)
+      .where(and(eq(grupoMembros.grupoId, grupoId), eq(grupoMembros.userId, userId)));
 
     return apiSuccess(inserted, 201);
   } catch {

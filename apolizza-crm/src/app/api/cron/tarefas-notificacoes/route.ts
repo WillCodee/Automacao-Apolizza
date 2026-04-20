@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import {
   sendAlertEmail,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1️⃣ Tarefas criadas hoje → email para cotador
-    const novasTarefasResult = await db.execute<TarefaRow>(sql`
+    const novasTarefas = await dbQuery<TarefaRow>(sql`
       SELECT
         t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
         u.name as cotador_name, u.email as cotador_email,
@@ -57,11 +57,11 @@ export async function POST(req: NextRequest) {
       FROM tarefas t
       JOIN users u ON t.cotador_id = u.id
       JOIN users criador ON t.criador_id = criador.id
-      WHERE t.created_at::date = NOW()::date
+      WHERE DATE(t.created_at) = CURDATE()
         AND u.is_active = true
     `);
 
-    for (const tarefa of novasTarefasResult.rows) {
+    for (const tarefa of novasTarefas) {
       const html = buildNovaTarefaHtml(tarefa);
       const result = await sendAlertEmail({
         to: tarefa.cotador_email,
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     console.log(`[cron:tarefas-notificacoes] ✅ ${results.novasTarefas} novas tarefas processadas`);
 
     // 2️⃣ Tarefas atrasadas → email para cotador + gestor
-    const tarefasAtrasadasResult = await db.execute<TarefaRow>(sql`
+    const tarefasAtrasadas = await dbQuery<TarefaRow>(sql`
       SELECT
         t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
         u.name as cotador_name, u.email as cotador_email,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     const admins = await getAdminEmails();
 
-    for (const tarefa of tarefasAtrasadasResult.rows) {
+    for (const tarefa of tarefasAtrasadas) {
       const html = buildTarefaAtrasadaHtml(tarefa);
       const recipients = [tarefa.cotador_email, ...admins];
 
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     console.log(`[cron:tarefas-notificacoes] ⚠️  ${results.tarefasAtrasadas} tarefas atrasadas processadas`);
 
     // 3️⃣ Tarefas concluídas hoje → email para gestor
-    const tarefasConcluidasResult = await db.execute<TarefaRow>(sql`
+    const tarefasConcluidas = await dbQuery<TarefaRow>(sql`
       SELECT
         t.id, t.titulo, t.descricao, t.data_vencimento, t.status, t.cotador_id,
         u.name as cotador_name, u.email as cotador_email,
@@ -124,12 +124,12 @@ export async function POST(req: NextRequest) {
       FROM tarefas t
       JOIN users u ON t.cotador_id = u.id
       JOIN users criador ON t.criador_id = criador.id
-      WHERE t.updated_at::date = NOW()::date
+      WHERE DATE(t.updated_at) = CURDATE()
         AND t.status = 'Concluída'
         AND u.is_active = true
     `);
 
-    for (const tarefa of tarefasConcluidasResult.rows) {
+    for (const tarefa of tarefasConcluidas) {
       const html = buildTarefaConcluidaHtml(tarefa);
 
       const result = await sendAlertEmail({

@@ -1,79 +1,337 @@
 {
-  "id": "921da5d6-4a4a-4c1a-a55b-21b95a1742ed",
+  "version": "5",
+  "dialect": "mysql",
+  "id": "8f384bf0-1138-4e3c-87cb-6a31a6e9672e",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "7",
-  "dialect": "postgresql",
   "tables": {
-    "public.cotacao_docs": {
-      "name": "cotacao_docs",
-      "schema": "",
+    "chat_leituras": {
+      "name": "chat_leituras",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
+          "type": "char(36)",
+          "primaryKey": false,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "autoincrement": false
+        },
+        "mensagem_id": {
+          "name": "mensagem_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lida_em": {
+          "name": "lida_em",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "chat_leituras_unique": {
+          "name": "chat_leituras_unique",
+          "columns": [
+            "mensagem_id",
+            "user_id"
+          ],
+          "isUnique": true
+        },
+        "chat_leituras_user_idx": {
+          "name": "chat_leituras_user_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "chat_leituras_mensagem_id_chat_mensagens_id_fk": {
+          "name": "chat_leituras_mensagem_id_chat_mensagens_id_fk",
+          "tableFrom": "chat_leituras",
+          "tableTo": "chat_mensagens",
+          "columnsFrom": [
+            "mensagem_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_leituras_user_id_users_id_fk": {
+          "name": "chat_leituras_user_id_users_id_fk",
+          "tableFrom": "chat_leituras",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chat_leituras_id": {
+          "name": "chat_leituras_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "chat_mensagens": {
+      "name": "chat_mensagens",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "from_user_id": {
+          "name": "from_user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "to_user_id": {
+          "name": "to_user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "chat_mensagens_from_idx": {
+          "name": "chat_mensagens_from_idx",
+          "columns": [
+            "from_user_id"
+          ],
+          "isUnique": false
+        },
+        "chat_mensagens_to_idx": {
+          "name": "chat_mensagens_to_idx",
+          "columns": [
+            "to_user_id"
+          ],
+          "isUnique": false
+        },
+        "chat_mensagens_created_idx": {
+          "name": "chat_mensagens_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "chat_mensagens_from_user_id_users_id_fk": {
+          "name": "chat_mensagens_from_user_id_users_id_fk",
+          "tableFrom": "chat_mensagens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "from_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "chat_mensagens_to_user_id_users_id_fk": {
+          "name": "chat_mensagens_to_user_id_users_id_fk",
+          "tableFrom": "chat_mensagens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "to_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chat_mensagens_id": {
+          "name": "chat_mensagens_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "comissao_tabela": {
+      "name": "comissao_tabela",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seguradora": {
+          "name": "seguradora",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "produto": {
+          "name": "produto",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "percentual": {
+          "name": "percentual",
+          "type": "decimal(5,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "comissao_tabela_seguradora_idx": {
+          "name": "comissao_tabela_seguradora_idx",
+          "columns": [
+            "seguradora"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "comissao_tabela_id": {
+          "name": "comissao_tabela_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "cotacao_docs": {
+      "name": "cotacao_docs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         },
         "cotacao_id": {
           "name": "cotacao_id",
-          "type": "uuid",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "file_name": {
           "name": "file_name",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "file_url": {
           "name": "file_url",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "file_size": {
           "name": "file_size",
-          "type": "integer",
+          "type": "int",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "mime_type": {
           "name": "mime_type",
           "type": "varchar(100)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "uploaded_by": {
           "name": "uploaded_by",
-          "type": "uuid",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
         }
       },
       "indexes": {
         "cotacao_docs_cotacao_idx": {
           "name": "cotacao_docs_cotacao_idx",
           "columns": [
-            {
-              "expression": "cotacao_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "cotacao_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -104,91 +362,85 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "cotacao_docs_id": {
+          "name": "cotacao_docs_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraint": {}
     },
-    "public.cotacao_history": {
+    "cotacao_history": {
       "name": "cotacao_history",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
+          "type": "char(36)",
+          "primaryKey": false,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "autoincrement": false
         },
         "cotacao_id": {
           "name": "cotacao_id",
-          "type": "uuid",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "field_name": {
           "name": "field_name",
           "type": "varchar(100)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "old_value": {
           "name": "old_value",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "new_value": {
           "name": "new_value",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "changed_at": {
           "name": "changed_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
         }
       },
       "indexes": {
         "cotacao_history_cotacao_idx": {
           "name": "cotacao_history_cotacao_idx",
           "columns": [
-            {
-              "expression": "cotacao_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "cotacao_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "cotacao_history_changed_at_idx": {
           "name": "cotacao_history_changed_at_idx",
           "columns": [
-            {
-              "expression": "changed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "changed_at"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -219,294 +471,552 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "cotacao_history_id": {
+          "name": "cotacao_history_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraint": {}
     },
-    "public.cotacoes": {
-      "name": "cotacoes",
-      "schema": "",
+    "cotacao_mensagens": {
+      "name": "cotacao_mensagens",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
+          "type": "char(36)",
+          "primaryKey": false,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "autoincrement": false
+        },
+        "cotacao_id": {
+          "name": "cotacao_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "cotacao_mensagens_cotacao_idx": {
+          "name": "cotacao_mensagens_cotacao_idx",
+          "columns": [
+            "cotacao_id"
+          ],
+          "isUnique": false
+        },
+        "cotacao_mensagens_created_idx": {
+          "name": "cotacao_mensagens_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cotacao_mensagens_cotacao_id_cotacoes_id_fk": {
+          "name": "cotacao_mensagens_cotacao_id_cotacoes_id_fk",
+          "tableFrom": "cotacao_mensagens",
+          "tableTo": "cotacoes",
+          "columnsFrom": [
+            "cotacao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cotacao_mensagens_user_id_users_id_fk": {
+          "name": "cotacao_mensagens_user_id_users_id_fk",
+          "tableFrom": "cotacao_mensagens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "cotacao_mensagens_id": {
+          "name": "cotacao_mensagens_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "cotacao_notificacoes": {
+      "name": "cotacao_notificacoes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cotacao_id": {
+          "name": "cotacao_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cotacao_nome": {
+          "name": "cotacao_nome",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "autor_nome": {
+          "name": "autor_nome",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "destinatario_id": {
+          "name": "destinatario_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lida": {
+          "name": "lida",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "cotacao_notif_cotacao_idx": {
+          "name": "cotacao_notif_cotacao_idx",
+          "columns": [
+            "cotacao_id"
+          ],
+          "isUnique": false
+        },
+        "cotacao_notif_created_idx": {
+          "name": "cotacao_notif_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "cotacao_notif_dest_idx": {
+          "name": "cotacao_notif_dest_idx",
+          "columns": [
+            "destinatario_id"
+          ],
+          "isUnique": false
+        },
+        "cotacao_notif_lida_idx": {
+          "name": "cotacao_notif_lida_idx",
+          "columns": [
+            "lida"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cotacao_notificacoes_cotacao_id_cotacoes_id_fk": {
+          "name": "cotacao_notificacoes_cotacao_id_cotacoes_id_fk",
+          "tableFrom": "cotacao_notificacoes",
+          "tableTo": "cotacoes",
+          "columnsFrom": [
+            "cotacao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cotacao_notificacoes_autor_id_users_id_fk": {
+          "name": "cotacao_notificacoes_autor_id_users_id_fk",
+          "tableFrom": "cotacao_notificacoes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "cotacao_notificacoes_destinatario_id_users_id_fk": {
+          "name": "cotacao_notificacoes_destinatario_id_users_id_fk",
+          "tableFrom": "cotacao_notificacoes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "destinatario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "cotacao_notificacoes_id": {
+          "name": "cotacao_notificacoes_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "cotacoes": {
+      "name": "cotacoes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         },
         "clickup_id": {
           "name": "clickup_id",
           "type": "varchar(20)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "name": {
           "name": "name",
           "type": "varchar(500)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "status": {
           "name": "status",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'nao iniciado'"
+          "autoincrement": false,
+          "default": "'não iniciado'"
         },
         "priority": {
           "name": "priority",
           "type": "varchar(20)",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false,
           "default": "'normal'"
         },
         "due_date": {
           "name": "due_date",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "assignee_id": {
           "name": "assignee_id",
-          "type": "uuid",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "tipo_cliente": {
           "name": "tipo_cliente",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "contato_cliente": {
           "name": "contato_cliente",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "seguradora": {
           "name": "seguradora",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "produto": {
           "name": "produto",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "situacao": {
           "name": "situacao",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "indicacao": {
           "name": "indicacao",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "inicio_vigencia": {
           "name": "inicio_vigencia",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "fim_vigencia": {
           "name": "fim_vigencia",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "primeiro_pagamento": {
           "name": "primeiro_pagamento",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "parcelado_em": {
           "name": "parcelado_em",
-          "type": "integer",
+          "type": "int",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
+        },
+        "valor_parcelado": {
+          "name": "valor_parcelado",
+          "type": "decimal(12,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "premio_sem_iof": {
           "name": "premio_sem_iof",
-          "type": "numeric(12, 2)",
+          "type": "decimal(12,2)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "comissao": {
           "name": "comissao",
-          "type": "numeric(12, 2)",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "a_receber": {
           "name": "a_receber",
-          "type": "numeric(12, 2)",
+          "type": "decimal(12,2)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "valor_perda": {
           "name": "valor_perda",
-          "type": "numeric(12, 2)",
+          "type": "decimal(12,2)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "proxima_tratativa": {
           "name": "proxima_tratativa",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "observacao": {
           "name": "observacao",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "mes_referencia": {
           "name": "mes_referencia",
-          "type": "varchar(3)",
+          "type": "varchar(10)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "ano_referencia": {
           "name": "ano_referencia",
-          "type": "integer",
+          "type": "int",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
+        },
+        "comissao_parcelada": {
+          "name": "comissao_parcelada",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "tags": {
           "name": "tags",
-          "type": "jsonb",
+          "type": "json",
           "primaryKey": false,
           "notNull": false,
-          "default": "'[]'::jsonb"
+          "autoincrement": false
         },
         "is_renovacao": {
           "name": "is_renovacao",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": false
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
         }
       },
       "indexes": {
         "cotacoes_status_idx": {
           "name": "cotacoes_status_idx",
           "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "status"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "cotacoes_due_date_idx": {
           "name": "cotacoes_due_date_idx",
           "columns": [
-            {
-              "expression": "due_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "due_date"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "cotacoes_assignee_idx": {
           "name": "cotacoes_assignee_idx",
           "columns": [
-            {
-              "expression": "assignee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "assignee_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "cotacoes_ano_idx": {
           "name": "cotacoes_ano_idx",
           "columns": [
-            {
-              "expression": "ano_referencia",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "ano_referencia"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "cotacoes_clickup_id_idx": {
           "name": "cotacoes_clickup_id_idx",
           "columns": [
-            {
-              "expression": "clickup_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "clickup_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "cotacoes_deleted_at_idx": {
           "name": "cotacoes_deleted_at_idx",
           "columns": [
-            {
-              "expression": "deleted_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "deleted_at"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -524,101 +1034,261 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "cotacoes_id": {
+          "name": "cotacoes_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraint": {}
     },
-    "public.metas": {
-      "name": "metas",
-      "schema": "",
+    "grupo_membros": {
+      "name": "grupo_membros",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
+          "type": "char(36)",
+          "primaryKey": false,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "autoincrement": false
+        },
+        "grupo_id": {
+          "name": "grupo_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": false
-        },
-        "ano": {
-          "name": "ano",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mes": {
-          "name": "mes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "meta_valor": {
-          "name": "meta_valor",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "meta_qtd_cotacoes": {
-          "name": "meta_qtd_cotacoes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "meta_renovacoes": {
-          "name": "meta_renovacoes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "grupo_membros_unique_idx": {
+          "name": "grupo_membros_unique_idx",
+          "columns": [
+            "grupo_id",
+            "user_id"
+          ],
+          "isUnique": true
+        },
+        "grupo_membros_grupo_idx": {
+          "name": "grupo_membros_grupo_idx",
+          "columns": [
+            "grupo_id"
+          ],
+          "isUnique": false
+        },
+        "grupo_membros_user_idx": {
+          "name": "grupo_membros_user_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "grupo_membros_grupo_id_grupos_usuarios_id_fk": {
+          "name": "grupo_membros_grupo_id_grupos_usuarios_id_fk",
+          "tableFrom": "grupo_membros",
+          "tableTo": "grupos_usuarios",
+          "columnsFrom": [
+            "grupo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "grupo_membros_user_id_users_id_fk": {
+          "name": "grupo_membros_user_id_users_id_fk",
+          "tableFrom": "grupo_membros",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "grupo_membros_id": {
+          "name": "grupo_membros_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "grupos_usuarios": {
+      "name": "grupos_usuarios",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cor": {
+          "name": "cor",
+          "type": "varchar(7)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'#03a4ed'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "grupos_usuarios_nome_idx": {
+          "name": "grupos_usuarios_nome_idx",
+          "columns": [
+            "nome"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "grupos_usuarios_id": {
+          "name": "grupos_usuarios_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "metas": {
+      "name": "metas",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ano": {
+          "name": "ano",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mes": {
+          "name": "mes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "meta_valor": {
+          "name": "meta_valor",
+          "type": "decimal(12,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "meta_qtd_cotacoes": {
+          "name": "meta_qtd_cotacoes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "meta_renovacoes": {
+          "name": "meta_renovacoes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
         }
       },
       "indexes": {
         "metas_user_ano_mes_idx": {
           "name": "metas_user_ano_mes_idx",
           "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "ano",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "mes",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "user_id",
+            "ano",
+            "mes"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -636,214 +1306,972 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "metas_id": {
+          "name": "metas_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraint": {}
     },
-    "public.status_config": {
-      "name": "status_config",
-      "schema": "",
+    "regras_auditoria": {
+      "name": "regras_auditoria",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "status_name": {
-          "name": "status_name",
-          "type": "varchar(50)",
+          "type": "char(36)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
-        "display_label": {
-          "name": "display_label",
+        "nome": {
+          "name": "nome",
           "type": "varchar(100)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
-        "color": {
-          "name": "color",
-          "type": "varchar(7)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "icon": {
-          "name": "icon",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "order_index": {
-          "name": "order_index",
-          "type": "integer",
+        "comando": {
+          "name": "comando",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "autoincrement": false
         },
-        "required_fields": {
-          "name": "required_fields",
-          "type": "jsonb",
+        "tipo": {
+          "name": "tipo",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "varchar(200)",
           "primaryKey": false,
           "notNull": false,
-          "default": "'[]'::jsonb"
+          "autoincrement": false
         },
-        "is_terminal": {
-          "name": "is_terminal",
+        "ativo": {
+          "name": "ativo",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": false
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
         }
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "status_config_status_name_unique": {
-          "name": "status_config_status_name_unique",
-          "nullsNotDistinct": false,
+      "compositePrimaryKeys": {
+        "regras_auditoria_id": {
+          "name": "regras_auditoria_id",
           "columns": [
-            "status_name"
+            "id"
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "uniqueConstraints": {},
+      "checkConstraint": {}
     },
-    "public.users": {
-      "name": "users",
-      "schema": "",
+    "situacao_config": {
+      "name": "situacao_config",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
+          "type": "char(36)",
+          "primaryKey": false,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "autoincrement": false
         },
-        "email": {
-          "name": "email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "username": {
-          "name": "username",
+        "nome": {
+          "name": "nome",
           "type": "varchar(100)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "user_role",
-          "typeSchema": "public",
+        "order_index": {
+          "name": "order_index",
+          "type": "int",
           "primaryKey": false,
           "notNull": true,
-          "default": "'cotador'"
-        },
-        "photo_url": {
-          "name": "photo_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "autoincrement": false,
+          "default": 0
         },
         "is_active": {
           "name": "is_active",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "default_cotador_id": {
+          "name": "default_cotador_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "situacao_config_default_cotador_id_users_id_fk": {
+          "name": "situacao_config_default_cotador_id_users_id_fk",
+          "tableFrom": "situacao_config",
+          "tableTo": "users",
+          "columnsFrom": [
+            "default_cotador_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "situacao_config_id": {
+          "name": "situacao_config_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "situacao_config_nome_unique": {
+          "name": "situacao_config_nome_unique",
+          "columns": [
+            "nome"
+          ]
+        }
+      },
+      "checkConstraint": {}
+    },
+    "status_config": {
+      "name": "status_config",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status_name": {
+          "name": "status_name",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "display_label": {
+          "name": "display_label",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(7)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "order_index": {
+          "name": "order_index",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "required_fields": {
+          "name": "required_fields",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_terminal": {
+          "name": "is_terminal",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "status_config_id": {
+          "name": "status_config_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "status_config_status_name_unique": {
+          "name": "status_config_status_name_unique",
+          "columns": [
+            "status_name"
+          ]
+        }
+      },
+      "checkConstraint": {}
+    },
+    "tarefas": {
+      "name": "tarefas",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_vencimento": {
+          "name": "data_vencimento",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tarefa_status": {
+          "name": "tarefa_status",
+          "type": "enum('Pendente','Em Andamento','Concluída','Cancelada')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'Pendente'"
+        },
+        "cotador_id": {
+          "name": "cotador_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criador_id": {
+          "name": "criador_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "visualizada_em": {
+          "name": "visualizada_em",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "iniciada_em": {
+          "name": "iniciada_em",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "concluida_em": {
+          "name": "concluida_em",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "tarefas_status_idx": {
+          "name": "tarefas_status_idx",
+          "columns": [
+            "tarefa_status"
+          ],
+          "isUnique": false
+        },
+        "tarefas_cotador_idx": {
+          "name": "tarefas_cotador_idx",
+          "columns": [
+            "cotador_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_criador_idx": {
+          "name": "tarefas_criador_idx",
+          "columns": [
+            "criador_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_data_vencimento_idx": {
+          "name": "tarefas_data_vencimento_idx",
+          "columns": [
+            "data_vencimento"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "tarefas_cotador_id_users_id_fk": {
+          "name": "tarefas_cotador_id_users_id_fk",
+          "tableFrom": "tarefas",
+          "tableTo": "users",
+          "columnsFrom": [
+            "cotador_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tarefas_criador_id_users_id_fk": {
+          "name": "tarefas_criador_id_users_id_fk",
+          "tableFrom": "tarefas",
+          "tableTo": "users",
+          "columnsFrom": [
+            "criador_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tarefas_id": {
+          "name": "tarefas_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "tarefas_anexos": {
+      "name": "tarefas_anexos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tarefa_id": {
+          "name": "tarefa_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome_arquivo": {
+          "name": "nome_arquivo",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url_blob": {
+          "name": "url_blob",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tamanho": {
+          "name": "tamanho",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "tarefas_anexos_tarefa_idx": {
+          "name": "tarefas_anexos_tarefa_idx",
+          "columns": [
+            "tarefa_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_anexos_usuario_idx": {
+          "name": "tarefas_anexos_usuario_idx",
+          "columns": [
+            "usuario_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_anexos_created_idx": {
+          "name": "tarefas_anexos_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "tarefas_anexos_tarefa_id_tarefas_id_fk": {
+          "name": "tarefas_anexos_tarefa_id_tarefas_id_fk",
+          "tableFrom": "tarefas_anexos",
+          "tableTo": "tarefas",
+          "columnsFrom": [
+            "tarefa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tarefas_anexos_usuario_id_users_id_fk": {
+          "name": "tarefas_anexos_usuario_id_users_id_fk",
+          "tableFrom": "tarefas_anexos",
+          "tableTo": "users",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tarefas_anexos_id": {
+          "name": "tarefas_anexos_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "tarefas_atividades": {
+      "name": "tarefas_atividades",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tarefa_id": {
+          "name": "tarefa_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo_acao": {
+          "name": "tipo_acao",
+          "type": "enum('CRIADA','EDITADA','STATUS_ALTERADO','BRIEFING_ADICIONADO','ANEXO_ADICIONADO','ANEXO_REMOVIDO')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detalhes": {
+          "name": "detalhes",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "tarefas_atividades_tarefa_idx": {
+          "name": "tarefas_atividades_tarefa_idx",
+          "columns": [
+            "tarefa_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "tarefas_atividades_usuario_idx": {
+          "name": "tarefas_atividades_usuario_idx",
+          "columns": [
+            "usuario_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_atividades_tipo_idx": {
+          "name": "tarefas_atividades_tipo_idx",
+          "columns": [
+            "tipo_acao"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "tarefas_atividades_tarefa_id_tarefas_id_fk": {
+          "name": "tarefas_atividades_tarefa_id_tarefas_id_fk",
+          "tableFrom": "tarefas_atividades",
+          "tableTo": "tarefas",
+          "columnsFrom": [
+            "tarefa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tarefas_atividades_usuario_id_users_id_fk": {
+          "name": "tarefas_atividades_usuario_id_users_id_fk",
+          "tableFrom": "tarefas_atividades",
+          "tableTo": "users",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tarefas_atividades_id": {
+          "name": "tarefas_atividades_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "tarefas_briefings": {
+      "name": "tarefas_briefings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tarefa_id": {
+          "name": "tarefa_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "briefing": {
+          "name": "briefing",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "tarefas_briefings_tarefa_idx": {
+          "name": "tarefas_briefings_tarefa_idx",
+          "columns": [
+            "tarefa_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_briefings_created_idx": {
+          "name": "tarefas_briefings_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "tarefas_briefings_tarefa_id_tarefas_id_fk": {
+          "name": "tarefas_briefings_tarefa_id_tarefas_id_fk",
+          "tableFrom": "tarefas_briefings",
+          "tableTo": "tarefas",
+          "columnsFrom": [
+            "tarefa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tarefas_briefings_usuario_id_users_id_fk": {
+          "name": "tarefas_briefings_usuario_id_users_id_fk",
+          "tableFrom": "tarefas_briefings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tarefas_briefings_id": {
+          "name": "tarefas_briefings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "tarefas_checklist": {
+      "name": "tarefas_checklist",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tarefa_id": {
+          "name": "tarefa_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "concluido": {
+          "name": "concluido",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "concluido_por": {
+          "name": "concluido_por",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "concluido_em": {
+          "name": "concluido_em",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "NOW()"
+        }
+      },
+      "indexes": {
+        "tarefas_checklist_tarefa_idx": {
+          "name": "tarefas_checklist_tarefa_idx",
+          "columns": [
+            "tarefa_id"
+          ],
+          "isUnique": false
+        },
+        "tarefas_checklist_ordem_idx": {
+          "name": "tarefas_checklist_ordem_idx",
+          "columns": [
+            "tarefa_id",
+            "ordem"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "tarefas_checklist_tarefa_id_tarefas_id_fk": {
+          "name": "tarefas_checklist_tarefa_id_tarefas_id_fk",
+          "tableFrom": "tarefas_checklist",
+          "tableTo": "tarefas",
+          "columnsFrom": [
+            "tarefa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tarefas_checklist_concluido_por_users_id_fk": {
+          "name": "tarefas_checklist_concluido_por_users_id_fk",
+          "tableFrom": "tarefas_checklist",
+          "tableTo": "users",
+          "columnsFrom": [
+            "concluido_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tarefas_checklist_id": {
+          "name": "tarefas_checklist_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "enum('admin','cotador','proprietario')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'cotador'"
+        },
+        "photo_url": {
+          "name": "photo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
           "default": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp with time zone",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "NOW()"
         }
       },
       "indexes": {
         "users_email_idx": {
           "name": "users_email_idx",
           "columns": [
-            {
-              "expression": "email",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "email"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": true
         },
         "users_username_idx": {
           "name": "users_username_idx",
           "columns": [
-            {
-              "expression": "username",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "username"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": true
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "users_id": {
+          "name": "users_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraint": {}
     }
   },
-  "enums": {
-    "public.user_role": {
-      "name": "user_role",
-      "schema": "public",
-      "values": [
-        "admin",
-        "cotador"
-      ]
-    }
-  },
-  "schemas": {},
-  "sequences": {},
-  "roles": {},
-  "policies": {},
   "views": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {},
+    "indexes": {}
   }
 }

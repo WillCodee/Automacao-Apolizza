@@ -32,7 +32,7 @@ export default async function PrintCotacoesPage({ searchParams }: Props) {
   if (dateTo) conditions.push(lte(cotacoes.createdAt, new Date(dateTo + "T23:59:59")));
   if (search) {
     conditions.push(
-      sql`(${cotacoes.name} ILIKE ${"%" + search + "%"} OR ${cotacoes.seguradora} ILIKE ${"%" + search + "%"})`
+      sql`(${cotacoes.name} LIKE ${"%" + search + "%"} OR ${cotacoes.seguradora} LIKE ${"%" + search + "%"})`
     );
   }
 

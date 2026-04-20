@@ -34,16 +34,16 @@ export async function GET(req: NextRequest) {
     if (urgencia) {
       const dias = Number(urgencia);
       if ([15, 30, 60].includes(dias)) {
-        conditions.push(sql`${cotacoes.fimVigencia}::date <= (CURRENT_DATE + ${dias}::int)`);
-        conditions.push(sql`${cotacoes.fimVigencia}::date >= CURRENT_DATE`);
+        conditions.push(sql`DATE(${cotacoes.fimVigencia}) <= DATE_ADD(CURDATE(), INTERVAL ${dias} DAY)`);
+        conditions.push(sql`DATE(${cotacoes.fimVigencia}) >= CURDATE()`);
       }
     }
 
     if (dateFrom) {
-      conditions.push(sql`${cotacoes.fimVigencia}::date >= ${dateFrom}::date`);
+      conditions.push(sql`DATE(${cotacoes.fimVigencia}) >= ${dateFrom}`);
     }
     if (dateTo) {
-      conditions.push(sql`${cotacoes.fimVigencia}::date <= ${dateTo}::date`);
+      conditions.push(sql`DATE(${cotacoes.fimVigencia}) <= ${dateTo}`);
     }
 
     const where = and(...conditions);

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbQuery } from "@/lib/db";
 import { chatLeituras } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -19,36 +19,36 @@ export async function GET(_req: NextRequest, { params }: Params) {
     let mensagens;
 
     if (conversaId === "todos") {
-      const result = await db.execute(sql`
+      const rows = await dbQuery(sql`
         SELECT
           m.id,
           m.texto,
-          m.created_at as "createdAt",
-          m.from_user_id as "fromUserId",
-          u.name as "fromUserName",
-          u.photo_url as "fromUserPhoto",
+          m.created_at as createdAt,
+          m.from_user_id as fromUserId,
+          u.name as fromUserName,
+          u.photo_url as fromUserPhoto,
           EXISTS (
             SELECT 1 FROM chat_leituras l WHERE l.mensagem_id = m.id AND l.user_id = ${user.id}
-          ) as "lida"
+          ) as lida
         FROM chat_mensagens m
         JOIN users u ON u.id = m.from_user_id
         WHERE m.to_user_id IS NULL
         ORDER BY m.created_at ASC
         LIMIT 200
       `);
-      mensagens = result.rows;
+      mensagens = rows;
     } else {
-      const result = await db.execute(sql`
+      const rows = await dbQuery(sql`
         SELECT
           m.id,
           m.texto,
-          m.created_at as "createdAt",
-          m.from_user_id as "fromUserId",
-          u.name as "fromUserName",
-          u.photo_url as "fromUserPhoto",
+          m.created_at as createdAt,
+          m.from_user_id as fromUserId,
+          u.name as fromUserName,
+          u.photo_url as fromUserPhoto,
           EXISTS (
             SELECT 1 FROM chat_leituras l WHERE l.mensagem_id = m.id AND l.user_id = ${user.id}
-          ) as "lida"
+          ) as lida
         FROM chat_mensagens m
         JOIN users u ON u.id = m.from_user_id
         WHERE m.to_user_id IS NOT NULL
@@ -59,7 +59,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         ORDER BY m.created_at ASC
         LIMIT 200
       `);
-      mensagens = result.rows;
+      mensagens = rows;
     }
 
     // Mark unread messages as read
@@ -68,9 +68,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .map((m) => String(m.id));
 
     if (unread.length > 0) {
-      await db.insert(chatLeituras).values(
-        unread.map((id) => ({ mensagemId: id, userId: user.id }))
-      ).onConflictDoNothing();
+      for (const msgId of unread) {
+        await db.insert(chatLeituras).values({ mensagemId: msgId, userId: user.id })
+          .onDuplicateKeyUpdate({ set: { lidaEm: sql`NOW()` } });
+      }
     }
 
     return apiSuccess(mensagens);

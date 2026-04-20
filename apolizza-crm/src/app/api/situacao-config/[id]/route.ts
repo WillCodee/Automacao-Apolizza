@@ -23,11 +23,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (defaultCotadorId !== undefined) updateData.defaultCotadorId = defaultCotadorId || null;
 
-    const [updated] = await db
+    await db
       .update(situacaoConfig)
       .set(updateData)
-      .where(eq(situacaoConfig.id, id))
-      .returning();
+      .where(eq(situacaoConfig.id, id));
+    const [updated] = await db.select().from(situacaoConfig).where(eq(situacaoConfig.id, id));
 
     if (!updated) return apiError("Situacao nao encontrada", 404);
 
@@ -50,14 +50,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     const { id } = await params;
 
-    const [deleted] = await db
-      .delete(situacaoConfig)
-      .where(eq(situacaoConfig.id, id))
-      .returning({ id: situacaoConfig.id, nome: situacaoConfig.nome });
+    const [toDelete] = await db.select({ id: situacaoConfig.id, nome: situacaoConfig.nome }).from(situacaoConfig).where(eq(situacaoConfig.id, id));
 
-    if (!deleted) return apiError("Situacao nao encontrada", 404);
+    if (!toDelete) return apiError("Situacao nao encontrada", 404);
 
-    return apiSuccess(deleted);
+    await db.delete(situacaoConfig).where(eq(situacaoConfig.id, id));
+
+    return apiSuccess(toDelete);
   } catch (error) {
     console.error("API DELETE /api/situacao-config/[id]:", error);
     return apiError("Erro ao excluir situacao", 500);

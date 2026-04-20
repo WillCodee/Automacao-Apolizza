@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and, ilike, isNull, sql, count, gte, lte } from "drizzle-orm";
+import { eq, and, isNull, sql, count, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, statusConfig, cotacaoHistory } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -58,11 +58,11 @@ export async function GET(req: NextRequest) {
     if (search) {
       // Busca em múltiplos campos
       conditions.push(sql`(
-        ${cotacoes.name} ILIKE ${'%' + search + '%'}
-        OR ${cotacoes.observacao} ILIKE ${'%' + search + '%'}
-        OR ${cotacoes.seguradora} ILIKE ${'%' + search + '%'}
-        OR ${cotacoes.indicacao} ILIKE ${'%' + search + '%'}
-        OR ${cotacoes.contatoCliente} ILIKE ${'%' + search + '%'}
+        ${cotacoes.name} LIKE ${'%' + search + '%'}
+        OR ${cotacoes.observacao} LIKE ${'%' + search + '%'}
+        OR ${cotacoes.seguradora} LIKE ${'%' + search + '%'}
+        OR ${cotacoes.indicacao} LIKE ${'%' + search + '%'}
+        OR ${cotacoes.contatoCliente} LIKE ${'%' + search + '%'}
       )`);
     }
     // Story 11.5: novos filtros
@@ -120,37 +120,41 @@ export async function POST(req: NextRequest) {
       return apiError(`Campos obrigatorios para status "${input.status ?? "não iniciado"}": ${missing}`, 422);
     }
 
+    const insertData = {
+      name: input.name,
+      status: input.status,
+      priority: input.priority,
+      dueDate: input.dueDate ? new Date(input.dueDate) : null,
+      assigneeId: input.assigneeId ?? user.id,
+      tipoCliente: input.tipoCliente,
+      contatoCliente: input.contatoCliente,
+      seguradora: input.seguradora,
+      produto: input.produto,
+      situacao: input.situacao,
+      indicacao: input.indicacao,
+      inicioVigencia: input.inicioVigencia ? new Date(input.inicioVigencia) : null,
+      fimVigencia: input.fimVigencia ? new Date(input.fimVigencia) : null,
+      primeiroPagamento: input.primeiroPagamento ? new Date(input.primeiroPagamento) : null,
+      parceladoEm: input.parceladoEm,
+      premioSemIof: input.premioSemIof,
+      comissao: input.comissao,
+      aReceber: input.aReceber,
+      valorPerda: input.valorPerda,
+      proximaTratativa: input.proximaTratativa ? new Date(input.proximaTratativa) : null,
+      observacao: input.observacao,
+      mesReferencia: input.mesReferencia,
+      anoReferencia: input.anoReferencia,
+      comissaoParcelada: input.comissaoParcelada ?? null,
+      tags: input.tags ?? null,
+      isRenovacao: input.isRenovacao,
+    };
+    await db.insert(cotacoes).values(insertData);
     const [created] = await db
-      .insert(cotacoes)
-      .values({
-        name: input.name,
-        status: input.status,
-        priority: input.priority,
-        dueDate: input.dueDate ? new Date(input.dueDate) : null,
-        assigneeId: input.assigneeId ?? user.id,
-        tipoCliente: input.tipoCliente,
-        contatoCliente: input.contatoCliente,
-        seguradora: input.seguradora,
-        produto: input.produto,
-        situacao: input.situacao,
-        indicacao: input.indicacao,
-        inicioVigencia: input.inicioVigencia,
-        fimVigencia: input.fimVigencia,
-        primeiroPagamento: input.primeiroPagamento,
-        parceladoEm: input.parceladoEm,
-        premioSemIof: input.premioSemIof,
-        comissao: input.comissao,
-        aReceber: input.aReceber,
-        valorPerda: input.valorPerda,
-        proximaTratativa: input.proximaTratativa,
-        observacao: input.observacao,
-        mesReferencia: input.mesReferencia,
-        anoReferencia: input.anoReferencia,
-        comissaoParcelada: input.comissaoParcelada ?? null,
-        tags: input.tags,
-        isRenovacao: input.isRenovacao,
-      })
-      .returning();
+      .select()
+      .from(cotacoes)
+      .where(and(eq(cotacoes.name, input.name), eq(cotacoes.assigneeId, insertData.assigneeId!), isNull(cotacoes.deletedAt)))
+      .orderBy(sql`${cotacoes.createdAt} DESC`)
+      .limit(1);
 
     // Registrar evento de criação no histórico
     await db.insert(cotacaoHistory).values({

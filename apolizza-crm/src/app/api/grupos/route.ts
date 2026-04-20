@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { gruposUsuarios, grupoMembros, users } from "@/lib/schema";
 import { apiSuccess, apiError } from "@/lib/api-helpers";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const createGrupoSchema = z.object({
   nome: z.string().min(1).max(100),
@@ -53,14 +53,18 @@ export async function POST(request: Request) {
 
   const { nome, descricao, cor } = parsed.data;
 
+  const insertData = {
+    nome,
+    descricao: descricao ?? null,
+    cor: cor ?? "#03a4ed",
+  };
+  await db.insert(gruposUsuarios).values(insertData);
   const [created] = await db
-    .insert(gruposUsuarios)
-    .values({
-      nome,
-      descricao: descricao ?? null,
-      cor: cor ?? "#03a4ed",
-    })
-    .returning();
+    .select()
+    .from(gruposUsuarios)
+    .where(eq(gruposUsuarios.nome, nome))
+    .orderBy(sql`${gruposUsuarios.createdAt} DESC`)
+    .limit(1);
 
   return apiSuccess({ ...created, membros: [], totalMembros: 0 }, 201);
 }

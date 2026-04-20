@@ -92,11 +92,11 @@ export async function PATCH(
     if (validated.status !== undefined) updateData.status = validated.status;
     if (validated.cotadorId !== undefined) updateData.cotadorId = validated.cotadorId;
 
-    const [tarefaAtualizada] = await db
+    await db
       .update(tarefas)
       .set(updateData)
-      .where(eq(tarefas.id, id))
-      .returning();
+      .where(eq(tarefas.id, id));
+    const [tarefaAtualizada] = await db.select().from(tarefas).where(eq(tarefas.id, id));
 
     return apiSuccess(tarefaAtualizada);
   } catch (error) {

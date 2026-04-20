@@ -41,11 +41,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
       updateData.requiredFields = requiredFields;
     }
 
-    const [updated] = await db
+    await db
       .update(statusConfig)
       .set(updateData)
-      .where(eq(statusConfig.id, id))
-      .returning();
+      .where(eq(statusConfig.id, id));
+    const [updated] = await db.select().from(statusConfig).where(eq(statusConfig.id, id));
 
     if (!updated) return apiError("Status config nao encontrado", 404);
 
@@ -64,14 +64,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     const { id } = await params;
 
-    const [deleted] = await db
-      .delete(statusConfig)
-      .where(eq(statusConfig.id, id))
-      .returning({ id: statusConfig.id, statusName: statusConfig.statusName });
+    const [toDelete] = await db.select({ id: statusConfig.id, statusName: statusConfig.statusName }).from(statusConfig).where(eq(statusConfig.id, id));
 
-    if (!deleted) return apiError("Status config nao encontrado", 404);
+    if (!toDelete) return apiError("Status config nao encontrado", 404);
 
-    return apiSuccess(deleted);
+    await db.delete(statusConfig).where(eq(statusConfig.id, id));
+
+    return apiSuccess(toDelete);
   } catch (error) {
     console.error("API DELETE /api/status-config/[id]:", error);
     return apiError("Erro ao excluir configuracao de status", 500);

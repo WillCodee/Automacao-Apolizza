@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { situacaoConfig } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -33,14 +33,16 @@ export async function POST(req: NextRequest) {
 
     if (!nome?.trim()) return apiError("Nome e obrigatorio", 400);
 
+    const insertData = {
+      nome: nome.trim().toUpperCase(),
+      orderIndex: orderIndex ?? 0,
+      defaultCotadorId: defaultCotadorId || null,
+    };
+    await db.insert(situacaoConfig).values(insertData);
     const [created] = await db
-      .insert(situacaoConfig)
-      .values({
-        nome: nome.trim().toUpperCase(),
-        orderIndex: orderIndex ?? 0,
-        defaultCotadorId: defaultCotadorId || null,
-      })
-      .returning();
+      .select()
+      .from(situacaoConfig)
+      .where(eq(situacaoConfig.nome, insertData.nome));
 
     return apiSuccess(created, 201);
   } catch (error: unknown) {

@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const [created] = await db
+    await db
       .insert(users)
       .values({
         name,
@@ -73,8 +73,10 @@ export async function POST(req: NextRequest) {
         username,
         passwordHash,
         role: role || "cotador",
-      })
-      .returning({
+      });
+
+    const [created] = await db
+      .select({
         id: users.id,
         name: users.name,
         email: users.email,
@@ -82,7 +84,9 @@ export async function POST(req: NextRequest) {
         role: users.role,
         isActive: users.isActive,
         createdAt: users.createdAt,
-      });
+      })
+      .from(users)
+      .where(eq(users.username, username));
 
     return apiSuccess(created);
   } catch (error) {

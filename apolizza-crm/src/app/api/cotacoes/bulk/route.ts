@@ -75,17 +75,24 @@ export async function POST(req: NextRequest) {
 
     if (action === "delete") {
       const result = await db.transaction(async (tx) => {
-        // Soft delete
-        const updated = await tx
-          .update(cotacoes)
-          .set({ deletedAt: new Date() })
-          .where(sql`${cotacoes.id} = ANY(${ids}::uuid[]) and ${cotacoes.deletedAt} is null`)
-          .returning({ id: cotacoes.id });
+        // Get items to delete
+        const toDelete = await tx
+          .select({ id: cotacoes.id })
+          .from(cotacoes)
+          .where(inArray(cotacoes.id, ids));
 
-        // Audit trail
-        if (updated.length > 0) {
-          const historyEntries = updated.map((c) => ({
-            cotacaoId: c.id,
+        const deleteIds = toDelete.filter(Boolean).map((c) => c.id);
+
+        if (deleteIds.length > 0) {
+          // Soft delete
+          await tx
+            .update(cotacoes)
+            .set({ deletedAt: new Date() })
+            .where(inArray(cotacoes.id, deleteIds));
+
+          // Audit trail
+          const historyEntries = deleteIds.map((id) => ({
+            cotacaoId: id,
             userId: user.id,
             fieldName: "deletedAt",
             oldValue: null,
@@ -94,7 +101,7 @@ export async function POST(req: NextRequest) {
           await tx.insert(cotacaoHistory).values(historyEntries);
         }
 
-        return { deleted: updated.length, skipped: ids.length - updated.length };
+        return { deleted: deleteIds.length, skipped: ids.length - deleteIds.length };
       });
 
       return apiSuccess(result);

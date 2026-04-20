@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
@@ -8,7 +8,7 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
 
-    const result = await db.execute(sql`
+    const rows = await dbQuery<{ seguradora: string }>(sql`
       SELECT DISTINCT seguradora
       FROM cotacoes
       WHERE seguradora IS NOT NULL
@@ -17,7 +17,7 @@ export async function GET() {
       ORDER BY seguradora
     `);
 
-    const seguradoras = result.rows.map((r) => (r as { seguradora: string }).seguradora);
+    const seguradoras = rows.map((r) => r.seguradora);
 
     return apiSuccess(seguradoras);
   } catch (error) {

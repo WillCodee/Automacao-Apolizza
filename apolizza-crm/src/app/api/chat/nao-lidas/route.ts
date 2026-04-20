@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
@@ -9,8 +9,8 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
 
-    const result = await db.execute(sql`
-      SELECT COUNT(*)::int as count
+    const rows = await dbQuery(sql`
+      SELECT CAST(COUNT(*) AS SIGNED) as count
       FROM chat_mensagens m
       WHERE
         m.from_user_id != ${user.id}
@@ -24,7 +24,7 @@ export async function GET() {
         )
     `);
 
-    const count = Number((result.rows[0] as Record<string, unknown>).count ?? 0);
+    const count = Number(rows[0].count ?? 0);
 
     return apiSuccess({
       count,

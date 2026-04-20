@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 
@@ -18,24 +18,24 @@ export async function GET(req: NextRequest) {
     const anoS = ano ? sql`AND ano_referencia = ${Number(ano)}` : sql``;
     const mesS = mes ? sql`AND mes_referencia = ${mes}` : sql``;
 
-    const [cotadoresRows, gruposRows, statusRows, situacaoRows] = await Promise.all([
+    const [cotadoresData, gruposData, statusData, situacaoData] = await Promise.all([
       // Por cotador
-      db.execute(sql`
+      dbQuery(sql`
         SELECT
           u.id,
           u.name,
-          u.photo_url AS "photoUrl",
-          COUNT(c.id)::int AS total,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS emAnalise,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS perdasValor,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS analiseValor,
+          u.photo_url AS photoUrl,
+          CAST(COUNT(c.id) AS SIGNED) AS total,
+          CAST(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN 1 ELSE 0 END) AS SIGNED) AS fechadas,
+          CAST(SUM(CASE WHEN LOWER(c.situacao) IN ('perda','perda/resgate') THEN 1 ELSE 0 END) AS SIGNED) AS perdas,
+          CAST(SUM(CASE WHEN LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL THEN 1 ELSE 0 END) AS SIGNED) AS emAnalise,
+          COALESCE(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganhos,
+          COALESCE(SUM(CASE WHEN LOWER(c.situacao) IN ('perda','perda/resgate') THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS perdasValor,
+          COALESCE(SUM(CASE WHEN LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS analiseValor,
           ROUND(
-            COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
+            CAST(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN 1 ELSE 0 END) AS DECIMAL(12,2))
             / NULLIF(COUNT(c.id), 0) * 100, 1
-          )::float AS taxaConversao
+          ) AS taxaConversao
         FROM users u
         LEFT JOIN cotacoes c
           ON c.assignee_id = u.id
@@ -47,22 +47,22 @@ export async function GET(req: NextRequest) {
       `),
 
       // Por grupo
-      db.execute(sql`
+      dbQuery(sql`
         SELECT
           g.id,
           g.nome,
           g.cor,
-          COUNT(c.id)::int AS total,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::int AS fechadas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate'))::int AS perdas,
-          COUNT(c.id) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL)::int AS emAnalise,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) = 'fechado'), 0)::float AS ganhos,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) IN ('perda','perda/resgate')), 0)::float AS perdasValor,
-          COALESCE(SUM(c.a_receber::numeric) FILTER (WHERE LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL), 0)::float AS analiseValor,
+          CAST(COUNT(c.id) AS SIGNED) AS total,
+          CAST(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN 1 ELSE 0 END) AS SIGNED) AS fechadas,
+          CAST(SUM(CASE WHEN LOWER(c.situacao) IN ('perda','perda/resgate') THEN 1 ELSE 0 END) AS SIGNED) AS perdas,
+          CAST(SUM(CASE WHEN LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL THEN 1 ELSE 0 END) AS SIGNED) AS emAnalise,
+          COALESCE(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganhos,
+          COALESCE(SUM(CASE WHEN LOWER(c.situacao) IN ('perda','perda/resgate') THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS perdasValor,
+          COALESCE(SUM(CASE WHEN LOWER(c.situacao) NOT IN ('fechado','perda','perda/resgate') OR c.situacao IS NULL THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS analiseValor,
           ROUND(
-            COUNT(c.id) FILTER (WHERE LOWER(c.situacao) = 'fechado')::numeric
+            CAST(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN 1 ELSE 0 END) AS DECIMAL(12,2))
             / NULLIF(COUNT(c.id), 0) * 100, 1
-          )::float AS taxaConversao
+          ) AS taxaConversao
         FROM grupos_usuarios g
         LEFT JOIN grupo_membros gm ON gm.grupo_id = g.id
         LEFT JOIN cotacoes c
@@ -74,23 +74,23 @@ export async function GET(req: NextRequest) {
       `),
 
       // Por status
-      db.execute(sql`
+      dbQuery(sql`
         SELECT
           status,
-          COUNT(*)::int AS total,
-          COALESCE(SUM(a_receber::numeric), 0)::float AS faturamento
+          CAST(COUNT(*) AS SIGNED) AS total,
+          COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0) AS faturamento
         FROM cotacoes
         WHERE deleted_at IS NULL ${anoS} ${mesS}
         GROUP BY status
         ORDER BY total DESC
       `),
 
-      // Por situação
-      db.execute(sql`
+      // Por situacao
+      dbQuery(sql`
         SELECT
           COALESCE(situacao, 'Sem situação') AS situacao,
-          COUNT(*)::int AS total,
-          COALESCE(SUM(a_receber::numeric), 0)::float AS faturamento
+          CAST(COUNT(*) AS SIGNED) AS total,
+          COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0) AS faturamento
         FROM cotacoes
         WHERE deleted_at IS NULL ${anoS} ${mesS}
         GROUP BY situacao
@@ -99,10 +99,10 @@ export async function GET(req: NextRequest) {
     ]);
 
     return apiSuccess({
-      cotadores: cotadoresRows.rows,
-      grupos: gruposRows.rows,
-      porStatus: statusRows.rows,
-      porSituacao: situacaoRows.rows,
+      cotadores: cotadoresData,
+      grupos: gruposData,
+      porStatus: statusData,
+      porSituacao: situacaoData,
     });
   } catch (error) {
     console.error("API GET /api/analise:", error);

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { cotacaoMensagens, users, cotacoes, cotacaoNotificacoes } from "@/lib/schema";
@@ -82,10 +82,15 @@ export async function POST(req: NextRequest, { params }: Params) {
       .from(cotacoes)
       .where(eq(cotacoes.id, id));
 
-    const [nova] = await db
+    await db
       .insert(cotacaoMensagens)
-      .values({ cotacaoId: id, userId: user.id, texto, imageUrl })
-      .returning();
+      .values({ cotacaoId: id, userId: user.id, texto, imageUrl });
+    const [nova] = await db
+      .select()
+      .from(cotacaoMensagens)
+      .where(eq(cotacaoMensagens.cotacaoId, id))
+      .orderBy(sql`${cotacaoMensagens.createdAt} DESC`)
+      .limit(1);
 
     if (texto && cotacao) {
       const notifsToInsert = [];

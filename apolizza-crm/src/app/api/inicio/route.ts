@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { eq, and, isNull, or, sql, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { eq, and, isNull, or, sql } from "drizzle-orm";
+import { db, dbQuery } from "@/lib/db";
 import { tarefas, cotacoes, metas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -8,7 +8,7 @@ import { apiError, apiSuccess } from "@/lib/api-helpers";
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user) return apiError("Não autenticado", 401);
+    if (!user) return apiError("Nao autenticado", 401);
 
     const { searchParams } = req.nextUrl;
     const statusFilter = searchParams.get("status");
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // Cotações recentes: build conditions array
+    // Cotacoes recentes: build conditions array
     const cotacoesConditions = [
       eq(cotacoes.assigneeId, user.id),
       isNull(cotacoes.deletedAt),
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     if (produtoFilter) cotacoesConditions.push(eq(cotacoes.produto, produtoFilter));
 
     const [tarefasRows, metaRows, prodRows, cotacoesRecentesRows] = await Promise.all([
-      // Tarefas Pendente/Em Andamento onde é cotador OU criador
+      // Tarefas Pendente/Em Andamento onde e cotador OU criador
       db.query.tarefas.findMany({
         where: and(
           or(
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         limit: 20,
       }),
 
-      // Meta do mês atual para este usuário
+      // Meta do mes atual para este usuario
       db.select()
         .from(metas)
         .where(
@@ -63,22 +63,22 @@ export async function GET(req: NextRequest) {
         )
         .limit(1),
 
-      // Produtividade: cotações deste mês atribuídas ao usuário
-      db.execute(sql`
+      // Produtividade: cotacoes deste mes atribuidas ao usuario
+      dbQuery(sql`
         SELECT
-          COUNT(*)::int                                                 AS qtd_cotacoes,
-          COUNT(*) FILTER (WHERE status = 'fechado')::int              AS qtd_fechadas,
-          COUNT(*) FILTER (WHERE status = 'perda')::int                AS qtd_perdas,
-          COALESCE(SUM(a_receber::numeric), 0)::numeric                AS valor_a_receber,
-          COALESCE(SUM(premio_sem_iof::numeric), 0)::numeric           AS valor_premio
+          CAST(COUNT(*) AS SIGNED)                                                 AS qtd_cotacoes,
+          CAST(SUM(CASE WHEN status = 'fechado' THEN 1 ELSE 0 END) AS SIGNED)     AS qtd_fechadas,
+          CAST(SUM(CASE WHEN status = 'perda' THEN 1 ELSE 0 END) AS SIGNED)       AS qtd_perdas,
+          COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0)                       AS valor_a_receber,
+          COALESCE(SUM(CAST(premio_sem_iof AS DECIMAL(12,2))), 0)                  AS valor_premio
         FROM cotacoes
-        WHERE assignee_id = ${user.id}::uuid
+        WHERE assignee_id = ${user.id}
           AND deleted_at IS NULL
-          AND created_at >= ${monthStart.toISOString()}::timestamptz
-          AND created_at <  ${monthEnd.toISOString()}::timestamptz
+          AND created_at >= ${monthStart.toISOString()}
+          AND created_at <  ${monthEnd.toISOString()}
       `),
 
-      // Cotações recentes com filtros
+      // Cotacoes recentes com filtros
       db.query.cotacoes.findMany({
         where: and(...cotacoesConditions),
         columns: {
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const prod = prodRows.rows[0] as Record<string, unknown>;
+    const prod = prodRows[0] as Record<string, unknown>;
 
     return apiSuccess({
       tarefas: tarefasRows,
@@ -118,6 +118,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("GET /api/inicio error:", error);
-    return apiError(error.message || "Erro ao carregar início", 500);
+    return apiError(error.message || "Erro ao carregar inicio", 500);
   }
 }

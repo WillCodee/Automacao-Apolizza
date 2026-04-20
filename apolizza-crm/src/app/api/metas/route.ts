@@ -70,29 +70,38 @@ export async function POST(req: NextRequest) {
       );
 
     if (existing.length > 0) {
-      const [updated] = await db
+      await db
         .update(metas)
         .set({
           metaValor: metaValor?.toString() ?? null,
           metaQtdCotacoes: metaQtdCotacoes ?? null,
           metaRenovacoes: metaRenovacoes ?? null,
         })
-        .where(eq(metas.id, existing[0].id))
-        .returning();
+        .where(eq(metas.id, existing[0].id));
+      const [updated] = await db.select().from(metas).where(eq(metas.id, existing[0].id));
       return apiSuccess(updated);
     }
 
+    const insertData = {
+      userId: userId || null,
+      ano: anoNum,
+      mes: mesNum,
+      metaValor: metaValor?.toString() ?? null,
+      metaQtdCotacoes: metaQtdCotacoes ?? null,
+      metaRenovacoes: metaRenovacoes ?? null,
+    };
+    await db.insert(metas).values(insertData);
+    // Fetch the created record - find by unique constraint (userId+ano+mes)
     const [created] = await db
-      .insert(metas)
-      .values({
-        userId: userId || null,
-        ano: anoNum,
-        mes: mesNum,
-        metaValor: metaValor?.toString() ?? null,
-        metaQtdCotacoes: metaQtdCotacoes ?? null,
-        metaRenovacoes: metaRenovacoes ?? null,
-      })
-      .returning();
+      .select()
+      .from(metas)
+      .where(
+        and(
+          eq(metas.ano, anoNum),
+          eq(metas.mes, mesNum),
+          userId ? eq(metas.userId, userId) : undefined
+        )
+      );
 
     return apiSuccess(created);
   } catch (error) {

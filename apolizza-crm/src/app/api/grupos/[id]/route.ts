@@ -32,11 +32,11 @@ export async function PUT(
   if (parsed.data.descricao !== undefined) updates.descricao = parsed.data.descricao;
   if (parsed.data.cor !== undefined) updates.cor = parsed.data.cor;
 
-  const [updated] = await db
+  await db
     .update(gruposUsuarios)
     .set(updates)
-    .where(eq(gruposUsuarios.id, id))
-    .returning();
+    .where(eq(gruposUsuarios.id, id));
+  const [updated] = await db.select().from(gruposUsuarios).where(eq(gruposUsuarios.id, id));
 
   if (!updated) return apiError("Grupo não encontrado", 404);
 
@@ -53,12 +53,11 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const [deleted] = await db
-    .delete(gruposUsuarios)
-    .where(eq(gruposUsuarios.id, id))
-    .returning();
+  const [toDelete] = await db.select({ id: gruposUsuarios.id }).from(gruposUsuarios).where(eq(gruposUsuarios.id, id));
 
-  if (!deleted) return apiError("Grupo não encontrado", 404);
+  if (!toDelete) return apiError("Grupo não encontrado", 404);
+
+  await db.delete(gruposUsuarios).where(eq(gruposUsuarios.id, id));
 
   return apiSuccess({ ok: true });
 }
