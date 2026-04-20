@@ -18,6 +18,8 @@ type Cotacao = {
   mesReferencia: string | null;
   anoReferencia: number | null;
   createdAt: string;
+  assigneeNome: string | null;
+  assigneeGrupoNome: string | null;
 };
 
 type Pagination = {
@@ -41,6 +43,8 @@ type SavedFilters = {
   seguradoraFilter: string;
   prioridadeFilter: string;
   renovacaoFilter: boolean;
+  responsavelFilter: string;
+  grupoFilter: string;
   dateFrom: string;
   dateTo: string;
   page: number;
@@ -76,14 +80,20 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
   const [seguradoraFilter, setSeguradoraFilter] = useState(() => sp("seguradora") ?? saved.seguradoraFilter ?? "");
   const [prioridadeFilter, setPrioridadeFilter] = useState(() => sp("prioridade") ?? saved.prioridadeFilter ?? "");
   const [renovacaoFilter, setRenovacaoFilter] = useState(() => sp("isRenovacao") === "true" || (saved.renovacaoFilter ?? false));
+  const [responsavelFilter, setResponsavelFilter] = useState(() => sp("assignee") ?? saved.responsavelFilter ?? "");
+  const [grupoFilter, setGrupoFilter] = useState(() => sp("grupo") ?? saved.grupoFilter ?? "");
   const [dateFrom, setDateFrom] = useState(() => sp("dateFrom") ?? saved.dateFrom ?? "");
   const [dateTo, setDateTo] = useState(() => sp("dateTo") ?? saved.dateTo ?? "");
   const [page, setPage] = useState(() => Math.max(1, Number(sp("page")) || saved.page || 1));
   const [showAdvanced, setShowAdvanced] = useState(() =>
     !!(sp("produto") || sp("seguradora") || sp("prioridade") || sp("isRenovacao") || sp("dateFrom") || sp("dateTo") ||
-      saved.produtoFilter || saved.seguradoraFilter || saved.prioridadeFilter || saved.renovacaoFilter || saved.dateFrom || saved.dateTo)
+      sp("assignee") || sp("grupo") ||
+      saved.produtoFilter || saved.seguradoraFilter || saved.prioridadeFilter || saved.renovacaoFilter || saved.dateFrom || saved.dateTo ||
+      saved.responsavelFilter || saved.grupoFilter)
   );
   const [seguradoras, setSeguradoras] = useState<string[]>([]);
+  const [usuariosOpts, setUsuariosOpts] = useState<{ id: string; name: string }[]>([]);
+  const [gruposOpts, setGruposOpts] = useState<{ id: string; nome: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -94,16 +104,24 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
         search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter,
-        prioridadeFilter, renovacaoFilter, dateFrom, dateTo, page, showAdvanced,
+        prioridadeFilter, renovacaoFilter, responsavelFilter, grupoFilter, dateFrom, dateTo, page, showAdvanced,
       } satisfies SavedFilters));
     } catch { /* sessionStorage indisponível */ }
-  }, [search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo, page, showAdvanced]);
+  }, [search, statusFilter, mesFilter, anoFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, responsavelFilter, grupoFilter, dateFrom, dateTo, page, showAdvanced]);
 
-  // Fetch unique seguradoras for dropdown
+  // Fetch filter options
   useEffect(() => {
     fetch("/api/cotacoes/seguradoras")
       .then((r) => r.json())
       .then((j) => setSeguradoras(j.data || []))
+      .catch(() => {});
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((j) => setUsuariosOpts((j.data || []).map((u: { id: string; name: string }) => ({ id: u.id, name: u.name }))))
+      .catch(() => {});
+    fetch("/api/grupos")
+      .then((r) => r.json())
+      .then((j) => setGruposOpts((j.data || []).map((g: { id: string; nome: string }) => ({ id: g.id, nome: g.nome }))))
       .catch(() => {});
   }, []);
 
@@ -113,7 +131,10 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     if (statusFilter) params.set("status", statusFilter);
     if (mesFilter) params.set("mes", mesFilter);
     if (anoFilter) params.set("ano", anoFilter);
-    if (assigneeFilter) params.set("assignee", assigneeFilter);
+    // Form-based responsável filter takes priority over URL assignee banner
+    const effectiveAssignee = responsavelFilter || assigneeFilter;
+    if (effectiveAssignee) params.set("assignee", effectiveAssignee);
+    if (grupoFilter) params.set("grupo", grupoFilter);
     if (produtoFilter) params.set("produto", produtoFilter);
     if (seguradoraFilter) params.set("seguradora", seguradoraFilter);
     if (prioridadeFilter) params.set("prioridade", prioridadeFilter);
@@ -121,7 +142,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     return params;
-  }, [search, statusFilter, mesFilter, anoFilter, assigneeFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
+  }, [search, statusFilter, mesFilter, anoFilter, assigneeFilter, responsavelFilter, grupoFilter, produtoFilter, seguradoraFilter, prioridadeFilter, renovacaoFilter, dateFrom, dateTo]);
 
   // Sync filters to URL (AC10)
   useEffect(() => {
@@ -265,13 +286,15 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
     setSeguradoraFilter("");
     setPrioridadeFilter("");
     setRenovacaoFilter(false);
+    setResponsavelFilter("");
+    setGrupoFilter("");
     setDateFrom("");
     setDateTo("");
     setPage(1);
     try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }
 
-  const hasActiveFilters = statusFilter || mesFilter || anoFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || dateFrom || dateTo;
+  const hasActiveFilters = statusFilter || mesFilter || anoFilter || produtoFilter || seguradoraFilter || prioridadeFilter || renovacaoFilter || responsavelFilter || grupoFilter || dateFrom || dateTo;
 
   const currentYear = new Date().getFullYear();
   const ANO_OPTIONS = Array.from({ length: 6 }, (_, i) => String(currentYear - i));
@@ -368,6 +391,26 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
           {/* Advanced filters */}
           {showAdvanced && (
             <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
+              <select
+                value={responsavelFilter}
+                onChange={(e) => { setResponsavelFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+              >
+                <option value="">Todos os responsáveis</option>
+                {usuariosOpts.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+              <select
+                value={grupoFilter}
+                onChange={(e) => { setGrupoFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#03a4ed] outline-none transition"
+              >
+                <option value="">Todos os grupos</option>
+                {gruposOpts.map((g) => (
+                  <option key={g.id} value={g.id}>{g.nome}</option>
+                ))}
+              </select>
               <select
                 value={produtoFilter}
                 onChange={(e) => { setProdutoFilter(e.target.value); setPage(1); }}
@@ -554,6 +597,16 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                    {c.assigneeNome && (
+                      <span>
+                        {c.assigneeNome}
+                        {c.assigneeGrupoNome && (
+                          <span className="ml-1 text-[10px] font-semibold px-1 py-0.5 rounded-full bg-[#03a4ed]/10 text-[#03a4ed]">
+                            {c.assigneeGrupoNome}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {c.seguradora && <span>{c.seguradora}</span>}
                     {c.produto && <span>{c.produto}</span>}
                     {c.mesReferencia && c.anoReferencia && (
@@ -607,6 +660,7 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                       </th>
                     )}
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Nome</th>
+                    <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Responsável</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Status</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Situação</th>
                     <th className="px-4 py-3 font-medium text-xs uppercase tracking-wide">Produto</th>
@@ -629,10 +683,24 @@ export function CotacoesList({ userRole }: { userRole: "admin" | "cotador" | "pr
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3 font-medium text-slate-900 max-w-[250px] truncate">
+                      <td className="px-4 py-3 font-medium text-slate-900 max-w-[220px] truncate">
                         <Link href={`/cotacoes/${c.id}`} className="hover:text-[#03a4ed] transition-colors">
                           {c.name}
                         </Link>
+                      </td>
+                      <td className="px-4 py-3 min-w-[130px]">
+                        {c.assigneeNome ? (
+                          <div>
+                            <span className="text-xs font-medium text-slate-700">{c.assigneeNome}</span>
+                            {c.assigneeGrupoNome && (
+                              <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#03a4ed]/10 text-[#03a4ed]">
+                                {c.assigneeGrupoNome}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${STATUS_COLORS[c.status] || "bg-slate-100 text-slate-600"}`}>

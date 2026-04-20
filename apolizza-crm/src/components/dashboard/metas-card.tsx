@@ -30,6 +30,7 @@ type KPIs = {
   totalCotacoes: number;
   fechadas: number;
   totalAReceber: number;
+  fechadasRenovacao?: number;
 };
 
 type CotadorData = {
@@ -211,13 +212,17 @@ export function MetasCard({ isAdmin }: { isAdmin: boolean }) {
                       color={pctQtd >= 100 ? "#10b981" : pctQtd >= 50 ? "#8b5cf6" : "#f97316"}
                     />
                   )}
-                  {metaRenovacoes && (
+                  {metaRenovacoes && kpis && (
                     <GaugeChart
-                      pct={0}
+                      pct={metaRenovacoes > 0 ? Math.min(((kpis.fechadasRenovacao ?? 0) / metaRenovacoes) * 100, 100) : 0}
                       label="Renovacoes"
-                      current="—"
+                      current={String(kpis.fechadasRenovacao ?? 0)}
                       goal={String(metaRenovacoes)}
-                      color="#94a3b8"
+                      color={
+                        metaRenovacoes > 0 && (kpis.fechadasRenovacao ?? 0) >= metaRenovacoes ? "#10b981"
+                        : metaRenovacoes > 0 && (kpis.fechadasRenovacao ?? 0) >= metaRenovacoes * 0.5 ? "#8b5cf6"
+                        : "#f97316"
+                      }
                     />
                   )}
                 </div>

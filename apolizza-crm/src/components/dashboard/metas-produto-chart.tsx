@@ -114,48 +114,33 @@ export function MetasProdutoChart() {
         </div>
       </div>
 
-      {/* KPI Strip */}
-      <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 border-b border-slate-100">
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Meta Empresa</p>
-          <p className="text-sm font-bold text-slate-800 mt-1 truncate">
-            {metaEmpresa ? fmtCurFull(metaEmpresa) : "—"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 shadow-sm">
-          <p className="text-[9px] font-bold text-violet-400 uppercase tracking-wide">Alocado em Produtos</p>
-          <p className="text-sm font-bold text-violet-700 mt-1 truncate">{fmtCurFull(totalMeta)}</p>
-          {metaEmpresa && metaEmpresa > 0 && (
-            <p className="text-[10px] text-violet-400 font-semibold">
-              {Math.round((totalMeta / metaEmpresa) * 100)}% da meta
-            </p>
-          )}
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Total Realizado</p>
-          <p className="text-sm font-bold text-[#03a4ed] mt-1 truncate">{fmtCurFull(totalRealizado)}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">% Meta Empresa</p>
-          {pctGeral !== null ? (
-            <>
-              <p className={`text-sm font-bold mt-1 ${pctGeral >= 100 ? "text-emerald-600" : pctGeral >= 60 ? "text-[#03a4ed]" : "text-amber-500"}`}>
-                {pctGeral}%
-              </p>
-              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(pctGeral, 100)}%`,
-                    backgroundColor: pctGeral >= 100 ? "#10b981" : pctGeral >= 60 ? "#03a4ed" : "#f59e0b",
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-slate-400 mt-1">—</p>
-          )}
-        </div>
+      {/* KPI Strip — compact inline */}
+      <div className="px-4 py-2 bg-slate-50/50 border-b border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="text-[10px] text-slate-400 font-medium">Meta empresa:</span>
+        <span className="text-xs font-bold text-slate-700">{metaEmpresa ? fmtCurFull(metaEmpresa) : "—"}</span>
+        <span className="text-slate-200 select-none">·</span>
+        <span className="text-[10px] text-slate-400 font-medium">Alocado:</span>
+        <span className="text-xs font-semibold text-violet-700">{fmtCurFull(totalMeta)}</span>
+        {metaEmpresa && metaEmpresa > 0 && (
+          <span className="text-[10px] text-violet-400">({Math.round((totalMeta / metaEmpresa) * 100)}%)</span>
+        )}
+        <span className="text-slate-200 select-none">·</span>
+        <span className="text-[10px] text-slate-400 font-medium">Realizado:</span>
+        <span className="text-xs font-semibold text-[#03a4ed]">{fmtCurFull(totalRealizado)}</span>
+        {pctGeral !== null && (
+          <>
+            <span className="text-slate-200 select-none">·</span>
+            <span className={`text-xs font-bold ${pctGeral >= 100 ? "text-emerald-600" : pctGeral >= 60 ? "text-[#03a4ed]" : "text-amber-500"}`}>
+              {pctGeral}% da meta
+            </span>
+            <div className="flex-1 min-w-[60px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{
+                width: `${Math.min(pctGeral, 100)}%`,
+                backgroundColor: pctGeral >= 100 ? "#10b981" : pctGeral >= 60 ? "#03a4ed" : "#f59e0b",
+              }} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Filter row */}
@@ -196,18 +181,18 @@ export function MetasProdutoChart() {
       ) : (
         <div className="px-4 pb-4 mt-2">
           {/* Header row */}
-          <div className="grid grid-cols-[1fr_100px_100px_120px] gap-3 px-2 mb-1">
+          <div className="grid grid-cols-[1fr_90px_90px_110px] gap-2 px-2 mb-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Produto</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide text-right">Meta</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide text-right">Realizado</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide text-right">Progresso</span>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-0.5 max-h-[260px] overflow-y-auto pr-1">
             {displayRows.map((row) => (
               <div
                 key={row.produto}
-                className="grid grid-cols-[1fr_100px_100px_120px] gap-3 items-center px-2 py-2.5 rounded-xl hover:bg-slate-50 transition"
+                className="grid grid-cols-[1fr_90px_90px_110px] gap-2 items-center px-2 py-1.5 rounded-lg hover:bg-slate-50 transition"
               >
                 {/* Produto */}
                 <div className="flex items-center gap-2">
@@ -238,7 +223,7 @@ export function MetasProdutoChart() {
 
           {/* Total row */}
           {displayRows.length > 1 && (
-            <div className="grid grid-cols-[1fr_100px_100px_120px] gap-3 items-center px-2 py-2 mt-1 border-t border-slate-100">
+            <div className="grid grid-cols-[1fr_90px_90px_110px] gap-2 items-center px-2 py-1.5 mt-1 border-t border-slate-100">
               <span className="text-xs font-bold text-slate-600">Total</span>
               <span className="text-xs font-bold text-slate-700 text-right">{fmtCur(displayRows.reduce((s, r) => s + r.meta, 0))}</span>
               <span className="text-xs font-bold text-[#03a4ed] text-right">{fmtCur(displayRows.reduce((s, r) => s + r.realizado, 0))}</span>

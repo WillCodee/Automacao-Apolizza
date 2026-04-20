@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
     const ano = searchParams.get("ano");
     const mes = searchParams.get("mes");
     const assignee = searchParams.get("assignee");
+    const grupo = searchParams.get("grupo");
     const search = searchParams.get("search");
-    // Story 11.5: filtros avançados
     const produto = searchParams.get("produto");
     const seguradora = searchParams.get("seguradora");
     const prioridade = searchParams.get("prioridade");
@@ -39,24 +39,20 @@ export async function GET(req: NextRequest) {
     const dateTo = searchParams.get("dateTo");
     const situacao = searchParams.get("situacao");
 
-    // Param validation (Story 10.2)
     if (!validateStatus(status)) return apiError("Status invalido", 400);
     if (!validateAno(ano)) return apiError("Ano invalido", 400);
     if (!validateMes(mes)) return apiError("Mes invalido", 400);
     if (!validateUuid(assignee)) return apiError("Assignee ID invalido", 400);
+    if (!validateUuid(grupo)) return apiError("Grupo ID invalido", 400);
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
-    // Todos os perfis veem todas as cotações na lista; filtro de assignee é opcional
-    if (assignee) {
-      conditions.push(eq(cotacoes.assigneeId, assignee));
-    }
-
+    if (assignee) conditions.push(eq(cotacoes.assigneeId, assignee));
+    if (grupo) conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id = ${grupo}::uuid)`);
     if (status) conditions.push(eq(cotacoes.status, status));
     if (ano) conditions.push(eq(cotacoes.anoReferencia, Number(ano)));
     if (mes) conditions.push(eq(cotacoes.mesReferencia, mes));
     if (search) {
-      // Busca em múltiplos campos
       conditions.push(sql`(
         ${cotacoes.name} ILIKE ${'%' + search + '%'}
         OR ${cotacoes.observacao} ILIKE ${'%' + search + '%'}
@@ -65,7 +61,6 @@ export async function GET(req: NextRequest) {
         OR ${cotacoes.contatoCliente} ILIKE ${'%' + search + '%'}
       )`);
     }
-    // Story 11.5: novos filtros
     if (produto) conditions.push(eq(cotacoes.produto, produto));
     if (seguradora) conditions.push(eq(cotacoes.seguradora, seguradora));
     if (prioridade) conditions.push(eq(cotacoes.priority, prioridade));
@@ -76,10 +71,7 @@ export async function GET(req: NextRequest) {
 
     const where = and(...conditions);
 
-    const [totalResult] = await db
-      .select({ value: count() })
-      .from(cotacoes)
-      .where(where);
+    const [totalResult] = await db.select({ value: count() }).from(cotacoes).where(where);
 
     const rows = await db
       .select()
@@ -89,7 +81,28 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    const data = rows.map(formatCotacao);
+    // Batch-fetch assignee name + group for each unique assignee
+    const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter((id): id is string => !!id))];
+    const assigneeMap = new Map<string, { name: string; grupoNome: string | null }>();
+    if (assigneeIds.length > 0) {
+      const infoRows = await db.execute(sql`
+        SELECT DISTINCT ON (u.id) u.id, u.name, g.nome AS grupo_nome
+        FROM users u
+        LEFT JOIN grupo_membros gm ON gm.user_id = u.id
+        LEFT JOIN grupos_usuarios g ON g.id = gm.grupo_id
+        WHERE u.id = ANY(${assigneeIds}::uuid[])
+        ORDER BY u.id, g.nome ASC NULLS LAST
+      `);
+      for (const r of infoRows.rows as { id: string; name: string; grupo_nome: string | null }[]) {
+        assigneeMap.set(r.id, { name: r.name, grupoNome: r.grupo_nome });
+      }
+    }
+
+    const data = rows.map((row) => ({
+      ...formatCotacao(row),
+      assigneeNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.name ?? null) : null,
+      assigneeGrupoNome: row.assigneeId ? (assigneeMap.get(row.assigneeId)?.grupoNome ?? null) : null,
+    }));
 
     return apiPaginated(data, { page, limit, total: totalResult.value });
   } catch (error) {

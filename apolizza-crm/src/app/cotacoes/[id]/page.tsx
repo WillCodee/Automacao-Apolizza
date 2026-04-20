@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, users } from "@/lib/schema";
+import { cotacoes, users, grupoMembros, gruposUsuarios } from "@/lib/schema";
 import { AppHeader } from "@/components/app-header";
 import { DocsUpload } from "@/components/docs-upload";
 import { AtividadePanel } from "@/components/atividade-panel";
@@ -33,12 +33,22 @@ export default async function CotacaoDetailPage({ params }: Params) {
   }
 
   let assigneeName = "—";
+  let assigneeGrupoNome: string | null = null;
   if (row.assigneeId) {
     const [a] = await db
       .select({ name: users.name })
       .from(users)
       .where(eq(users.id, row.assigneeId));
     if (a) assigneeName = a.name;
+
+    const [gm] = await db
+      .select({ nome: gruposUsuarios.nome })
+      .from(grupoMembros)
+      .innerJoin(gruposUsuarios, eq(grupoMembros.grupoId, gruposUsuarios.id))
+      .where(eq(grupoMembros.userId, row.assigneeId))
+      .orderBy(gruposUsuarios.nome)
+      .limit(1);
+    assigneeGrupoNome = gm?.nome ?? null;
   }
 
   const fmt = (v: string | null) =>
@@ -102,6 +112,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
               {/* Details grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <Detail label="Responsavel" value={assigneeName} />
+                {assigneeGrupoNome && <Detail label="Grupo" value={assigneeGrupoNome} />}
                 <Detail label="Tipo Cliente" value={row.tipoCliente} />
                 <Detail label="Contato" value={row.contatoCliente} />
                 <Detail label="Seguradora" value={row.seguradora} />

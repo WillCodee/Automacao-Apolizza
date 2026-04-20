@@ -202,83 +202,48 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
         <div className="p-5 space-y-6">
 
           {/* ── Empresa ──────────────────────────────────────────── */}
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Empresa — {mes}/{ano}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <KpiCard
-                label="Ganho até agora"
-                value={fmtCur(ganhoAtual)}
-                sub={mes + "/" + ano}
-                color="#03a4ed"
-              />
-              <KpiCard
-                label="Meta faturamento"
-                value={metaValorEmp ? fmtCur(metaValorEmp) : "—"}
-                color="#8b5cf6"
-              />
-              <KpiCard
-                label="Fechadas"
-                value={String(fechadasAtual)}
-                sub={metaQtdEmp ? `Meta: ${metaQtdEmp}` : undefined}
-                color="#10b981"
-              />
-              <KpiCard
-                label="Perdas"
-                value={String(kpis?.perdas ?? 0)}
-                color="#ef4444"
-              />
+          <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5 space-y-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Empresa — {mes}/{ano}</p>
+
+            {/* Stats inline */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+              <span className="text-xs font-bold text-[#03a4ed]">{fmtCur(ganhoAtual)}</span>
+              {metaValorEmp && (
+                <span className="text-[11px] text-slate-400">/ meta {fmtCur(metaValorEmp)}</span>
+              )}
+              <span className="text-[11px] text-slate-500">{fechadasAtual} fechadas</span>
+              {metaQtdEmp && <span className="text-[11px] text-slate-400">/ {metaQtdEmp} meta</span>}
+              <span className="text-[11px] text-red-400">{kpis?.perdas ?? 0} perdas</span>
+              {pctValorEmp !== null && <PctBadge pct={pctValorEmp} />}
             </div>
 
-            {/* Progress bars empresa */}
-            {(pctValorEmp !== null || pctQtdEmp !== null) && (
-              <div className="space-y-3">
-                {pctValorEmp !== null && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-slate-600">Faturamento</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">{fmtCur(ganhoAtual)} / {fmtCur(metaValorEmp!)}</span>
-                        <PctBadge pct={pctValorEmp} />
-                      </div>
-                    </div>
-                    <ProgressBar pct={pctValorEmp} color={empColor(pctValorEmp)} />
-                  </div>
-                )}
-                {pctQtdEmp !== null && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-slate-600">Cotações fechadas</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">{fechadasAtual} / {metaQtdEmp}</span>
-                        <PctBadge pct={pctQtdEmp} />
-                      </div>
-                    </div>
-                    <ProgressBar pct={pctQtdEmp} color={empColor(pctQtdEmp)} />
-                  </div>
-                )}
-                {pctValorEmp === null && pctQtdEmp === null && (
-                  <p className="text-xs text-slate-400 text-center py-2">
-                    {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas da empresa →</Link> : "Nenhuma meta definida."}
-                  </p>
-                )}
+            {/* Barra de progresso faturamento */}
+            {pctValorEmp !== null && (
+              <ProgressBar pct={pctValorEmp} color={empColor(pctValorEmp)} />
+            )}
+            {pctQtdEmp !== null && (
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
+                  <span>Cotações fechadas</span><span>{fechadasAtual} / {metaQtdEmp}</span>
+                </div>
+                <ProgressBar pct={pctQtdEmp} color={empColor(pctQtdEmp)} />
               </div>
             )}
             {pctValorEmp === null && pctQtdEmp === null && (
-              <p className="text-xs text-slate-400 text-center py-1">
-                {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas da empresa →</Link> : "Nenhuma meta definida para o período."}
+              <p className="text-[11px] text-slate-400">
+                {isAdmin ? <Link href="/administracao/metas" className="text-[#03a4ed] hover:underline">Definir metas →</Link> : "Sem meta definida."}
               </p>
             )}
 
-            {/* Faixa renovações empresa */}
+            {/* Renovações inline */}
             {(kpis?.totalRenovacoes ?? 0) > 0 && (
-              <div className="mt-3 rounded-xl bg-violet-50 border border-violet-100 px-3 py-2 flex flex-wrap gap-x-4 gap-y-1 items-center">
-                <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Renovações</span>
-                <span className="text-[11px] text-violet-700">{kpis!.totalRenovacoes} no período</span>
-                <span className="text-[11px] text-violet-700">{kpis!.fechadasRenovacao} fechadas</span>
-                <span className="text-[11px] font-semibold text-violet-800">{fmtCur(kpis!.aReceberRenovacao ?? 0)}</span>
-                {(kpis?.aReceberRenovacao ?? 0) > 0 && ganhoAtual > 0 && (
-                  <span className="text-[10px] text-violet-500 ml-auto">
-                    {Math.round(((kpis!.aReceberRenovacao ?? 0) / ganhoAtual) * 100)}% do faturamento
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 border-t border-violet-100">
+                <span className="text-[10px] font-bold text-violet-500">↻ Renovações:</span>
+                <span className="text-[10px] text-violet-600">{kpis!.fechadasRenovacao} fchdas</span>
+                <span className="text-[10px] font-semibold text-violet-700">{fmtCur(kpis!.aReceberRenovacao ?? 0)}</span>
+                {ganhoAtual > 0 && (
+                  <span className="text-[10px] text-violet-400 ml-auto">
+                    {Math.round(((kpis!.aReceberRenovacao ?? 0) / ganhoAtual) * 100)}% do total
                   </span>
                 )}
               </div>
@@ -303,7 +268,7 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
 
             {/* Por Cotador */}
             {tab === "cotador" && (
-              <div className="space-y-3">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 {cotadores.length === 0 && (
                   <p className="text-sm text-slate-400 text-center py-4">Nenhum cotador ativo</p>
                 )}
@@ -361,7 +326,7 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
 
             {/* Por Grupo */}
             {tab === "grupo" && (
-              <div className="space-y-3">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 {grupos.length === 0 && (
                   <p className="text-sm text-slate-400 text-center py-4">Nenhum grupo cadastrado</p>
                 )}

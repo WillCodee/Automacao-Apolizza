@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   STATUS_OPTIONS,
@@ -15,6 +15,7 @@ import { validateStatusFields, type StatusRule } from "@/lib/status-validation";
 import { STATUS_COLORS, SITUACAO_COLORS } from "@/lib/status-config";
 
 type User = { id: string; name: string; role: string };
+type Grupo = { id: string; nome: string; membros: { id: string }[] };
 
 type ComissaoParcelada = {
   parcelas: number;
@@ -95,6 +96,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const isEdit = !!cotacaoId;
   const [form, setForm] = useState<CotacaoData>({ ...EMPTY, ...initialData });
   const [users, setUsers] = useState<User[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [statusRules, setStatusRules] = useState<StatusRule[]>([]);
   const [situacoes, setSituacoes] = useState<string[]>([]);
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
@@ -121,10 +123,13 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
       .then((r) => r.json())
       .then((d) => setSituacoes((d.data || []).filter((s: { isActive: boolean }) => s.isActive).map((s: { nome: string }) => s.nome)));
 
-    if (currentUser.role === "admin") {
+    if (currentUser.role === "admin" || currentUser.role === "proprietario") {
       fetch("/api/users")
         .then((r) => r.json())
         .then((d) => setUsers(d.data || []));
+      fetch("/api/grupos")
+        .then((r) => r.json())
+        .then((d) => setGrupos(d.data || []));
     }
   }, [currentUser.role]);
 
@@ -289,6 +294,16 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   const labelClass = "block text-sm font-medium text-slate-600 mb-1";
   const sectionClass = "space-y-4";
 
+  const userGroupMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of grupos) {
+      for (const m of g.membros) {
+        if (!map[m.id]) map[m.id] = g.nome;
+      }
+    }
+    return map;
+  }, [grupos]);
+
   const requiredFormFields = useMemo(() => {
     const rule = statusRules.find((r) => r.statusName === form.status);
     if (!rule?.requiredFields) return new Set<string>();
@@ -426,7 +441,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               </div>
             )}
           </div>
-          {currentUser.role === "admin" ? (
+          {(currentUser.role === "admin" || currentUser.role === "proprietario") ? (
             <div>
               <label htmlFor="assigneeId" className={labelClass}>Responsavel</label>
               <select
@@ -437,7 +452,9 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               >
                 <option value="">Selecione...</option>
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
+                  <option key={u.id} value={u.id}>
+                    {u.name}{userGroupMap[u.id] ? ` (${userGroupMap[u.id]})` : ""}
+                  </option>
                 ))}
               </select>
             </div>
