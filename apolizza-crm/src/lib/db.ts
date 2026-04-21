@@ -7,14 +7,24 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set. Check your .env.local file.");
 }
 
-const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
-  waitForConnections: true,
-  connectionLimit: 1,
-  maxIdle: 0,
-  idleTimeout: 10000,
-  queueLimit: 0,
-});
+// Serverless-safe: reutiliza pool global se existir (warm start),
+// mas com apenas 1 conexão e timeout curto para não esgotar o MySQL da HostGator.
+const globalForDb = globalThis as unknown as { mysqlPool?: mysql.Pool };
+
+if (!globalForDb.mysqlPool) {
+  globalForDb.mysqlPool = mysql.createPool({
+    uri: process.env.DATABASE_URL,
+    waitForConnections: true,
+    connectionLimit: 1,
+    maxIdle: 0,
+    idleTimeout: 5000,
+    connectTimeout: 10000,
+    queueLimit: 0,
+    enableKeepAlive: false,
+  });
+}
+
+const pool = globalForDb.mysqlPool;
 
 export const db = drizzle(pool, { schema, mode: "default" });
 
