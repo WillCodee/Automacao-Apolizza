@@ -7,8 +7,9 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set. Check your .env.local file.");
 }
 
-// Serverless-safe: reutiliza pool global se existir (warm start),
-// mas com apenas 1 conexão e timeout curto para não esgotar o MySQL da HostGator.
+// Pool com connectionLimit=1 e destroy agressivo de conexões idle.
+// HostGator limita 25 max_user_connections — com Vercel serverless,
+// cada instância precisa liberar a conexão o mais rápido possível.
 const globalForDb = globalThis as unknown as { mysqlPool?: mysql.Pool };
 
 if (!globalForDb.mysqlPool) {
@@ -17,11 +18,20 @@ if (!globalForDb.mysqlPool) {
     waitForConnections: true,
     connectionLimit: 1,
     maxIdle: 0,
-    idleTimeout: 5000,
+    idleTimeout: 1000,
     connectTimeout: 10000,
     queueLimit: 0,
     enableKeepAlive: false,
   });
+
+  // Força destroy de conexões idle a cada 3s para não prender slots
+  setInterval(() => {
+    const p = globalForDb.mysqlPool;
+    if (p) {
+      // pool._freeConnections é interno do mysql2 mas acessível
+      try { (p as any).pool?._freeConnections?.forEach((c: any) => c?.destroy?.()); } catch {}
+    }
+  }, 3000).unref();
 }
 
 const pool = globalForDb.mysqlPool;
