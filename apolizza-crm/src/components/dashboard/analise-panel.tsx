@@ -202,8 +202,8 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                           <td className={`${tdClass} text-right text-red-500`}>{fmtCur(c.perdasValor)}</td>
                           <td className={`${tdClass} text-right text-amber-600`}>{fmtCur(c.analiseValor)}</td>
                           <td className={`${tdClass} text-right`}>
-                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${c.taxaConversao >= 50 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                              {c.taxaConversao?.toFixed(0) ?? 0}%
+                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${Number(c.taxaConversao) >= 50 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                              {Number(c.taxaConversao ?? 0).toFixed(0)}%
                             </span>
                           </td>
                         </tr>
@@ -265,8 +265,8 @@ export function AnálisePanel({ userRole }: { userRole: "admin" | "cotador" | "p
                           <td className={`${tdClass} text-right text-red-500`}>{fmtCur(g.perdasValor)}</td>
                           <td className={`${tdClass} text-right text-amber-600`}>{fmtCur(g.analiseValor)}</td>
                           <td className={`${tdClass} text-right`}>
-                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${g.taxaConversao >= 50 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                              {g.taxaConversao?.toFixed(0) ?? 0}%
+                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${Number(g.taxaConversao) >= 50 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                              {Number(g.taxaConversao ?? 0).toFixed(0)}%
                             </span>
                           </td>
                         </tr>
