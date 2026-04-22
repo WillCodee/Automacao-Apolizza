@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
 
       // Meta empresa
       db.select().from(metas)
-        .where(and(eq(metas.ano, ano), eq(metas.mes, mesNum), isNull(metas.userId), isNull(metas.grupoId)))
+        .where(and(eq(metas.ano, ano), eq(metas.mes, mesNum), isNull(metas.userId)))
         .limit(1),
     ]);
 
