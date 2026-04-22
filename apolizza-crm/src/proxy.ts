@@ -11,7 +11,9 @@ export default auth((req) => {
     pathname.startsWith("/api/pedido") ||      // API pública de pedidos externos
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/telegram/") ||   // Telegram webhook (sem sessão)
-    pathname.startsWith("/api/cron/");          // Cron jobs (autenticados por CRON_SECRET)
+    pathname.startsWith("/api/cron/") ||         // Cron jobs (autenticados por CRON_SECRET)
+    pathname === "/tv" ||                        // Painel TV (auth por token na URL)
+    pathname.startsWith("/api/tv");              // API TV (auth por token na URL)
 
   if (isPublic) return NextResponse.next();
 
