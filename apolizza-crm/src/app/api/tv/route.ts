@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
-import { sql, and, eq, isNull } from "drizzle-orm";
-import { db, dbQuery } from "@/lib/db";
-import { metas } from "@/lib/schema";
+import { sql } from "drizzle-orm";
+import { dbQuery } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import { normalizeRow, normalizeRows } from "@/lib/normalize";
 import { mesFullName } from "@/lib/normalize";
@@ -152,9 +151,11 @@ export async function GET(req: NextRequest) {
       `),
 
       // Meta empresa
-      db.select().from(metas)
-        .where(and(eq(metas.ano, ano), eq(metas.mes, mesNum), isNull(metas.userId)))
-        .limit(1),
+      dbQuery<Record<string, unknown>>(sql`
+        SELECT meta_valor as metaValor FROM metas
+        WHERE ano = ${ano} AND mes = ${mesNum} AND user_id IS NULL
+        LIMIT 1
+      `),
     ]);
 
     // Normalize
@@ -167,7 +168,8 @@ export async function GET(req: NextRequest) {
     const MONTHLY_FIELDS = ["fechadas","perdas","total","aReceber","fechadasRenovacao","aReceberRenovacao","fechadasNovas","aReceberNovas"];
     const COTADOR_FIELDS = ["totalCotacoes","fechadas","perdas","faturamento","taxaConversao","totalRenovacoes","fechadasRenovacao","faturamentoRenovacao","fechadasNovas","faturamentoNovas"];
 
-    const metaMensal = metaEmpresaRows[0]?.metaValor ? parseFloat(metaEmpresaRows[0].metaValor) : null;
+    const metaRow = metaEmpresaRows[0] as Record<string, unknown> | undefined;
+    const metaMensal = metaRow?.metaValor ? parseFloat(String(metaRow.metaValor)) : null;
 
     // Preenche 4 semanas com acumulado
     const semanasNorm = [1,2,3,4].map((s) => {
