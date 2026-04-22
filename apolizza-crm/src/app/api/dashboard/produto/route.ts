@@ -4,6 +4,7 @@ import { db, dbQuery } from "@/lib/db";
 import { metasProduto, metas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { mesFullName } from "@/lib/normalize";
 
 const MES_MAP: Record<string, number> = {
   JAN:1, FEV:2, MAR:3, ABR:4, MAI:5, JUN:6,
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
     if (!mes || !MES_MAP[mes]) return apiError("Mes invalido", 400);
 
     const mesNum = MES_MAP[mes];
+    const mesFull = mesFullName(mes);
     const userFilter = user.role === "cotador" ? sql`AND assignee_id = ${user.id}` : sql``;
 
     // Real achieved per product (cotacoes fechadas)
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
         COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0) AS realizado
       FROM cotacoes
       WHERE deleted_at IS NULL
-        AND mes_referencia = ${mes}
+        AND (UPPER(mes_referencia) = ${mesFull} OR UPPER(mes_referencia) = ${mes})
         AND ano_referencia = ${ano}
         AND LOWER(situacao) = 'fechado'
         AND produto IS NOT NULL

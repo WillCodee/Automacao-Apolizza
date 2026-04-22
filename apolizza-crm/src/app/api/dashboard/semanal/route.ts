@@ -4,6 +4,7 @@ import { db, dbQuery } from "@/lib/db";
 import { metas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { mesFullName } from "@/lib/normalize";
 
 const MES_MAP: Record<string, number> = {
   JAN:1, FEV:2, MAR:3, ABR:4, MAI:5, JUN:6,
@@ -26,14 +27,16 @@ export async function GET(req: NextRequest) {
       ? sql`AND assignee_id = ${user.id}`
       : sql``;
 
-    const mesNum = MES_MAP[mes.toUpperCase()] ?? 0;
+    const mesUpper = mes.toUpperCase();
+    const mesNum = MES_MAP[mesUpper] ?? 0;
+    const mesFull = mesFullName(mesUpper);
 
     const semanasRows = await dbQuery<Record<string, unknown>>(sql`
       SELECT
         CASE
-          WHEN DAY(CONVERT_TZ(updated_at, '+00:00', '-03:00')) <= 7  THEN 1
-          WHEN DAY(CONVERT_TZ(updated_at, '+00:00', '-03:00')) <= 14 THEN 2
-          WHEN DAY(CONVERT_TZ(updated_at, '+00:00', '-03:00')) <= 21 THEN 3
+          WHEN DAY(created_at) <= 7  THEN 1
+          WHEN DAY(created_at) <= 14 THEN 2
+          WHEN DAY(created_at) <= 21 THEN 3
           ELSE 4
         END AS semana,
 
@@ -42,16 +45,16 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN LOWER(situacao) IN ('perda','perda/resgate') THEN 1 ELSE 0 END) AS perdas,
         COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganho,
 
-        SUM(CASE WHEN UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true THEN 1 ELSE 0 END) AS totalRenovacoes,
-        SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true) THEN 1 ELSE 0 END) AS fechadasRenovacao,
-        COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganhoRenovacao,
+        SUM(CASE WHEN UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1 THEN 1 ELSE 0 END) AS totalRenovacoes,
+        SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END) AS fechadasRenovacao,
+        COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganhoRenovacao,
 
-        SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true) THEN 1 ELSE 0 END) AS fechadasNovas,
-        COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = true) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganhoNovas
+        SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END) AS fechadasNovas,
+        COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS ganhoNovas
 
       FROM cotacoes
       WHERE deleted_at IS NULL
-        AND mes_referencia = ${mes}
+        AND (UPPER(mes_referencia) = ${mesFull} OR UPPER(mes_referencia) = ${mesUpper})
         AND ano_referencia = ${ano}
         ${userFilter}
       GROUP BY 1

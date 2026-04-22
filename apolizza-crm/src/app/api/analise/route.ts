@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { mesFullName } from "@/lib/normalize";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,9 +15,9 @@ export async function GET(req: NextRequest) {
     const mes = searchParams.get("mes");
 
     const anoC = ano ? sql`AND c.ano_referencia = ${Number(ano)}` : sql``;
-    const mesC = mes ? sql`AND c.mes_referencia = ${mes}` : sql``;
+    const mesC = mes ? sql`AND (UPPER(c.mes_referencia) = ${mesFullName(mes)} OR UPPER(c.mes_referencia) = ${mes.toUpperCase()})` : sql``;
     const anoS = ano ? sql`AND ano_referencia = ${Number(ano)}` : sql``;
-    const mesS = mes ? sql`AND mes_referencia = ${mes}` : sql``;
+    const mesS = mes ? sql`AND (UPPER(mes_referencia) = ${mesFullName(mes)} OR UPPER(mes_referencia) = ${mes.toUpperCase()})` : sql``;
 
     const [cotadoresRows, gruposRows, statusRows, situacaoRows] = await Promise.all([
 
