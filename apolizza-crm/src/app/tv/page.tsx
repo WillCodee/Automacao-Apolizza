@@ -8,6 +8,7 @@ import TvMonthlySlide from "@/components/tv/tv-monthly-slide";
 import TvKpisSlide from "@/components/tv/tv-kpis-slide";
 
 const MES_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+const SLIDE_NAMES = ["Ranking", "Meta", "Evolucao", "KPIs"];
 const SLIDE_INTERVAL = 300_000; // 5 min
 const REFRESH_INTERVAL = 300_000; // 5 min
 const FADE_DURATION = 500;
@@ -87,7 +88,9 @@ function TvPage() {
   const [slideIndex, setSlideIndex] = useState(0);
   const [opacity, setOpacity] = useState(1);
   const [lastUpdate, setLastUpdate] = useState<string>("");
-  const dataRef = useRef<TVData | null>(null);
+  const [countdown, setCountdown] = useState(SLIDE_INTERVAL / 1000);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -100,33 +103,76 @@ function TvPage() {
       const json = await res.json();
       if (json.success && json.data) {
         setData(json.data);
-        dataRef.current = json.data;
         setError(null);
         setLastUpdate(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
       }
     } catch {
-      // Keep previous data on error
       console.error("TV fetch error");
     }
   }, [token]);
 
-  // Initial fetch + refresh interval
+  // Go to a specific slide (resets the auto timer)
+  const goToSlide = useCallback((idx: number) => {
+    // Fade out → change → fade in
+    setOpacity(0);
+    setTimeout(() => {
+      setSlideIndex(idx);
+      setOpacity(1);
+    }, FADE_DURATION);
+
+    // Reset auto-rotation timer
+    setCountdown(SLIDE_INTERVAL / 1000);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+
+    timerRef.current = setInterval(() => {
+      setOpacity(0);
+      setTimeout(() => {
+        setSlideIndex(prev => (prev + 1) % TOTAL_SLIDES);
+        setOpacity(1);
+      }, FADE_DURATION);
+      setCountdown(SLIDE_INTERVAL / 1000);
+    }, SLIDE_INTERVAL);
+
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => Math.max(prev - 1, 0));
+    }, 1000);
+  }, []);
+
+  const goNext = useCallback(() => {
+    goToSlide((slideIndex + 1) % TOTAL_SLIDES);
+  }, [slideIndex, goToSlide]);
+
+  const goPrev = useCallback(() => {
+    goToSlide((slideIndex - 1 + TOTAL_SLIDES) % TOTAL_SLIDES);
+  }, [slideIndex, goToSlide]);
+
+  // Initial fetch + refresh
   useEffect(() => {
     fetchData();
     const id = setInterval(fetchData, REFRESH_INTERVAL);
     return () => clearInterval(id);
   }, [fetchData]);
 
-  // Slide rotation
+  // Auto-rotation + countdown
   useEffect(() => {
-    const id = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setOpacity(0);
       setTimeout(() => {
         setSlideIndex(prev => (prev + 1) % TOTAL_SLIDES);
         setOpacity(1);
       }, FADE_DURATION);
+      setCountdown(SLIDE_INTERVAL / 1000);
     }, SLIDE_INTERVAL);
-    return () => clearInterval(id);
+
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
   }, []);
 
   if (!token) {
@@ -155,9 +201,11 @@ function TvPage() {
 
   const now = new Date();
   const mesLabel = MES_ARR[now.getMonth()];
+  const mins = Math.floor(countdown / 60);
+  const secs = countdown % 60;
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-[Poppins] flex flex-col overflow-hidden" style={{ height: "100vh" }}>
+    <div className="min-h-screen bg-[#0f172a] text-white font-[Poppins] flex flex-col overflow-hidden select-none" style={{ height: "100vh" }}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 bg-gradient-to-r from-[#1e293b] to-[#0f172a] border-b border-slate-700/50">
         <div className="flex items-center gap-3">
@@ -180,8 +228,28 @@ function TvPage() {
         <KpiCard label="Faturamento" value={fmt(data.kpis.totalAReceber)} color="text-emerald-400" />
       </div>
 
-      {/* Carousel */}
-      <div className="flex-1 min-h-0 px-4 pb-1">
+      {/* Carousel with arrows */}
+      <div className="flex-1 min-h-0 px-4 pb-1 relative">
+        {/* Left arrow */}
+        <button
+          onClick={goPrev}
+          className="absolute left-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        {/* Right arrow */}
+        <button
+          onClick={goNext}
+          className="absolute right-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+
         <div
           className="h-full rounded-2xl bg-slate-900/50 border border-slate-800/50 overflow-hidden"
           style={{ opacity, transition: `opacity ${FADE_DURATION}ms ease-in-out` }}
@@ -193,18 +261,28 @@ function TvPage() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer with clickable dots + countdown */}
       <footer className="flex items-center justify-between px-6 py-2 text-sm text-slate-500">
         <span>Atualizado: {lastUpdate || "--:--"}</span>
-        <div className="flex gap-2">
-          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                i === slideIndex ? "bg-sky-400" : "bg-slate-600"
-              }`}
-            />
-          ))}
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2">
+            {SLIDE_NAMES.map((name, i) => (
+              <button
+                key={i}
+                onClick={() => goToSlide(i)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                  i === slideIndex
+                    ? "bg-sky-500/20 text-sky-400 border border-sky-500/40"
+                    : "bg-slate-800/50 text-slate-500 border border-slate-700/30 hover:text-slate-300"
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-slate-600 font-mono w-12 text-right">
+            {mins}:{secs.toString().padStart(2, "0")}
+          </span>
         </div>
         <span>Apolizza CRM</span>
       </footer>
