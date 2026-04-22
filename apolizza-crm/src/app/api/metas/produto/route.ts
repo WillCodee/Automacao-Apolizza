@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode definir metas", 403);
+    if (user.role !== "proprietario" && user.role !== "admin") return apiError("Apenas o proprietário ou admin pode definir metas", 403);
 
     const body = await req.json();
     const { ano, mes, produto, metaValor } = body;
@@ -82,7 +82,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode limpar metas", 403);
+    if (user.role !== "proprietario" && user.role !== "admin") return apiError("Apenas o proprietário ou admin pode limpar metas", 403);
 
     const { searchParams } = req.nextUrl;
     const ano = Number(searchParams.get("ano"));

@@ -9,7 +9,7 @@ import { eq, and, notInArray } from "drizzle-orm";
 export default async function MetasAdminPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "proprietario") redirect("/dashboard");
+  if (session.user.role !== "proprietario" && session.user.role !== "admin") redirect("/dashboard");
 
   const [cotadores, grupos] = await Promise.all([
     db
@@ -31,7 +31,7 @@ export default async function MetasAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader userName={session.user.name || ""} userRole={session.user.role} activePage="metas-admin" />
+      <AppHeader userName={session.user.name || ""} userRole={session.user.role} userPhoto={session.user.image} activePage="metas-admin" />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Cadastro de Metas</h1>

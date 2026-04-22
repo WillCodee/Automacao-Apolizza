@@ -86,15 +86,21 @@ function MetaRow({ label, photo, color, meta, onSave, clearTrigger }: MetaRowPro
 
   async function handleSave() {
     setSaving(true);
-    await onSave({
-      ...meta,
-      metaValor: parseBRL(valor)?.toString() ?? null,
-      metaQtdCotacoes: qtd ? parseInt(qtd) : null,
-      metaRenovacoes: renovacoes ? parseInt(renovacoes) : null,
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await onSave({
+        ...meta,
+        metaValor: parseBRL(valor)?.toString() ?? null,
+        metaQtdCotacoes: qtd ? parseInt(qtd) : null,
+        metaRenovacoes: renovacoes ? parseInt(renovacoes) : null,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar";
+      alert(msg);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -482,11 +488,15 @@ export function MetasAdmin({ cotadores, grupos }: { cotadores: Cotador[]; grupos
   }
 
   async function saveMeta(meta: Meta) {
-    await fetch("/api/metas", {
+    const res = await fetch("/api/metas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(meta),
     });
+    const json = await res.json();
+    if (!res.ok || json.error) {
+      throw new Error(json.error || json.message || `Erro ${res.status} ao salvar meta`);
+    }
     await fetchMetas();
   }
 

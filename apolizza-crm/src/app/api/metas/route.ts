@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { metas } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess, validateAno } from "@/lib/api-helpers";
+import { toNumOrNull } from "@/lib/normalize";
 
 // GET /api/metas?ano=2026
 export async function GET(req: NextRequest) {
@@ -27,7 +28,12 @@ export async function GET(req: NextRequest) {
       .from(metas)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    return apiSuccess(result);
+    const normalized = result.map((r) => ({
+      ...r,
+      metaValor: toNumOrNull(r.metaValor),
+    }));
+
+    return apiSuccess(normalized);
   } catch (error) {
     console.error("API GET /api/metas:", error);
     return apiError("Erro ao buscar metas", 500);
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
-    if (user.role !== "proprietario") return apiError("Apenas o proprietário pode definir metas", 403);
+    if (user.role !== "proprietario" && user.role !== "admin") return apiError("Apenas o proprietário ou admin pode definir metas", 403);
 
     const body = await req.json();
     const { ano, mes, metaValor, metaQtdCotacoes, metaRenovacoes, userId, grupoId } = body;
