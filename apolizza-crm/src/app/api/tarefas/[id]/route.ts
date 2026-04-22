@@ -1,10 +1,14 @@
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas } from "@/lib/schema";
+import { tarefas, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { alias } from "drizzle-orm/mysql-core";
+
+const cotadorUser = alias(users, "cotadorUser");
+const criadorUser = alias(users, "criadorUser");
 
 // GET /api/tarefas/[id] - Obter tarefa específica
 export async function GET(
@@ -17,35 +21,54 @@ export async function GET(
 
     const { id } = await params;
 
-    const tarefa = await db.query.tarefas.findFirst({
-      where: eq(tarefas.id, id),
-      with: {
-        cotador: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-            photoUrl: true,
-          },
-        },
-        criador: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+    const [row] = await db
+      .select({
+        id: tarefas.id,
+        titulo: tarefas.titulo,
+        descricao: tarefas.descricao,
+        dataVencimento: tarefas.dataVencimento,
+        status: tarefas.status,
+        cotadorId: tarefas.cotadorId,
+        criadorId: tarefas.criadorId,
+        visualizadaEm: tarefas.visualizadaEm,
+        iniciadaEm: tarefas.iniciadaEm,
+        concluidaEm: tarefas.concluidaEm,
+        createdAt: tarefas.createdAt,
+        updatedAt: tarefas.updatedAt,
+        cotadorName: cotadorUser.name,
+        cotadorEmail: cotadorUser.email,
+        cotadorPhotoUrl: cotadorUser.photoUrl,
+        criadorName: criadorUser.name,
+        criadorEmail: criadorUser.email,
+      })
+      .from(tarefas)
+      .leftJoin(cotadorUser, eq(tarefas.cotadorId, cotadorUser.id))
+      .leftJoin(criadorUser, eq(tarefas.criadorId, criadorUser.id))
+      .where(eq(tarefas.id, id))
+      .limit(1);
 
-    if (!tarefa) {
+    if (!row) {
       return apiError("Tarefa não encontrada", 404);
     }
 
-    // Cotador só pode ver suas próprias tarefas
-    if (user.role === "cotador" && tarefa.cotadorId !== user.id) {
+    if (user.role === "cotador" && row.cotadorId !== user.id) {
       return apiError("Sem permissão para acessar esta tarefa", 403);
     }
+
+    const tarefa = {
+      ...row,
+      cotador: {
+        id: row.cotadorId,
+        name: row.cotadorName,
+        email: row.cotadorEmail,
+        photoUrl: row.cotadorPhotoUrl,
+      },
+      criador: {
+        id: row.criadorId,
+        name: row.criadorName,
+        email: row.criadorEmail,
+      },
+    };
 
     return apiSuccess(tarefa);
   } catch (error) {
@@ -70,9 +93,7 @@ export async function PATCH(
       return apiError("Apenas administradores podem editar tarefas", 403);
     }
 
-    const tarefa = await db.query.tarefas.findFirst({
-      where: eq(tarefas.id, id),
-    });
+    const [tarefa] = await db.select().from(tarefas).where(eq(tarefas.id, id)).limit(1);
 
     if (!tarefa) {
       return apiError("Tarefa não encontrada", 404);
@@ -130,9 +151,7 @@ export async function DELETE(
       return apiError("Apenas administradores podem deletar tarefas", 403);
     }
 
-    const tarefa = await db.query.tarefas.findFirst({
-      where: eq(tarefas.id, id),
-    });
+    const [tarefa] = await db.select().from(tarefas).where(eq(tarefas.id, id)).limit(1);
 
     if (!tarefa) {
       return apiError("Tarefa não encontrada", 404);

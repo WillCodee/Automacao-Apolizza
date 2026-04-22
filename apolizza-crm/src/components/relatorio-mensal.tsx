@@ -146,6 +146,41 @@ export function RelatorioMensal() {
     window.print();
   }
 
+  async function handleExportPDF() {
+    if (!printRef.current) return;
+    const html2canvas = (await import("html2canvas")).default;
+    const { jsPDF } = await import("jspdf");
+    const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW - 20;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    let y = 10;
+    if (imgH <= pageH - 20) {
+      pdf.addImage(imgData, "PNG", 10, y, imgW, imgH);
+    } else {
+      // Multi-page
+      const pageImgH = pageH - 20;
+      let srcY = 0;
+      while (srcY < canvas.height) {
+        const sliceH = Math.min((pageImgH / imgW) * canvas.width, canvas.height - srcY);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceH;
+        const ctx = sliceCanvas.getContext("2d")!;
+        ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const sliceImg = sliceCanvas.toDataURL("image/png");
+        const drawH = (sliceH * imgW) / canvas.width;
+        if (srcY > 0) pdf.addPage();
+        pdf.addImage(sliceImg, "PNG", 10, 10, imgW, drawH);
+        srcY += sliceH;
+      }
+    }
+    pdf.save(`relatorio-${ano}.pdf`);
+  }
+
   if (loading) {
     return (
       <div className="text-center py-16">
@@ -231,15 +266,26 @@ export function RelatorioMensal() {
             ))}
           </select>
         </div>
-        <button
-          onClick={handlePrint}
-          className="ml-auto px-4 py-2 text-sm font-medium text-white rounded-xl bg-apolizza-gradient hover:opacity-90 transition-all shadow-sm flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          Imprimir
-        </button>
+        <div className="ml-auto flex gap-2">
+          <button
+            onClick={handleExportPDF}
+            className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Exportar PDF
+          </button>
+          <button
+            onClick={handlePrint}
+            className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-apolizza-gradient hover:opacity-90 transition-all shadow-sm flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Imprimir
+          </button>
+        </div>
       </div>
 
       {/* KPIs with comparison */}

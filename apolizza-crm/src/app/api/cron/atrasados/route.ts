@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
 import { cotacaoNotificacoes } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
-import { sendTelegram, fmtAtrasado } from "@/lib/telegram";
+import { notifyWithFallback, fmtAtrasado } from "@/lib/telegram";
 
 // POST/GET /api/cron/atrasados
 // Protected by CRON_SECRET header (Vercel Cron chama GET)
@@ -68,7 +68,12 @@ export async function POST(req: NextRequest) {
       const telegramRows = updated.map((c) => ({
         id: c.id, name: c.name, due_date: "", assignee_name: null,
       }));
-      await sendTelegram(fmtAtrasado(telegramRows));
+      const atrasadoText = fmtAtrasado(telegramRows);
+      await notifyWithFallback(
+        atrasadoText,
+        `${updated.length} cotação(ões) atrasada(s)`,
+        `<h2>Cotações Atrasadas</h2><p>${updated.map((c) => c.name).join(", ")}</p>`,
+      );
     }
 
     return apiSuccess({

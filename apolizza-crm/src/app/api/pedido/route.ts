@@ -3,14 +3,36 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, cotacaoDocs, cotacaoHistory } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
-import { sendTelegram } from "@/lib/telegram";
+import { notifyWithFallback } from "@/lib/telegram";
 import { put } from "@vercel/blob";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://apolizza-crm.vercel.app";
 const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Rate limiting in-memory: max 5 pedidos/hora/IP
+const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hora
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now - entry.lastReset > RATE_LIMIT_WINDOW) {
+    rateLimitMap.set(ip, { count: 1, lastReset: now });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting por IP
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!checkRateLimit(ip)) {
+      return apiError("Muitas solicitações. Tente novamente mais tarde.", 429);
+    }
+
     const contentType = req.headers.get("content-type") || "";
     const fields: Record<string, string> = {};
     const files: { name: string; url: string; size: number; mime: string }[] = [];
@@ -33,6 +55,11 @@ export async function POST(req: NextRequest) {
     } else {
       const json = await req.json();
       Object.assign(fields, json);
+    }
+
+    // Honeypot: se campo oculto preenchido, retorna 200 fake (bot)
+    if (fields.website) {
+      return apiSuccess({ cotacaoId: "ok" }, 201);
     }
 
     const { nomeCliente, contatoCliente, prioridade, indicacao, produto, mes, ano, descricao } = fields;
@@ -81,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     const cotacaoUrl = `${APP_URL}/cotacoes/${cotacao.id}`;
 
-    await sendTelegram([
+    const telegramText = [
       `📋 <b>NOVO PEDIDO EXTERNO</b>`,
       ``,
       `👤 <b>Cliente:</b> ${esc(nomeCliente)}`,
@@ -95,7 +122,13 @@ export async function POST(req: NextRequest) {
       `📝 ${esc(descricao)}`,
       ``,
       `🔗 <a href="${cotacaoUrl}">Ver Cotação</a>`,
-    ].filter(Boolean).join("\n")).catch(() => {});
+    ].filter(Boolean).join("\n");
+
+    await notifyWithFallback(
+      telegramText,
+      `Novo Pedido Externo — ${nomeCliente}`,
+      `<h2>Novo Pedido Externo</h2><p><b>Cliente:</b> ${nomeCliente}<br><b>Contato:</b> ${contatoCliente}<br><b>Produto:</b> ${produto}<br><b>Referência:</b> ${mes}/${ano}</p><p><a href="${cotacaoUrl}">Ver Cotação</a></p>`,
+    ).catch(() => {});
 
     return apiSuccess({ cotacaoId: cotacao.id }, 201);
   } catch (error: unknown) {

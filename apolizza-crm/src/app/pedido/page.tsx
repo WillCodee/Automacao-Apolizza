@@ -44,6 +44,9 @@ export default function PedidoPublicoPage() {
     setError("");
     try {
       const formData = new FormData();
+      // Honeypot
+      const honeypotEl = document.querySelector<HTMLInputElement>('input[name="website"]');
+      if (honeypotEl?.value) formData.append("website", honeypotEl.value);
       Object.entries(form).forEach(([k, v]) => formData.append(k, v));
       files.forEach((f) => formData.append("anexos", f));
 
@@ -193,6 +196,12 @@ export default function PedidoPublicoPage() {
               </div>
             )}
           </fieldset>
+
+          {/* Honeypot — campo oculto para bots */}
+          <div className="absolute opacity-0 top-0 left-0 h-0 w-0 -z-10 overflow-hidden" aria-hidden="true" tabIndex={-1}>
+            <label htmlFor="website">Website</label>
+            <input type="text" id="website" name="website" autoComplete="off" tabIndex={-1} />
+          </div>
 
           {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">{error}</div>}
 

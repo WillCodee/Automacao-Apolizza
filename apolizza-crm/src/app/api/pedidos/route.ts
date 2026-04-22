@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { cotacoes, cotacaoDocs, cotacaoHistory, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
-import { sendTelegram } from "@/lib/telegram";
+import { notifyWithFallback } from "@/lib/telegram";
 import { sendAlertEmail } from "@/lib/email";
 import { put } from "@vercel/blob";
 
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       `🔗 <a href="${cotacaoUrl}">Ver Cotação</a>`,
     ].join("\n");
 
-    await sendTelegram(telegramMsg).catch(() => {});
+    await notifyWithFallback(telegramMsg).catch(() => {});
 
     // Email para o responsável
     if (responsavel?.email) {

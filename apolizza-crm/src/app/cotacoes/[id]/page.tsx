@@ -10,6 +10,7 @@ import { DocsUpload } from "@/components/docs-upload";
 import { AtividadePanel } from "@/components/atividade-panel";
 import { ObservacaoEditor } from "@/components/observacao-editor";
 import { STATUS_BADGES } from "@/lib/status-config";
+import { ExportPDFButton } from "@/components/export-pdf-button";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -69,6 +70,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="cotacoes"
       />
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -80,19 +82,22 @@ export default async function CotacaoDetailPage({ params }: Params) {
             </Link>
             <h1 className="text-2xl font-bold text-slate-900 mt-1">{row.name}</h1>
           </div>
-          <Link
-            href={`/cotacoes/${id}/edit`}
-            className="px-4 py-2 text-white rounded-xl text-sm font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm"
-          >
-            Editar
-          </Link>
+          <div className="flex gap-2">
+            <ExportPDFButton cotacaoName={row.name} cotacaoId={id} />
+            <Link
+              href={`/cotacoes/${id}/edit`}
+              className="px-4 py-2 text-white rounded-xl text-sm font-medium bg-[#03a4ed] hover:bg-[#0288d1] transition-all shadow-sm"
+            >
+              Editar
+            </Link>
+          </div>
         </div>
 
         {/* Layout duas colunas */}
         <div className="flex gap-6 items-start">
           {/* Coluna principal */}
           <div className="flex-1 min-w-0 space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8 space-y-6 border border-slate-100">
+            <div data-pdf-target className="bg-white rounded-2xl shadow-sm p-6 md:p-8 space-y-6 border border-slate-100">
               {/* Status badges */}
               <div className="flex flex-wrap gap-2">
                 <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold capitalize ${STATUS_BADGE[row.status] || "bg-slate-100 text-slate-600"}`}>

@@ -30,7 +30,10 @@ export async function GET(req: NextRequest) {
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
-    if (assignee) {
+    // Cotador só pode exportar suas próprias cotações
+    if (user.role === "cotador") {
+      conditions.push(eq(cotacoes.assigneeId, user.id));
+    } else if (assignee) {
       conditions.push(eq(cotacoes.assigneeId, assignee));
     }
 

@@ -1,11 +1,15 @@
 import { NextRequest } from "next/server";
-import { eq, and, count, sql } from "drizzle-orm";
+import { eq, and, count, sql, desc as descOrder } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas, tarefasChecklist } from "@/lib/schema";
+import { tarefas, tarefasChecklist, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaCreateSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
 import { logAtividade } from "@/lib/audit-log";
+import { alias } from "drizzle-orm/mysql-core";
+
+const cotadorUser = alias(users, "cotadorUser");
+const criadorUser = alias(users, "criadorUser");
 
 // GET /api/tarefas - Listar tarefas
 export async function GET(req: NextRequest) {
@@ -20,14 +24,13 @@ export async function GET(req: NextRequest) {
 
     const statusFilter = searchParams.get("status");
     const cotadorIdFilter = searchParams.get("cotadorId");
-    const dateFrom = searchParams.get("dateFrom"); // YYYY-MM-DD
-    const dateTo = searchParams.get("dateTo");     // YYYY-MM-DD
-    const mesFilter = searchParams.get("mes");     // 1-12
-    const anoFilter = searchParams.get("ano");     // YYYY
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
+    const mesFilter = searchParams.get("mes");
+    const anoFilter = searchParams.get("ano");
 
     const conditions = [];
 
-    // Cotador vê apenas suas tarefas
     if (user.role === "cotador") {
       conditions.push(eq(tarefas.cotadorId, user.id));
     } else if (cotadorIdFilter) {
@@ -45,10 +48,10 @@ export async function GET(req: NextRequest) {
       conditions.push(sql`DATE(${tarefas.dataVencimento}) <= ${dateTo}`);
     }
     if (mesFilter) {
-      conditions.push(sql`EXTRACT(MONTH FROM ${tarefas.dataVencimento}) = ${Number(mesFilter)}`);
+      conditions.push(sql`MONTH(${tarefas.dataVencimento}) = ${Number(mesFilter)}`);
     }
     if (anoFilter) {
-      conditions.push(sql`EXTRACT(YEAR FROM ${tarefas.dataVencimento}) = ${Number(anoFilter)}`);
+      conditions.push(sql`YEAR(${tarefas.dataVencimento}) = ${Number(anoFilter)}`);
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -60,31 +63,63 @@ export async function GET(req: NextRequest) {
 
     const total = Number(totalResult?.value || 0);
 
-    const rows = await db.query.tarefas.findMany({
-      where,
-      with: {
-        cotador: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-            photoUrl: true,
-          },
-        },
-        criador: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: (t, { desc }) => [desc(t.createdAt)],
-      limit,
-      offset,
-    });
+    // LEFT JOIN manual — compatível com MySQL 5.7 (sem LATERAL)
+    const rows = await db
+      .select({
+        id: tarefas.id,
+        titulo: tarefas.titulo,
+        descricao: tarefas.descricao,
+        dataVencimento: tarefas.dataVencimento,
+        status: tarefas.status,
+        cotadorId: tarefas.cotadorId,
+        criadorId: tarefas.criadorId,
+        visualizadaEm: tarefas.visualizadaEm,
+        iniciadaEm: tarefas.iniciadaEm,
+        concluidaEm: tarefas.concluidaEm,
+        createdAt: tarefas.createdAt,
+        updatedAt: tarefas.updatedAt,
+        cotadorName: cotadorUser.name,
+        cotadorEmail: cotadorUser.email,
+        cotadorPhotoUrl: cotadorUser.photoUrl,
+        criadorName: criadorUser.name,
+        criadorEmail: criadorUser.email,
+      })
+      .from(tarefas)
+      .leftJoin(cotadorUser, eq(tarefas.cotadorId, cotadorUser.id))
+      .leftJoin(criadorUser, eq(tarefas.criadorId, criadorUser.id))
+      .where(where)
+      .orderBy(descOrder(tarefas.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    return apiPaginated(rows, { page, limit, total });
+    // Formatar para manter compatibilidade com o frontend
+    const formatted = rows.map((r) => ({
+      id: r.id,
+      titulo: r.titulo,
+      descricao: r.descricao,
+      dataVencimento: r.dataVencimento,
+      status: r.status,
+      cotadorId: r.cotadorId,
+      criadorId: r.criadorId,
+      visualizadaEm: r.visualizadaEm,
+      iniciadaEm: r.iniciadaEm,
+      concluidaEm: r.concluidaEm,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      cotador: {
+        id: r.cotadorId,
+        name: r.cotadorName,
+        email: r.cotadorEmail,
+        photoUrl: r.cotadorPhotoUrl,
+      },
+      criador: {
+        id: r.criadorId,
+        name: r.criadorName,
+        email: r.criadorEmail,
+      },
+    }));
+
+    return apiPaginated(formatted, { page, limit, total });
   } catch (error) {
     console.error("GET /api/tarefas error:", error);
     return apiError(error instanceof Error ? error.message : "Erro ao listar tarefas", 500);

@@ -9,7 +9,7 @@ import { sql, eq, or, isNull } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
 import { cotacaoNotificacoes } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
-import { sendTelegram, fmtTratativas, fmtTarefasHoje, fmtTarefasPendentes } from "@/lib/telegram";
+import { notifyWithFallback, fmtTratativas, fmtTarefasHoje, fmtTarefasPendentes } from "@/lib/telegram";
 
 function verifyCron(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     // Telegram para admins
     const txtHoje = fmtTratativas(hoje as never, "hoje");
     const txtAmanha = fmtTratativas(amanha as never, "amanha");
-    if (txtHoje) await sendTelegram(txtHoje);
-    if (txtAmanha) await sendTelegram(txtAmanha);
+    if (txtHoje) await notifyWithFallback(txtHoje);
+    if (txtAmanha) await notifyWithFallback(txtAmanha);
 
     // Notificações no sistema para cotadores
     const allRows = [...hoje, ...amanha];
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     if (rows.length > 0) {
       const msgHoje = fmtTarefasHoje(rows as never);
-      if (msgHoje) await sendTelegram(msgHoje);
+      if (msgHoje) await notifyWithFallback(msgHoje);
 
       // Notificações individuais para cotadores
       await db.insert(cotacaoNotificacoes).values(
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     `);
 
     const msgPendentes = fmtTarefasPendentes(rows as never);
-    if (msgPendentes) await sendTelegram(msgPendentes);
+    if (msgPendentes) await notifyWithFallback(msgPendentes);
 
     results.tarefasPendentes = rows.length;
   }

@@ -36,6 +36,7 @@ interface TarefasListProps {
 export function TarefasList({ userRole, userId }: TarefasListProps) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
@@ -57,6 +58,7 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
   const fetchTarefas = async () => {
     try {
       setLoading(true);
+      setFetchError("");
       const params = new URLSearchParams();
       if (filterStatus) params.set("status", filterStatus);
       if (dateFrom) params.set("dateFrom", dateFrom);
@@ -69,9 +71,12 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
 
       if (data.success) {
         setTarefas(data.data);
+      } else {
+        setFetchError(data.error || "Erro ao carregar tarefas");
       }
     } catch (error) {
       console.error("Erro ao buscar tarefas:", error);
+      setFetchError("Erro de conexão ao carregar tarefas. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -84,7 +89,8 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
 
   const handleTarefaCriada = () => {
     setShowForm(false);
-    fetchTarefas();
+    // Delay para garantir que o MySQL replicou o INSERT antes do SELECT
+    setTimeout(() => fetchTarefas(), 500);
   };
 
   const handleTarefaAtualizada = () => {
@@ -200,12 +206,18 @@ export function TarefasList({ userRole, userId }: TarefasListProps) {
       </div>
 
       {/* Lista de Tarefas */}
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <p className="text-sm text-red-600">{fetchError}</p>
+          <button onClick={fetchTarefas} className="text-sm text-red-600 font-medium hover:underline">Tentar novamente</button>
+        </div>
+      )}
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-apolizza-blue border-r-transparent"></div>
           <p className="mt-4 text-slate-500">Carregando tarefas...</p>
         </div>
-      ) : tarefas.length === 0 ? (
+      ) : tarefas.length === 0 && !fetchError ? (
         <div className="text-center py-12 bg-white rounded-2xl shadow">
           <p className="text-slate-500">Nenhuma tarefa encontrada</p>
           {isAdmin && (

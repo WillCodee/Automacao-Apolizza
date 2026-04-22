@@ -180,3 +180,26 @@ export const MENU_CONSULTA = `🔍 <b>COMANDOS DISPONÍVEIS — APOLIZZA CRM</b>
 function fmtDate(v: string) {
   return new Date(v).toLocaleDateString("pt-BR");
 }
+
+// --- Fallback: Telegram → Email ---
+
+/**
+ * Envia notificação via Telegram. Se falhar, faz fallback para email dos admins.
+ * Se emailSubject/emailHtml não forem fornecidos, gera automaticamente a partir do texto Telegram.
+ */
+export async function notifyWithFallback(
+  text: string,
+  emailSubject?: string,
+  emailHtml?: string,
+): Promise<void> {
+  const ok = await sendTelegram(text);
+  if (!ok) {
+    const { getAdminEmails, sendAlertEmail } = await import("@/lib/email");
+    const emails = await getAdminEmails();
+    if (emails.length > 0) {
+      const subject = emailSubject || "Alerta Apolizza CRM";
+      const html = emailHtml || `<div style="font-family:sans-serif;white-space:pre-line">${text}</div>`;
+      await sendAlertEmail({ to: emails, subject, html });
+    }
+  }
+}

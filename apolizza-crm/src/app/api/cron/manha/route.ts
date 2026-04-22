@@ -13,7 +13,7 @@ import { db, dbQuery } from "@/lib/db";
 import { cotacaoNotificacoes } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
-  sendTelegram,
+  notifyWithFallback,
   fmtAtrasado,
   fmtTratativas,
   fmtTarefasPendentes,
@@ -64,7 +64,7 @@ async function processarAtrasados() {
     );
 
     const telegramRows = updated.map((c) => ({ id: c.id, name: c.name, due_date: "", assignee_name: null }));
-    await sendTelegram(fmtAtrasado(telegramRows));
+    await notifyWithFallback(fmtAtrasado(telegramRows));
   }
 
   return updated.length;
@@ -92,8 +92,8 @@ async function processarTratativas() {
 
   const txtHoje = fmtTratativas(hoje as never, "hoje");
   const txtAmanha = fmtTratativas(amanha as never, "amanha");
-  if (txtHoje) await sendTelegram(txtHoje);
-  if (txtAmanha) await sendTelegram(txtAmanha);
+  if (txtHoje) await notifyWithFallback(txtHoje);
+  if (txtAmanha) await notifyWithFallback(txtAmanha);
 
   const hojeIds = new Set(hoje.map((r) => r.id));
   const allRows = [...hoje, ...amanha];
@@ -134,7 +134,7 @@ async function processarAlertasVigencia() {
   `);
 
   const msg = fmtVigenciaAlerta(rows);
-  if (msg) await sendTelegram(msg);
+  if (msg) await notifyWithFallback(msg);
 
   return rows.length;
 }
@@ -161,8 +161,8 @@ async function processarNotificacoesTarefas() {
   const msgNovas = fmtNovasTarefas(novas);
   const msgConcluidas = fmtTarefasConcluidas(concluidas);
 
-  if (msgNovas) await sendTelegram(msgNovas);
-  if (msgConcluidas) await sendTelegram(msgConcluidas);
+  if (msgNovas) await notifyWithFallback(msgNovas);
+  if (msgConcluidas) await notifyWithFallback(msgConcluidas);
 
   return { novas: novas.length, concluidas: concluidas.length };
 }
@@ -180,7 +180,7 @@ async function processarTarefasPendentes() {
   `);
 
   const msg = fmtTarefasPendentes(rows);
-  if (msg) await sendTelegram(msg);
+  if (msg) await notifyWithFallback(msg);
 
   return rows.length;
 }

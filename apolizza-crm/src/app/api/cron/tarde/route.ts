@@ -13,7 +13,7 @@ import { db, dbQuery } from "@/lib/db";
 import { cotacaoNotificacoes } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
-  sendTelegram,
+  notifyWithFallback,
   fmtTarefasHoje,
   fmtVigenciaHoje,
   fmtCotacoesVencendoHoje,
@@ -39,7 +39,7 @@ async function processarTarefasHoje() {
 
   if (rows.length > 0) {
     const msg = fmtTarefasHoje(rows as never);
-    if (msg) await sendTelegram(msg);
+    if (msg) await notifyWithFallback(msg);
 
     await db.insert(cotacaoNotificacoes).values(
       rows.map((t) => ({
@@ -71,7 +71,7 @@ async function processarVigenciaHoje() {
   `);
 
   const msg = fmtVigenciaHoje(rows);
-  if (msg) await sendTelegram(msg);
+  if (msg) await notifyWithFallback(msg);
 
   return rows.length;
 }
@@ -90,7 +90,7 @@ async function processarCotacoesVencendoHoje() {
   `);
 
   const msg = fmtCotacoesVencendoHoje(rows);
-  if (msg) await sendTelegram(msg);
+  if (msg) await notifyWithFallback(msg);
 
   return rows.length;
 }
@@ -109,7 +109,7 @@ async function processarTarefasAtrasadas() {
   `);
 
   const msg = fmtTarefasAtrasadasTarde(rows);
-  if (msg) await sendTelegram(msg);
+  if (msg) await notifyWithFallback(msg);
 
   return rows.length;
 }
@@ -136,7 +136,7 @@ async function processarResumoDiario() {
   };
 
   const msg = fmtResumoDiario(kpis);
-  await sendTelegram(msg);
+  await notifyWithFallback(msg);
 
   return kpis;
 }
