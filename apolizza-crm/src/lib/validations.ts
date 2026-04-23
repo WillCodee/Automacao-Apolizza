@@ -4,7 +4,6 @@ import {
   PRIORITY_OPTIONS,
   TIPO_CLIENTE_OPTIONS,
   MES_OPTIONS,
-  PRODUTO_OPTIONS,
 } from "@/lib/constants";
 
 export const cotacaoCreateSchema = z.object({
@@ -14,11 +13,11 @@ export const cotacaoCreateSchema = z.object({
   dueDate: z.string().datetime().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
   tipoCliente: z.enum(TIPO_CLIENTE_OPTIONS).nullable().optional(),
-  contatoCliente: z.string().nullable().optional(),
-  seguradora: z.string().nullable().optional(),
-  produto: z.enum(PRODUTO_OPTIONS).nullable().optional(),
+  contatoCliente: z.string().max(50).nullable().optional(),
+  seguradora: z.string().max(255).nullable().optional(),
+  produto: z.string().max(255).nullable().optional(),
   situacao: z.string().max(100).nullable().optional(),
-  indicacao: z.string().nullable().optional(),
+  indicacao: z.string().max(255).nullable().optional(),
   inicioVigencia: z.string().nullable().optional(),
   fimVigencia: z.string().nullable().optional(),
   primeiroPagamento: z.string().nullable().optional(),
@@ -31,7 +30,7 @@ export const cotacaoCreateSchema = z.object({
   proximaTratativa: z.string().nullable().optional(),
   observacao: z.string().nullable().optional(),
   mesReferencia: z.enum(MES_OPTIONS).nullable().optional(),
-  anoReferencia: z.number().int().min(2020).max(2030).nullable().optional(),
+  anoReferencia: z.number().int().min(2020).max(2050).nullable().optional(),
   comissaoParcelada: z.object({
     parcelas: z.number().int().min(1).max(60),
     percentuais: z.array(z.number().min(0).max(100)),
@@ -48,11 +47,11 @@ export const cotacaoUpdateSchema = z.object({
   dueDate: z.string().datetime().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
   tipoCliente: z.enum(TIPO_CLIENTE_OPTIONS).nullable().optional(),
-  contatoCliente: z.string().nullable().optional(),
-  seguradora: z.string().nullable().optional(),
-  produto: z.enum(PRODUTO_OPTIONS).nullable().optional(),
+  contatoCliente: z.string().max(50).nullable().optional(),
+  seguradora: z.string().max(255).nullable().optional(),
+  produto: z.string().max(255).nullable().optional(),
   situacao: z.string().max(100).nullable().optional(),
-  indicacao: z.string().nullable().optional(),
+  indicacao: z.string().max(255).nullable().optional(),
   inicioVigencia: z.string().nullable().optional(),
   fimVigencia: z.string().nullable().optional(),
   primeiroPagamento: z.string().nullable().optional(),
@@ -65,7 +64,7 @@ export const cotacaoUpdateSchema = z.object({
   proximaTratativa: z.string().nullable().optional(),
   observacao: z.string().nullable().optional(),
   mesReferencia: z.enum(MES_OPTIONS).nullable().optional(),
-  anoReferencia: z.number().int().min(2020).max(2030).nullable().optional(),
+  anoReferencia: z.number().int().min(2020).max(2050).nullable().optional(),
   comissaoParcelada: z.object({
     parcelas: z.number().int().min(1).max(60),
     percentuais: z.array(z.number().min(0).max(100)),
@@ -94,6 +93,14 @@ export const tarefaCreateSchema = z.object({
   dataVencimento: z.string().datetime().nullable().optional(),
   status: z.enum(TAREFA_STATUS_OPTIONS).default("Pendente"),
   cotadorId: z.string().uuid("ID do cotador inválido"),
+});
+
+export const tarefaCreateGrupoSchema = z.object({
+  titulo: z.string().min(1, "Título é obrigatório").max(255),
+  descricao: z.string().nullable().optional(),
+  dataVencimento: z.string().datetime().nullable().optional(),
+  status: z.enum(TAREFA_STATUS_OPTIONS).default("Pendente"),
+  grupoId: z.string().uuid("ID do grupo inválido"),
 });
 
 export const tarefaUpdateSchema = z.object({

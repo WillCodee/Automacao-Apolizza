@@ -1,9 +1,15 @@
 import { NextRequest } from "next/server";
-import { eq, and, isNull, or, sql } from "drizzle-orm";
+import { eq, and, isNull, or, sql, desc, asc } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
-import { tarefas, cotacoes, metas } from "@/lib/schema";
+import { tarefas, cotacoes, metas, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { alias } from "drizzle-orm/mysql-core";
+
+export const dynamic = "force-dynamic";
+
+const criadorUser = alias(users, "criadorUser");
+const cotadorUser = alias(users, "cotadorUser");
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,36 +37,40 @@ export async function GET(req: NextRequest) {
     if (produtoFilter) cotacoesConditions.push(eq(cotacoes.produto, produtoFilter));
 
     const [tarefasRows, metaRows, prodRows, cotacoesRecentesRows] = await Promise.all([
-      // Tarefas Pendente/Em Andamento onde e cotador OU criador
-      db.query.tarefas.findMany({
-        where: and(
-          or(
-            eq(tarefas.cotadorId, user.id),
-            eq(tarefas.criadorId, user.id)
-          ),
-          or(
-            eq(tarefas.status, "Pendente"),
-            eq(tarefas.status, "Em Andamento")
+      // Tarefas Pendente/Em Andamento — LEFT JOIN manual (MySQL 5.7 safe)
+      db.select({
+        id: tarefas.id,
+        titulo: tarefas.titulo,
+        descricao: tarefas.descricao,
+        dataVencimento: tarefas.dataVencimento,
+        status: tarefas.status,
+        cotadorId: tarefas.cotadorId,
+        criadorId: tarefas.criadorId,
+        visualizadaEm: tarefas.visualizadaEm,
+        iniciadaEm: tarefas.iniciadaEm,
+        concluidaEm: tarefas.concluidaEm,
+        createdAt: tarefas.createdAt,
+        updatedAt: tarefas.updatedAt,
+        criadorName: criadorUser.name,
+        cotadorName: cotadorUser.name,
+        cotadorPhotoUrl: cotadorUser.photoUrl,
+      })
+        .from(tarefas)
+        .leftJoin(criadorUser, eq(tarefas.criadorId, criadorUser.id))
+        .leftJoin(cotadorUser, eq(tarefas.cotadorId, cotadorUser.id))
+        .where(
+          and(
+            or(eq(tarefas.cotadorId, user.id), eq(tarefas.criadorId, user.id)),
+            or(eq(tarefas.status, "Pendente"), eq(tarefas.status, "Em Andamento"))
           )
-        ),
-        with: {
-          criador: { columns: { id: true, name: true } },
-          cotador: { columns: { id: true, name: true, photoUrl: true } },
-        },
-        orderBy: (t, { asc, desc }) => [asc(t.dataVencimento), desc(t.createdAt)],
-        limit: 20,
-      }),
+        )
+        .orderBy(asc(tarefas.dataVencimento), desc(tarefas.createdAt))
+        .limit(20),
 
       // Meta do mes atual para este usuario
       db.select()
         .from(metas)
-        .where(
-          and(
-            eq(metas.ano, ano),
-            eq(metas.mes, mes),
-            eq(metas.userId, user.id)
-          )
-        )
+        .where(and(eq(metas.ano, ano), eq(metas.mes, mes), eq(metas.userId, user.id)))
         .limit(1),
 
       // Produtividade: cotacoes deste mes atribuidas ao usuario
@@ -78,32 +88,51 @@ export async function GET(req: NextRequest) {
           AND created_at <  ${monthEnd.toISOString()}
       `),
 
-      // Cotacoes recentes com filtros
-      db.query.cotacoes.findMany({
-        where: and(...cotacoesConditions),
-        columns: {
-          id: true,
-          name: true,
-          status: true,
-          produto: true,
-          seguradora: true,
-          aReceber: true,
-          premioSemIof: true,
-          dueDate: true,
-          updatedAt: true,
-          createdAt: true,
-          priority: true,
-          tipoCliente: true,
-        },
-        orderBy: (c, { desc }) => [desc(c.updatedAt)],
-        limit: 10,
-      }),
+      // Cotacoes recentes com filtros — db.select() (MySQL 5.7 safe)
+      db.select({
+        id: cotacoes.id,
+        name: cotacoes.name,
+        status: cotacoes.status,
+        produto: cotacoes.produto,
+        seguradora: cotacoes.seguradora,
+        aReceber: cotacoes.aReceber,
+        premioSemIof: cotacoes.premioSemIof,
+        dueDate: cotacoes.dueDate,
+        updatedAt: cotacoes.updatedAt,
+        createdAt: cotacoes.createdAt,
+        priority: cotacoes.priority,
+        tipoCliente: cotacoes.tipoCliente,
+      })
+        .from(cotacoes)
+        .where(and(...cotacoesConditions))
+        .orderBy(desc(cotacoes.updatedAt))
+        .limit(10),
     ]);
+
+    console.log(`[/api/inicio] user=${user.id} (${user.name}), tarefas=${tarefasRows.length}, cotacoes=${cotacoesRecentesRows.length}`);
+
+    // Formatar tarefas com objetos criador/cotador aninhados
+    const tarefasFormatted = tarefasRows.map((r) => ({
+      id: r.id,
+      titulo: r.titulo,
+      descricao: r.descricao,
+      dataVencimento: r.dataVencimento,
+      status: r.status,
+      cotadorId: r.cotadorId,
+      criadorId: r.criadorId,
+      visualizadaEm: r.visualizadaEm,
+      iniciadaEm: r.iniciadaEm,
+      concluidaEm: r.concluidaEm,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      criador: { id: r.criadorId, name: r.criadorName },
+      cotador: { id: r.cotadorId, name: r.cotadorName, photoUrl: r.cotadorPhotoUrl },
+    }));
 
     const prod = prodRows[0] as Record<string, unknown>;
 
     return apiSuccess({
-      tarefas: tarefasRows,
+      tarefas: tarefasFormatted,
       meta: metaRows[0] ?? null,
       produtividade: {
         qtdCotacoes: Number(prod?.qtd_cotacoes ?? 0),
@@ -116,8 +145,9 @@ export async function GET(req: NextRequest) {
       mes,
       ano,
     });
-  } catch (error: any) {
-    console.error("GET /api/inicio error:", error);
-    return apiError(error.message || "Erro ao carregar inicio", 500);
+  } catch (error: unknown) {
+    const e = error as Error;
+    console.error("GET /api/inicio error:", e.message);
+    return apiError(e.message || "Erro ao carregar inicio", 500);
   }
 }

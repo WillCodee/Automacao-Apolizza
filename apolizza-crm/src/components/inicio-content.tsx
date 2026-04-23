@@ -17,6 +17,7 @@ type Tarefa = {
   descricao: string | null;
   status: "Pendente" | "Em Andamento" | "Concluída" | "Cancelada";
   dataVencimento: string | null;
+  cotadorId: string;
   criador: { id: string; name: string } | null;
 };
 
@@ -318,6 +319,7 @@ export function InicioContent({
       .then((res) => {
         if (res.data) setData(res.data);
       })
+      .catch((err) => console.error("[inicio] fetch error:", err))
       .finally(() => setLoading(false));
   }, [statusFilter, seguradoraFilter, produtoFilter]);
 
@@ -361,8 +363,8 @@ export function InicioContent({
   };
 
   const handleUpdateTarefaStatus = async (id: string, status: string) => {
-    await fetch(`/api/tarefas/${id}`, {
-      method: "PUT",
+    await fetch(`/api/tarefas/${id}/status`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });

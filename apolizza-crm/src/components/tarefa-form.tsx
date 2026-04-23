@@ -15,13 +15,26 @@ interface User {
   isActive: boolean;
 }
 
+interface Grupo {
+  id: string;
+  nome: string;
+  cor: string | null;
+  totalMembros: number;
+}
+
+type Modo = "usuario" | "grupo";
+
 export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [cotadorId, setCotadorId] = useState("");
+  const [grupoId, setGrupoId] = useState("");
+  const [modo, setModo] = useState<Modo>("usuario");
   const [users, setUsers] = useState<User[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingGrupos, setLoadingGrupos] = useState(true);
   const [usersError, setUsersError] = useState("");
   const [loadingAttempt, setLoadingAttempt] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -33,7 +46,6 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
     setLoadingAttempt(attempt);
     setUsersError("");
     try {
-      // Timeout de 15s para cold start do Neon
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -55,9 +67,8 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
         return;
       }
 
-      // Retry com intervalo progressivo
       if (attempt < 5) {
-        const delay = attempt * 2000; // 2s, 4s, 6s, 8s
+        const delay = attempt * 2000;
         setTimeout(() => fetchUsers(attempt + 1), delay);
         return;
       }
@@ -65,7 +76,6 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
     } catch (error) {
       console.error(`[TarefaForm] Erro ao carregar usuários (tentativa ${attempt}/5):`, error);
 
-      // Retry com intervalo progressivo
       if (attempt < 5) {
         const delay = attempt * 2000;
         setTimeout(() => fetchUsers(attempt + 1), delay);
@@ -81,8 +91,23 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
     setLoadingAttempt(0);
   };
 
+  const fetchGrupos = async () => {
+    setLoadingGrupos(true);
+    try {
+      const res = await fetch("/api/grupos");
+      const data = await res.json();
+      if (data.success) {
+        setGrupos(data.data ?? []);
+      }
+    } catch (err) {
+      console.error("[TarefaForm] Erro ao carregar grupos:", err);
+    }
+    setLoadingGrupos(false);
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchGrupos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -104,16 +129,23 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
     setLoading(true);
 
     try {
+      const payload: Record<string, unknown> = {
+        titulo,
+        descricao: descricao || null,
+        dataVencimento: dataVencimento ? new Date(dataVencimento).toISOString() : null,
+        checklistItems: checklistItems.filter((t) => t.trim()),
+      };
+
+      if (modo === "grupo") {
+        payload.grupoId = grupoId;
+      } else {
+        payload.cotadorId = cotadorId;
+      }
+
       const res = await fetch("/api/tarefas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo,
-          descricao: descricao || null,
-          dataVencimento: dataVencimento ? new Date(dataVencimento).toISOString() : null,
-          cotadorId,
-          checklistItems: checklistItems.filter((t) => t.trim()),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -130,6 +162,8 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
       setLoading(false);
     }
   };
+
+  const isDestinatarioValido = modo === "usuario" ? !!cotadorId : !!grupoId;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -175,44 +209,103 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
             />
           </div>
 
-          {/* Destinatário */}
+          {/* Destinatário — Toggle usuario/grupo */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Destinatário <span className="text-red-500">*</span>
             </label>
-            {loadingUsers ? (
-              <div className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2 text-sm text-slate-400">
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                </svg>
-                {loadingAttempt > 1
-                  ? `Tentativa ${loadingAttempt}/5... (aguarde, pode levar até 15s)`
-                  : "Carregando usuários... (pode levar até 15s na 1ª vez)"}
-              </div>
-            ) : usersError ? (
-              <div className="space-y-1">
-                <div className="w-full px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-sm text-red-600">
-                  {usersError}
-                </div>
-                <button type="button" onClick={() => fetchUsers(1)} className="text-xs text-[#03a4ed] hover:underline font-medium">
-                  Tentar novamente
-                </button>
-              </div>
-            ) : (
-              <select
-                value={cotadorId}
-                onChange={(e) => setCotadorId(e.target.value)}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition text-sm text-slate-700"
+
+            {/* Toggle buttons */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-3">
+              <button
+                type="button"
+                onClick={() => { setModo("usuario"); setGrupoId(""); }}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  modo === "usuario"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
               >
-                <option value="">Selecione o destinatário...</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} — {u.role === "admin" ? "Admin" : "Cotador"}
-                  </option>
-                ))}
-              </select>
+                Usuário
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModo("grupo"); setCotadorId(""); }}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  modo === "grupo"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Grupo
+              </button>
+            </div>
+
+            {modo === "usuario" ? (
+              // Select de usuários
+              loadingUsers ? (
+                <div className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2 text-sm text-slate-400">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  {loadingAttempt > 1
+                    ? `Tentativa ${loadingAttempt}/5... (aguarde, pode levar até 15s)`
+                    : "Carregando usuários... (pode levar até 15s na 1ª vez)"}
+                </div>
+              ) : usersError ? (
+                <div className="space-y-1">
+                  <div className="w-full px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-sm text-red-600">
+                    {usersError}
+                  </div>
+                  <button type="button" onClick={() => fetchUsers(1)} className="text-xs text-[#03a4ed] hover:underline font-medium">
+                    Tentar novamente
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={cotadorId}
+                  onChange={(e) => setCotadorId(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition text-sm text-slate-700"
+                >
+                  <option value="">Selecione o destinatário...</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} — {u.role === "admin" ? "Admin" : "Cotador"}
+                    </option>
+                  ))}
+                </select>
+              )
+            ) : (
+              // Select de grupos
+              loadingGrupos ? (
+                <div className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2 text-sm text-slate-400">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  Carregando grupos...
+                </div>
+              ) : grupos.length === 0 ? (
+                <div className="w-full px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-700">
+                  Nenhum grupo cadastrado. Crie um grupo em Administração primeiro.
+                </div>
+              ) : (
+                <select
+                  value={grupoId}
+                  onChange={(e) => setGrupoId(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#03a4ed] focus:ring-2 focus:ring-[#03a4ed]/20 outline-none transition text-sm text-slate-700"
+                >
+                  <option value="">Selecione o grupo...</option>
+                  {grupos.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nome} ({g.totalMembros} {g.totalMembros === 1 ? "membro" : "membros"})
+                    </option>
+                  ))}
+                </select>
+              )
             )}
           </div>
 
@@ -280,10 +373,10 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
             </button>
             <button
               type="submit"
-              disabled={loading || loadingUsers}
+              disabled={loading || (modo === "usuario" && loadingUsers) || !isDestinatarioValido}
               className="flex-1 px-4 py-2.5 rounded-xl bg-apolizza-gradient text-white font-medium hover:opacity-90 transition disabled:opacity-50 text-sm"
             >
-              {loading ? "Criando..." : "Criar Tarefa"}
+              {loading ? "Criando..." : modo === "grupo" ? "Criar para Grupo" : "Criar Tarefa"}
             </button>
           </div>
         </form>

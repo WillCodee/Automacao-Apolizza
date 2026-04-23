@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { eq, and, count, sql, desc as descOrder } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas, tarefasChecklist, users } from "@/lib/schema";
+import { tarefas, tarefasChecklist, users, grupoMembros } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { tarefaCreateSchema } from "@/lib/validations";
+import { tarefaCreateSchema, tarefaCreateGrupoSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
 import { logAtividade } from "@/lib/audit-log";
 import { alias } from "drizzle-orm/mysql-core";
@@ -31,9 +31,7 @@ export async function GET(req: NextRequest) {
 
     const conditions = [];
 
-    if (user.role === "cotador") {
-      conditions.push(eq(tarefas.cotadorId, user.id));
-    } else if (cotadorIdFilter) {
+    if (cotadorIdFilter) {
       conditions.push(eq(tarefas.cotadorId, cotadorIdFilter));
     }
 
@@ -126,7 +124,59 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/tarefas - Criar tarefa
+// Helper: criar uma tarefa individual (com checklist e log)
+async function criarTarefaIndividual(
+  cotadorId: string,
+  validated: { titulo: string; descricao?: string | null; dataVencimento?: string | null; status: "Pendente" | "Em Andamento" | "Concluída" | "Cancelada" },
+  checklistItems: string[] | undefined,
+  criadorId: string,
+) {
+  const insertValues = {
+    titulo: validated.titulo,
+    descricao: validated.descricao,
+    dataVencimento: validated.dataVencimento
+      ? new Date(validated.dataVencimento)
+      : null,
+    status: validated.status,
+    cotadorId,
+    criadorId,
+  };
+  await db.insert(tarefas).values(insertValues);
+  const [novaTarefa] = await db
+    .select()
+    .from(tarefas)
+    .where(and(eq(tarefas.criadorId, criadorId), eq(tarefas.cotadorId, cotadorId), eq(tarefas.titulo, validated.titulo)))
+    .orderBy(sql`${tarefas.createdAt} DESC`)
+    .limit(1);
+
+  if (Array.isArray(checklistItems) && checklistItems.length > 0) {
+    const items = checklistItems
+      .filter((t: string) => t?.trim())
+      .map((t: string, i: number) => ({
+        tarefaId: novaTarefa.id,
+        texto: t.trim(),
+        ordem: i,
+      }));
+    if (items.length > 0) {
+      await db.insert(tarefasChecklist).values(items);
+    }
+  }
+
+  await logAtividade({
+    tarefaId: novaTarefa.id,
+    usuarioId: criadorId,
+    tipoAcao: "CRIADA",
+    detalhes: {
+      titulo: novaTarefa.titulo,
+      cotadorId: novaTarefa.cotadorId,
+      status: novaTarefa.status,
+    },
+  });
+
+  return novaTarefa;
+}
+
+// POST /api/tarefas - Criar tarefa (individual ou por grupo)
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -139,51 +189,51 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { checklistItems, ...rest } = body;
-    const validated = tarefaCreateSchema.parse(rest);
 
-    const insertValues = {
-      titulo: validated.titulo,
-      descricao: validated.descricao,
-      dataVencimento: validated.dataVencimento
-        ? new Date(validated.dataVencimento)
-        : null,
-      status: validated.status,
-      cotadorId: validated.cotadorId,
-      criadorId: user.id,
-    };
-    await db.insert(tarefas).values(insertValues);
-    const [novaTarefa] = await db
-      .select()
-      .from(tarefas)
-      .where(and(eq(tarefas.criadorId, user.id), eq(tarefas.titulo, validated.titulo)))
-      .orderBy(sql`${tarefas.createdAt} DESC`)
-      .limit(1);
+    // ── Modo grupo: criar tarefa para cada membro ──
+    if (rest.grupoId) {
+      const validated = tarefaCreateGrupoSchema.parse(rest);
 
-    // Salvar itens do checklist
-    if (Array.isArray(checklistItems) && checklistItems.length > 0) {
-      const items = checklistItems
-        .filter((t: string) => t?.trim())
-        .map((t: string, i: number) => ({
-          tarefaId: novaTarefa.id,
-          texto: t.trim(),
-          ordem: i,
-        }));
-      if (items.length > 0) {
-        await db.insert(tarefasChecklist).values(items);
+      // Buscar membros ativos do grupo
+      const membros = await db
+        .select({ userId: grupoMembros.userId })
+        .from(grupoMembros)
+        .innerJoin(users, eq(grupoMembros.userId, users.id))
+        .where(and(
+          eq(grupoMembros.grupoId, validated.grupoId),
+          eq(users.isActive, true),
+        ));
+
+      if (membros.length === 0) {
+        return apiError("Nenhum membro ativo encontrado neste grupo", 400);
       }
+
+      const cleanChecklist = Array.isArray(checklistItems)
+        ? checklistItems.filter((t: string) => t?.trim())
+        : undefined;
+
+      const tarefasCriadas = [];
+      for (const membro of membros) {
+        const novaTarefa = await criarTarefaIndividual(
+          membro.userId,
+          validated,
+          cleanChecklist,
+          user.id,
+        );
+        tarefasCriadas.push(novaTarefa);
+      }
+
+      return apiSuccess({ tarefas: tarefasCriadas, count: tarefasCriadas.length }, 201);
     }
 
-    // Registrar atividade
-    await logAtividade({
-      tarefaId: novaTarefa.id,
-      usuarioId: user.id,
-      tipoAcao: "CRIADA",
-      detalhes: {
-        titulo: novaTarefa.titulo,
-        cotadorId: novaTarefa.cotadorId,
-        status: novaTarefa.status,
-      },
-    });
+    // ── Modo individual: fluxo original ──
+    const validated = tarefaCreateSchema.parse(rest);
+    const novaTarefa = await criarTarefaIndividual(
+      validated.cotadorId,
+      validated,
+      Array.isArray(checklistItems) ? checklistItems.filter((t: string) => t?.trim()) : undefined,
+      user.id,
+    );
 
     return apiSuccess(novaTarefa, 201);
   } catch (error) {
