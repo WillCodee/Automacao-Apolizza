@@ -126,12 +126,13 @@ export default async function CotacaoDetailPage({ params }: Params) {
                 <Detail label="1o Pagamento" value={fmtDate(row.primeiroPagamento)} />
                 <Detail label="Próxima Tratativa" value={fmtDate(row.proximaTratativa)} />
                 <Detail label="Data de Entrega" value={fmtDate(row.dueDate)} />
-                <Detail label="Premio sem IOF" value={fmt(row.premioSemIof)} highlight />
+                <Detail label="Premio s/IOF" value={fmt(row.premioSemIof)} highlight />
                 <Detail label="Comissao" value={row.comissao ? `${parseFloat(row.comissao)}%` : "—"} highlight />
                 <Detail label="A Receber" value={fmt(row.aReceber)} highlight />
                 <Detail label="Valor Perda" value={fmt(row.valorPerda)} />
-                <Detail label="Parcela do Cliente" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />
-                <Detail label="Valor Parcelado (R$/mes)" value={fmt(row.valorParcelado)} highlight />
+                <Detail label="Premio c/IOF" value={fmt(row.premioComIof)} highlight />
+                <Detail label="Parcelas" value={row.parceladoEm ? `${row.parceladoEm}x` : "—"} />
+                <Detail label="Valor p/Parcela" value={fmt(row.valorParcelado)} highlight />
                 <Detail
                   label="Referencia"
                   value={row.mesReferencia && row.anoReferencia ? `${row.mesReferencia}/${row.anoReferencia}` : "—"}

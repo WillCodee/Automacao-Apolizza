@@ -45,6 +45,7 @@ export default async function EditCotacaoPage({ params }: Params) {
     parceladoEm: row.parceladoEm ? String(row.parceladoEm) : "",
     valorParcelado: row.valorParcelado || "",
     premioSemIof: row.premioSemIof || "",
+    premioComIof: row.premioComIof || "",
     comissao: row.comissao || "",
     aReceber: row.aReceber || "",
     valorPerda: row.valorPerda || "",
@@ -60,6 +61,7 @@ export default async function EditCotacaoPage({ params }: Params) {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="cotacoes"
       />
       <div className="max-w-4xl mx-auto px-4 py-6">

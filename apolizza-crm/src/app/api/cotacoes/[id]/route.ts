@@ -88,6 +88,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.parceladoEm !== undefined) updateData.parceladoEm = input.parceladoEm;
     if (input.valorParcelado !== undefined) updateData.valorParcelado = input.valorParcelado;
     if (input.premioSemIof !== undefined) updateData.premioSemIof = input.premioSemIof;
+    if (input.premioComIof !== undefined) updateData.premioComIof = input.premioComIof;
     if (input.comissao !== undefined) updateData.comissao = input.comissao;
     if (input.aReceber !== undefined) updateData.aReceber = input.aReceber;
     if (input.valorPerda !== undefined) updateData.valorPerda = input.valorPerda;
@@ -210,6 +211,7 @@ function formatCotacao(row: typeof cotacoes.$inferSelect) {
   return {
     ...row,
     premioSemIof: row.premioSemIof ? Number(row.premioSemIof) : null,
+    premioComIof: row.premioComIof ? Number(row.premioComIof) : null,
     comissao: row.comissao ? Number(row.comissao) : null,
     aReceber: row.aReceber ? Number(row.aReceber) : null,
     valorPerda: row.valorPerda ? Number(row.valorPerda) : null,

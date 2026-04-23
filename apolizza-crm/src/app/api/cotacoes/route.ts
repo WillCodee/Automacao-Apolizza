@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
       primeiroPagamento: input.primeiroPagamento,
       parceladoEm: input.parceladoEm,
       premioSemIof: input.premioSemIof,
+      premioComIof: input.premioComIof,
       comissao: input.comissao,
       aReceber: input.aReceber,
       valorPerda: input.valorPerda,
@@ -219,6 +220,7 @@ function formatCotacao(row: typeof cotacoes.$inferSelect) {
   return {
     ...row,
     premioSemIof: row.premioSemIof ? Number(row.premioSemIof) : null,
+    premioComIof: row.premioComIof ? Number(row.premioComIof) : null,
     comissao: row.comissao ? Number(row.comissao) : null,
     aReceber: row.aReceber ? Number(row.aReceber) : null,
     valorPerda: row.valorPerda ? Number(row.valorPerda) : null,

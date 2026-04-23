@@ -79,6 +79,7 @@ export const cotacoes = mysqlTable(
     parceladoEm: int("parcelado_em"),
     valorParcelado: decimal("valor_parcelado", { precision: 12, scale: 2 }),
     premioSemIof: decimal("premio_sem_iof", { precision: 12, scale: 2 }),
+    premioComIof: decimal("premio_com_iof", { precision: 12, scale: 2 }),
     comissao: text("comissao"),
     aReceber: decimal("a_receber", { precision: 12, scale: 2 }),
     valorPerda: decimal("valor_perda", { precision: 12, scale: 2 }),
@@ -282,7 +283,7 @@ export const tarefas = mysqlTable(
     titulo: varchar("titulo", { length: 255 }).notNull(),
     descricao: text("descricao"),
     dataVencimento: datetime("data_vencimento"),
-    status: mysqlEnum("tarefa_status", [
+    status: mysqlEnum("status", [
       "Pendente",
       "Em Andamento",
       "Concluída",

@@ -41,6 +41,7 @@ type CotacaoData = {
   parceladoEm: string;
   valorParcelado: string;
   premioSemIof: string;
+  premioComIof: string;
   comissao: string;
   aReceber: string;
   valorPerda: string;
@@ -75,6 +76,7 @@ const EMPTY: CotacaoData = {
   parceladoEm: "",
   valorParcelado: "",
   premioSemIof: "",
+  premioComIof: "",
   comissao: "",
   aReceber: "",
   valorPerda: "",
@@ -174,15 +176,15 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.produto, form.tipoCliente, form.situacao, form.fimVigencia, quantidadeVeiculos, quantidadeVidas]);
 
-  // Auto-cálculo de Valor Parcelado = Premio sem IOF / Parcela do Cliente
+  // Auto-cálculo de Valor p/Parcela = Premio c/IOF / Parcelas
   useEffect(() => {
     if (valorParceladoManual) return;
-    const premio = parseFloat(form.premioSemIof);
+    const premio = parseFloat(form.premioComIof);
     const parcelas = parseInt(form.parceladoEm, 10);
     if (!isNaN(premio) && !isNaN(parcelas) && parcelas > 0 && premio > 0) {
       setForm((prev) => ({ ...prev, valorParcelado: (premio / parcelas).toFixed(2) }));
     }
-  }, [form.premioSemIof, form.parceladoEm]);
+  }, [form.premioComIof, form.parceladoEm]);
 
   // comissao salva a porcentagem (ex: "21"); aReceber = premioSemIof * (comissao% / 100)
   useEffect(() => {
@@ -254,6 +256,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     if (form.parceladoEm) body.parceladoEm = Number(form.parceladoEm);
     if (form.valorParcelado) body.valorParcelado = form.valorParcelado;
     if (form.premioSemIof) body.premioSemIof = form.premioSemIof;
+    if (form.premioComIof) body.premioComIof = form.premioComIof;
     if (form.comissao) body.comissao = form.comissao;
     if (form.aReceber) body.aReceber = form.aReceber;
     if (form.valorPerda) body.valorPerda = form.valorPerda;
@@ -667,10 +670,10 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
         </div>
       </fieldset>
 
-      {/* Financeiro */}
+      {/* Financeiro - Apolizza */}
       <fieldset className={sectionClass}>
         <legend className="text-lg font-semibold text-slate-900 mb-3">
-          Financeiro
+          Financeiro — Apolizza
         </legend>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
@@ -742,8 +745,30 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
               placeholder="0.00"
             />
           </div>
+        </div>
+      </fieldset>
+
+      {/* Financeiro - Cliente */}
+      <fieldset className={sectionClass}>
+        <legend className="text-lg font-semibold text-slate-900 mb-3">
+          Financeiro — Cliente
+        </legend>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="parceladoEm" className={labelClass}>Parcela do Cliente{req("parceladoEm")}</label>
+            <label htmlFor="premioComIof" className={labelClass}>Premio com IOF (R$)</label>
+            <input
+              id="premioComIof"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.premioComIof}
+              onChange={(e) => set("premioComIof", e.target.value)}
+              className={inputClass()}
+              placeholder="0.00"
+            />
+          </div>
+          <div>
+            <label htmlFor="parceladoEm" className={labelClass}>Parcelas{req("parceladoEm")}</label>
             <input
               id="parceladoEm"
               type="text"
@@ -755,7 +780,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
           </div>
           <div>
             <label htmlFor="valorParcelado" className={labelClass}>
-              Valor Parcelado (R$/mês)
+              Valor p/Parcela (R$)
               {!valorParceladoManual && form.valorParcelado && (
                 <span className="text-xs text-[#03a4ed] ml-1">robô</span>
               )}
