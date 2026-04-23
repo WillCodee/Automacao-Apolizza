@@ -46,6 +46,7 @@ type ActivePage =
 type AppHeaderProps = {
   userName: string;
   userRole: "admin" | "cotador" | "proprietario";
+  userPhoto?: string | null;
   activePage?: ActivePage;
 };
 
@@ -224,7 +225,7 @@ const IconShoppingCart = (
 
 // ─── Main Header ──────────────────────────────────────────────────────────────
 
-export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
+export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   // null = main mobile menu; string = drilled into this group key
@@ -288,7 +289,7 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
   }
 
   return (
-    <header className="bg-apolizza-header shadow-lg">
+    <header className="bg-apolizza-header shadow-lg print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-0">
         <div className="flex items-center justify-between h-16">
 
@@ -356,9 +357,14 @@ export function AppHeader({ userName, userRole, activePage }: AppHeaderProps) {
           {/* User info + actions */}
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-sm font-semibold">
-                {userName.charAt(0).toUpperCase()}
-              </div>
+              {userPhoto ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={userPhoto} alt={userName} className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-sm font-semibold">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="text-right">
                 <p className="text-sm font-medium text-white leading-tight">{userName}</p>
                 <p className={`text-xs leading-tight ${

@@ -29,9 +29,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
 
   if (!row) notFound();
 
-  if (session.user.role === "cotador" && row.assigneeId !== session.user.id) {
-    redirect("/cotacoes");
-  }
+  // Todos podem visualizar qualquer cotação (colaboração)
 
   let assigneeName = "—";
   let assigneeGrupoNome: string | null = null;
@@ -77,12 +75,12 @@ export default async function CotacaoDetailPage({ params }: Params) {
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <Link href="/cotacoes" className="text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium">
+            <Link href="/cotacoes" className="text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium print:hidden">
               ← Voltar
             </Link>
             <h1 className="text-2xl font-bold text-slate-900 mt-1">{row.name}</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 print:hidden">
             <ExportPDFButton cotacaoName={row.name} cotacaoId={id} />
             <Link
               href={`/cotacoes/${id}/edit`}
@@ -168,11 +166,13 @@ export default async function CotacaoDetailPage({ params }: Params) {
               </div>
             </div>
 
-            <DocsUpload cotacaoId={id} />
+            <div className="print:hidden">
+              <DocsUpload cotacaoId={id} />
+            </div>
           </div>
 
           {/* Sidebar — Atividade */}
-          <div className="w-80 xl:w-96 shrink-0">
+          <div className="w-80 xl:w-96 shrink-0 print:hidden">
             <AtividadePanel
               cotacaoId={id}
               currentUserId={session.user.id}

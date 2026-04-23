@@ -189,3 +189,29 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-subtle, #94a3b8);
 }
+
+/* ============================================================
+   PRINT: Esconde tudo exceto o conteúdo principal da cotação
+   ============================================================ */
+@media print {
+  /* Esconde header, sidebar, botões de ação */
+  header,
+  nav,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  /* O card principal ocupa toda a largura */
+  [data-pdf-target] {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 16px !important;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
