@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, isNull, sql, count, gte, lte, inArray, desc } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios, situacaoConfig } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
 import { validateStatusFields } from "@/lib/status-validation";
@@ -169,17 +169,34 @@ export async function POST(req: NextRequest) {
       observacao: input.observacao,
       mesReferencia: input.mesReferencia,
       anoReferencia: input.anoReferencia,
+      valorParcelado: input.valorParcelado,
       comissaoParcelada: input.comissaoParcelada ?? null,
       tags: input.tags,
       isRenovacao: input.isRenovacao,
     };
+
+    // Auto-assign por situação (ex: CCLIENTE → Ivo)
+    if (input.situacao) {
+      const [sitCfg] = await db
+        .select({ defaultCotadorId: situacaoConfig.defaultCotadorId })
+        .from(situacaoConfig)
+        .where(eq(situacaoConfig.nome, input.situacao));
+      if (sitCfg?.defaultCotadorId) {
+        insertValues.assigneeId = sitCfg.defaultCotadorId;
+      }
+    }
+
+    // Gerar UUID antes do insert para evitar race condition no fetch
+    const { randomUUID } = await import("crypto");
+    const newId = randomUUID();
+    insertValues.id = newId;
+
     await db.insert(cotacoes).values(insertValues);
 
     const [created] = await db
       .select()
       .from(cotacoes)
-      .where(eq(cotacoes.name, input.name))
-      .orderBy(desc(cotacoes.createdAt))
+      .where(eq(cotacoes.id, newId))
       .limit(1);
 
     // Registrar evento de criação no histórico
@@ -205,5 +222,6 @@ function formatCotacao(row: typeof cotacoes.$inferSelect) {
     comissao: row.comissao ? Number(row.comissao) : null,
     aReceber: row.aReceber ? Number(row.aReceber) : null,
     valorPerda: row.valorPerda ? Number(row.valorPerda) : null,
+    valorParcelado: row.valorParcelado ? Number(row.valorParcelado) : null,
   };
 }
