@@ -133,9 +133,9 @@ export async function GET(req: NextRequest) {
       dbQuery<Record<string, unknown>>(sql`
         SELECT
           CASE
-            WHEN DAY(created_at) <= 7  THEN 1
-            WHEN DAY(created_at) <= 14 THEN 2
-            WHEN DAY(created_at) <= 21 THEN 3
+            WHEN DAY(COALESCE(due_date, inicio_vigencia, created_at)) <= 7  THEN 1
+            WHEN DAY(COALESCE(due_date, inicio_vigencia, created_at)) <= 14 THEN 2
+            WHEN DAY(COALESCE(due_date, inicio_vigencia, created_at)) <= 21 THEN 3
             ELSE 4
           END AS semana,
           COUNT(*) AS novas,
