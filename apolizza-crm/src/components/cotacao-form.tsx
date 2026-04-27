@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
   STATUS_OPTIONS,
@@ -14,7 +15,7 @@ import { calcularDataEntrega, toDateInput, precisaMaisInfo } from "@/lib/prazo-u
 import { validateStatusFields, type StatusRule } from "@/lib/status-validation";
 import { STATUS_COLORS, SITUACAO_COLORS } from "@/lib/status-config";
 
-type User = { id: string; name: string; role: string };
+type User = { id: string; name: string; role: string; isActive?: boolean };
 type Grupo = { id: string; nome: string; membros: { id: string }[] };
 
 type ComissaoParcelada = {
@@ -119,19 +120,23 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
   useEffect(() => {
     fetch("/api/status-config")
       .then((r) => r.json())
-      .then((d) => setStatusRules(d.data || []));
+      .then((d) => setStatusRules(d.data || []))
+      .catch(() => toast.error("Erro ao carregar status"));
 
     fetch("/api/situacao-config")
       .then((r) => r.json())
-      .then((d) => setSituacoes((d.data || []).filter((s: { isActive: boolean }) => s.isActive).map((s: { nome: string }) => s.nome)));
+      .then((d) => setSituacoes((d.data || []).filter((s: { isActive: boolean }) => s.isActive).map((s: { nome: string }) => s.nome)))
+      .catch(() => toast.error("Erro ao carregar situacoes"));
 
     if (currentUser.role === "admin" || currentUser.role === "proprietario") {
       fetch("/api/users")
         .then((r) => r.json())
-        .then((d) => setUsers(d.data || []));
+        .then((d) => setUsers((d.data || []).filter((u: User) => u.isActive !== false && u.name !== "Suporte")))
+        .catch(() => toast.error("Erro ao carregar usuarios"));
       fetch("/api/grupos")
         .then((r) => r.json())
-        .then((d) => setGrupos(d.data || []));
+        .then((d) => setGrupos(d.data || []))
+        .catch(() => toast.error("Erro ao carregar grupos"));
     }
   }, [currentUser.role]);
 
