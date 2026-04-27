@@ -38,6 +38,7 @@ export const cotacaoCreateSchema = z.object({
   }).nullable().optional(),
   tags: z.array(z.string()).optional().default([]),
   isRenovacao: z.boolean().optional().default(false),
+  coResponsaveisIds: z.array(z.string().uuid()).optional().default([]),
 });
 
 // For update: remove defaults so missing fields stay undefined (not default values)
@@ -73,6 +74,7 @@ export const cotacaoUpdateSchema = z.object({
   }).nullable().optional(),
   tags: z.array(z.string()).optional(),
   isRenovacao: z.boolean().optional(),
+  coResponsaveisIds: z.array(z.string().uuid()).optional(),
 });
 
 export type CotacaoCreateInput = z.infer<typeof cotacaoCreateSchema>;
@@ -95,6 +97,7 @@ export const tarefaCreateSchema = z.object({
   dataVencimento: z.string().datetime().nullable().optional(),
   status: z.enum(TAREFA_STATUS_OPTIONS).default("Pendente"),
   cotadorId: z.string().uuid("ID do cotador inválido"),
+  coResponsaveisIds: z.array(z.string().uuid()).optional().default([]),
 });
 
 export const tarefaCreateGrupoSchema = z.object({
@@ -111,6 +114,7 @@ export const tarefaUpdateSchema = z.object({
   dataVencimento: z.string().datetime().nullable().optional(),
   status: z.enum(TAREFA_STATUS_OPTIONS).optional(),
   cotadorId: z.string().uuid().optional(),
+  coResponsaveisIds: z.array(z.string().uuid()).optional(),
 });
 
 export type TarefaCreateInput = z.infer<typeof tarefaCreateSchema>;

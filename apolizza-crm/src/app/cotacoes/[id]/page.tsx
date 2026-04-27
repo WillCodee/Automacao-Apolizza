@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, users, grupoMembros, gruposUsuarios } from "@/lib/schema";
+import { cotacoes, users, grupoMembros, gruposUsuarios, cotacaoResponsaveis } from "@/lib/schema";
 import { AppHeader } from "@/components/app-header";
 import { DocsUpload } from "@/components/docs-upload";
 import { AtividadePanel } from "@/components/atividade-panel";
@@ -49,6 +49,12 @@ export default async function CotacaoDetailPage({ params }: Params) {
     if (gmRows.length > 0) assigneeGrupoNome = gmRows.map((g) => g.nome).join(", ");
   }
 
+  const coResponsaveis = await db
+    .select({ id: users.id, name: users.name, photoUrl: users.photoUrl })
+    .from(cotacaoResponsaveis)
+    .innerJoin(users, eq(cotacaoResponsaveis.userId, users.id))
+    .where(eq(cotacaoResponsaveis.cotacaoId, id));
+
   const fmt = (v: string | null) =>
     v ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
 
@@ -92,9 +98,9 @@ export default async function CotacaoDetailPage({ params }: Params) {
         </div>
 
         {/* Layout duas colunas */}
-        <div className="flex gap-6 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Coluna principal */}
-          <div className="flex-1 min-w-0 space-y-6">
+          <div className="flex-1 min-w-0 space-y-6 w-full">
             <div data-pdf-target className="bg-white rounded-2xl shadow-sm p-6 md:p-8 space-y-6 border border-slate-100">
               {/* Status badges */}
               <div className="flex flex-wrap gap-2">
@@ -115,6 +121,30 @@ export default async function CotacaoDetailPage({ params }: Params) {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <Detail label="Responsavel" value={assigneeName} />
                 {assigneeGrupoNome && <Detail label="Grupo" value={assigneeGrupoNome} />}
+                {coResponsaveis.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-slate-500 mb-1">Co-responsáveis</div>
+                    <div className="flex -space-x-2">
+                      {coResponsaveis.map((u) => (
+                        <div
+                          key={u.id}
+                          title={u.name}
+                          className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-[#03a4ed] text-white text-xs font-bold flex items-center justify-center shadow-sm"
+                        >
+                          {u.photoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={u.photoUrl} alt={u.name} className="w-full h-full object-cover" />
+                          ) : (
+                            u.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-1">
+                      {coResponsaveis.map((u) => u.name).join(", ")}
+                    </div>
+                  </div>
+                )}
                 <Detail label="Tipo Cliente" value={row.tipoCliente} />
                 <Detail label="Contato" value={row.contatoCliente} />
                 <Detail label="Seguradora" value={row.seguradora} />
@@ -173,7 +203,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
           </div>
 
           {/* Sidebar — Atividade */}
-          <div className="w-80 xl:w-96 shrink-0 print:hidden">
+          <div className="w-full lg:w-80 xl:w-96 shrink-0 print:hidden">
             <AtividadePanel
               cotacaoId={id}
               currentUserId={session.user.id}

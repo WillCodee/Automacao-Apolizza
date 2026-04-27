@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes } from "@/lib/schema";
+import { cotacoes, cotacaoResponsaveis } from "@/lib/schema";
 import { AppHeader } from "@/components/app-header";
 import { CotacaoForm } from "@/components/cotacao-form";
 import Link from "next/link";
@@ -21,6 +21,11 @@ export default async function EditCotacaoPage({ params }: Params) {
     .where(and(eq(cotacoes.id, id), isNull(cotacoes.deletedAt)));
 
   if (!row) notFound();
+
+  const coRespRows = await db
+    .select({ userId: cotacaoResponsaveis.userId })
+    .from(cotacaoResponsaveis)
+    .where(eq(cotacaoResponsaveis.cotacaoId, id));
 
   if (session.user.role === "cotador" && row.assigneeId !== session.user.id) {
     redirect("/cotacoes");
@@ -54,6 +59,7 @@ export default async function EditCotacaoPage({ params }: Params) {
     anoReferencia: row.anoReferencia ? String(row.anoReferencia) : "",
     isRenovacao: row.isRenovacao,
     comissaoParcelada: (row.comissaoParcelada as { parcelas: number; percentuais: number[] } | null) ?? null,
+    coResponsaveisIds: coRespRows.map((r) => r.userId),
   };
 
   return (

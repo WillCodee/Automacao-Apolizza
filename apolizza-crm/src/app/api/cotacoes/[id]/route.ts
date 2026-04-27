@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory, situacaoConfig, cotacaoNotificacoes } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory, situacaoConfig, cotacaoNotificacoes, cotacaoResponsaveis, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -23,7 +23,17 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
     if (!row) return apiError("Cotacao nao encontrada", 404);
 
-    return apiSuccess(formatCotacao(row));
+    const coRespRows = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        photoUrl: users.photoUrl,
+      })
+      .from(cotacaoResponsaveis)
+      .innerJoin(users, eq(cotacaoResponsaveis.userId, users.id))
+      .where(eq(cotacaoResponsaveis.cotacaoId, id));
+
+    return apiSuccess({ ...formatCotacao(row), coResponsaveis: coRespRows });
   } catch (error) {
     console.error("API GET /api/cotacoes/[id]:", error);
     return apiError("Erro ao buscar cotacao", 500);
@@ -164,11 +174,29 @@ export async function PUT(req: NextRequest, { params }: Params) {
         });
       }
 
+      // Sincroniza co-responsáveis se enviado
+      if (input.coResponsaveisIds !== undefined) {
+        const principalId = (updateData.assigneeId as string | null | undefined) ?? existing.assigneeId;
+        const uniq = [...new Set(input.coResponsaveisIds.filter((uid) => uid !== principalId))];
+        await tx.delete(cotacaoResponsaveis).where(eq(cotacaoResponsaveis.cotacaoId, id));
+        if (uniq.length > 0) {
+          await tx.insert(cotacaoResponsaveis).values(
+            uniq.map((uid) => ({ cotacaoId: id, userId: uid }))
+          );
+        }
+      }
+
       const [row] = await tx.select().from(cotacoes).where(eq(cotacoes.id, id));
       return row;
     });
 
-    return apiSuccess(formatCotacao(updated));
+    const coRespRows = await db
+      .select({ id: users.id, name: users.name, photoUrl: users.photoUrl })
+      .from(cotacaoResponsaveis)
+      .innerJoin(users, eq(cotacaoResponsaveis.userId, users.id))
+      .where(eq(cotacaoResponsaveis.cotacaoId, id));
+
+    return apiSuccess({ ...formatCotacao(updated), coResponsaveis: coRespRows });
   } catch (error) {
     console.error("API PUT /api/cotacoes/[id]:", error);
     return apiError("Erro ao atualizar cotacao", 500);

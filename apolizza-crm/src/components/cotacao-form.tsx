@@ -51,6 +51,7 @@ type CotacaoData = {
   anoReferencia: string;
   isRenovacao: boolean;
   comissaoParcelada: ComissaoParcelada | null;
+  coResponsaveisIds: string[];
 };
 
 const SAUDE_PRODUTOS = ["SAÚDE PF", "SAÚDE PJ"] as const;
@@ -86,6 +87,7 @@ const EMPTY: CotacaoData = {
   anoReferencia: "",
   isRenovacao: false,
   comissaoParcelada: null,
+  coResponsaveisIds: [],
 };
 
 interface CotacaoFormProps {
@@ -140,7 +142,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     }
   }, [currentUser.role]);
 
-  function set(field: keyof CotacaoData, value: string | boolean | ComissaoParcelada | null) {
+  function set(field: keyof CotacaoData, value: string | boolean | ComissaoParcelada | string[] | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -248,6 +250,7 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
     if (form.dueDate && currentUser.role !== "cotador")
       body.dueDate = new Date(form.dueDate).toISOString();
     if (form.assigneeId) body.assigneeId = form.assigneeId;
+    body.coResponsaveisIds = form.coResponsaveisIds.filter((id) => id && id !== form.assigneeId);
     if (form.tipoCliente) body.tipoCliente = form.tipoCliente;
     if (form.contatoCliente) body.contatoCliente = form.contatoCliente;
     if (form.seguradora) body.seguradora = form.seguradora;
@@ -450,22 +453,66 @@ export function CotacaoForm({ initialData, cotacaoId, currentUser }: CotacaoForm
             )}
           </div>
           {(currentUser.role === "admin" || currentUser.role === "proprietario") ? (
-            <div>
-              <label htmlFor="assigneeId" className={labelClass}>Responsavel</label>
-              <select
-                id="assigneeId"
-                value={form.assigneeId}
-                onChange={(e) => set("assigneeId", e.target.value)}
-                className={inputClass()}
-              >
-                <option value="">Selecione...</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}{userGroupMap[u.id] ? ` (${userGroupMap[u.id]})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label htmlFor="assigneeId" className={labelClass}>Responsavel</label>
+                <select
+                  id="assigneeId"
+                  value={form.assigneeId}
+                  onChange={(e) => set("assigneeId", e.target.value)}
+                  className={inputClass()}
+                >
+                  <option value="">Selecione...</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}{userGroupMap[u.id] ? ` (${userGroupMap[u.id]})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Co-responsáveis (opcional)</label>
+                <div className="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-xl bg-white max-h-40 overflow-y-auto">
+                  {users.filter((u) => u.id !== form.assigneeId).length === 0 ? (
+                    <span className="text-xs text-slate-400">Selecione um responsável principal primeiro</span>
+                  ) : (
+                    users
+                      .filter((u) => u.id !== form.assigneeId)
+                      .map((u) => {
+                        const checked = form.coResponsaveisIds.includes(u.id);
+                        return (
+                          <label
+                            key={u.id}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs cursor-pointer transition ${
+                              checked
+                                ? "bg-[#03a4ed]/10 border-[#03a4ed] text-[#03a4ed]"
+                                : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#03a4ed]/40"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...form.coResponsaveisIds, u.id]
+                                  : form.coResponsaveisIds.filter((id) => id !== u.id);
+                                set("coResponsaveisIds", next);
+                              }}
+                            />
+                            {u.name}
+                          </label>
+                        );
+                      })
+                  )}
+                </div>
+                {form.coResponsaveisIds.length > 0 && (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {form.coResponsaveisIds.length} co-responsável(eis) selecionado(s)
+                  </p>
+                )}
+              </div>
+            </>
           ) : null}
         </div>
       </fieldset>

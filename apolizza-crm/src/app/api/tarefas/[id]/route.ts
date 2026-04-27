@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas, users } from "@/lib/schema";
+import { tarefas, users, tarefaResponsaveis } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -51,9 +51,13 @@ export async function GET(
       return apiError("Tarefa não encontrada", 404);
     }
 
-    if (user.role === "cotador" && row.cotadorId !== user.id) {
-      return apiError("Sem permissão para acessar esta tarefa", 403);
-    }
+    // Todos podem visualizar qualquer tarefa (colaboração)
+
+    const coRespRows = await db
+      .select({ id: users.id, name: users.name, photoUrl: users.photoUrl })
+      .from(tarefaResponsaveis)
+      .innerJoin(users, eq(tarefaResponsaveis.userId, users.id))
+      .where(eq(tarefaResponsaveis.tarefaId, id));
 
     const tarefa = {
       ...row,
@@ -68,6 +72,7 @@ export async function GET(
         name: row.criadorName,
         email: row.criadorEmail,
       },
+      coResponsaveis: coRespRows,
     };
 
     return apiSuccess(tarefa);
@@ -113,12 +118,22 @@ export async function PATCH(
     if (validated.status !== undefined) updateData.status = validated.status;
     if (validated.cotadorId !== undefined) updateData.cotadorId = validated.cotadorId;
 
-    await db
-      .update(tarefas)
-      .set(updateData)
-      .where(eq(tarefas.id, id));
-    const [tarefaAtualizada] = await db.select().from(tarefas).where(eq(tarefas.id, id));
+    if (Object.keys(updateData).length > 0) {
+      await db.update(tarefas).set(updateData).where(eq(tarefas.id, id));
+    }
 
+    if (validated.coResponsaveisIds !== undefined) {
+      const principalId = (validated.cotadorId as string | undefined) ?? tarefa.cotadorId;
+      const uniq = [...new Set(validated.coResponsaveisIds.filter((uid) => uid !== principalId))];
+      await db.delete(tarefaResponsaveis).where(eq(tarefaResponsaveis.tarefaId, id));
+      if (uniq.length > 0) {
+        await db.insert(tarefaResponsaveis).values(
+          uniq.map((uid) => ({ tarefaId: id, userId: uid }))
+        );
+      }
+    }
+
+    const [tarefaAtualizada] = await db.select().from(tarefas).where(eq(tarefas.id, id));
     return apiSuccess(tarefaAtualizada);
   } catch (error) {
     console.error(`PATCH /api/tarefas/[id] error:`, error);

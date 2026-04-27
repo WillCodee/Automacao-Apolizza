@@ -559,6 +559,36 @@ export const regrasAuditoria = mysqlTable("regras_auditoria", {
 });
 
 // ============================================================
+// CO-RESPONSAVEIS (N:N) — Story PRD-016
+// ============================================================
+
+export const cotacaoResponsaveis = mysqlTable(
+  "cotacao_responsaveis",
+  {
+    cotacaoId: char("cotacao_id", { length: 36 }).notNull(),
+    userId: char("user_id", { length: 36 }).notNull(),
+    createdAt: datetime("created_at").notNull().default(sql`NOW()`),
+  },
+  (table) => [
+    uniqueIndex("cotacao_responsaveis_pk").on(table.cotacaoId, table.userId),
+    index("cotacao_responsaveis_user_idx").on(table.userId),
+  ]
+);
+
+export const tarefaResponsaveis = mysqlTable(
+  "tarefa_responsaveis",
+  {
+    tarefaId: char("tarefa_id", { length: 36 }).notNull(),
+    userId: char("user_id", { length: 36 }).notNull(),
+    createdAt: datetime("created_at").notNull().default(sql`NOW()`),
+  },
+  (table) => [
+    uniqueIndex("tarefa_responsaveis_pk").on(table.tarefaId, table.userId),
+    index("tarefa_responsaveis_user_idx").on(table.userId),
+  ]
+);
+
+// ============================================================
 // RELATIONS
 // ============================================================
 

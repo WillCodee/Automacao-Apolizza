@@ -29,6 +29,7 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
   const [descricao, setDescricao] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [cotadorId, setCotadorId] = useState("");
+  const [coResponsaveisIds, setCoResponsaveisIds] = useState<string[]>([]);
   const [grupoId, setGrupoId] = useState("");
   const [modo, setModo] = useState<Modo>("usuario");
   const [users, setUsers] = useState<User[]>([]);
@@ -140,6 +141,7 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
         payload.grupoId = grupoId;
       } else {
         payload.cotadorId = cotadorId;
+        payload.coResponsaveisIds = coResponsaveisIds.filter((id) => id !== cotadorId);
       }
 
       const res = await fetch("/api/tarefas", {
@@ -308,6 +310,42 @@ export function TarefaForm({ onClose, onTarefaCriada }: TarefaFormProps) {
               )
             )}
           </div>
+
+          {/* Co-responsáveis (apenas modo usuario) */}
+          {modo === "usuario" && cotadorId && users.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Co-responsáveis <span className="text-xs font-normal text-slate-400">(opcional)</span>
+              </label>
+              <div className="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-xl bg-white max-h-32 overflow-y-auto">
+                {users.filter((u) => u.id !== cotadorId).map((u) => {
+                  const checked = coResponsaveisIds.includes(u.id);
+                  return (
+                    <label
+                      key={u.id}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs cursor-pointer transition ${
+                        checked
+                          ? "bg-[#03a4ed]/10 border-[#03a4ed] text-[#03a4ed]"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#03a4ed]/40"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={checked}
+                        onChange={(e) => {
+                          setCoResponsaveisIds((prev) =>
+                            e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
+                          );
+                        }}
+                      />
+                      {u.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Data de Vencimento */}
           <div>

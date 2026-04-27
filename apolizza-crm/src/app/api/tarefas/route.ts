@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, count, sql, desc as descOrder } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tarefas, tarefasChecklist, users, grupoMembros } from "@/lib/schema";
+import { tarefas, tarefasChecklist, users, grupoMembros, tarefaResponsaveis } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { tarefaCreateSchema, tarefaCreateGrupoSchema } from "@/lib/validations";
 import { apiError, apiPaginated, apiSuccess } from "@/lib/api-helpers";
@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
     const conditions = [];
 
     if (cotadorIdFilter) {
-      conditions.push(eq(tarefas.cotadorId, cotadorIdFilter));
+      // PRD-016: filtro por cotador casa principal OU co-responsável
+      conditions.push(sql`(${tarefas.cotadorId} = ${cotadorIdFilter} OR ${tarefas.id} IN (SELECT tarefa_id FROM tarefa_responsaveis WHERE user_id = ${cotadorIdFilter}))`);
     }
 
     if (statusFilter) {
@@ -130,6 +131,7 @@ async function criarTarefaIndividual(
   validated: { titulo: string; descricao?: string | null; dataVencimento?: string | null; status: "Pendente" | "Em Andamento" | "Concluída" | "Cancelada" },
   checklistItems: string[] | undefined,
   criadorId: string,
+  coResponsaveisIds?: string[],
 ) {
   const insertValues = {
     titulo: validated.titulo,
@@ -148,6 +150,15 @@ async function criarTarefaIndividual(
     .where(and(eq(tarefas.criadorId, criadorId), eq(tarefas.cotadorId, cotadorId), eq(tarefas.titulo, validated.titulo)))
     .orderBy(sql`${tarefas.createdAt} DESC`)
     .limit(1);
+
+  if (coResponsaveisIds && coResponsaveisIds.length > 0) {
+    const uniq = [...new Set(coResponsaveisIds.filter((uid) => uid !== cotadorId))];
+    if (uniq.length > 0) {
+      await db.insert(tarefaResponsaveis).values(
+        uniq.map((uid) => ({ tarefaId: novaTarefa.id, userId: uid }))
+      );
+    }
+  }
 
   if (Array.isArray(checklistItems) && checklistItems.length > 0) {
     const items = checklistItems
@@ -233,6 +244,7 @@ export async function POST(req: NextRequest) {
       validated,
       Array.isArray(checklistItems) ? checklistItems.filter((t: string) => t?.trim()) : undefined,
       user.id,
+      validated.coResponsaveisIds,
     );
 
     return apiSuccess(novaTarefa, 201);

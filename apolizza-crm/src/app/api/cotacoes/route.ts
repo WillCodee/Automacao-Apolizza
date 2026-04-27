@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, isNull, sql, count, gte, lte, inArray, desc } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
-import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios, situacaoConfig } from "@/lib/schema";
+import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios, situacaoConfig, cotacaoResponsaveis } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
 import { validateStatusFields } from "@/lib/status-validation";
@@ -47,7 +47,10 @@ export async function GET(req: NextRequest) {
 
     const conditions = [isNull(cotacoes.deletedAt)];
 
-    if (assignee) conditions.push(eq(cotacoes.assigneeId, assignee));
+    if (assignee) {
+      // PRD-016: filtro por responsável casa principal OU co-responsável
+      conditions.push(sql`(${cotacoes.assigneeId} = ${assignee} OR ${cotacoes.id} IN (SELECT cotacao_id FROM cotacao_responsaveis WHERE user_id = ${assignee}))`);
+    }
     if (grupos.length === 1) {
       conditions.push(sql`${cotacoes.assigneeId} IN (SELECT user_id FROM grupo_membros WHERE grupo_id = ${grupos[0]})`);
     } else if (grupos.length > 1) {
@@ -193,6 +196,17 @@ export async function POST(req: NextRequest) {
     insertValues.id = newId;
 
     await db.insert(cotacoes).values(insertValues);
+
+    // Co-responsáveis (PRD-016)
+    if (input.coResponsaveisIds && input.coResponsaveisIds.length > 0) {
+      const principalId = insertValues.assigneeId;
+      const uniq = [...new Set(input.coResponsaveisIds.filter((uid) => uid !== principalId))];
+      if (uniq.length > 0) {
+        await db.insert(cotacaoResponsaveis).values(
+          uniq.map((uid) => ({ cotacaoId: newId, userId: uid }))
+        );
+      }
+    }
 
     const [created] = await db
       .select()
