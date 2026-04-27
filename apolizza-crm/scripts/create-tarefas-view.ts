@@ -20,11 +20,11 @@ async function createTarefasMetricasView() {
       CREATE VIEW vw_tarefas_metricas AS
       SELECT
         (
-          SELECT JSON_ARRAYAGG(JSON_OBJECT('status', tarefa_status, 'total', total))
+          SELECT JSON_ARRAYAGG(JSON_OBJECT('status', status, 'total', total))
           FROM (
-            SELECT tarefa_status, COUNT(*) as total
+            SELECT status, COUNT(*) as total
             FROM tarefas
-            GROUP BY tarefa_status
+            GROUP BY status
           ) t1
         ) as por_status,
         (
@@ -43,12 +43,14 @@ async function createTarefasMetricasView() {
               u.name as cotador_name,
               u.photo_url as cotador_photo,
               COUNT(t.id) as total_tarefas,
-              SUM(CASE WHEN t.tarefa_status = 'Concluída' THEN 1 ELSE 0 END) as concluidas,
-              SUM(CASE WHEN t.tarefa_status = 'Pendente' THEN 1 ELSE 0 END) as pendentes,
-              SUM(CASE WHEN t.tarefa_status = 'Em Andamento' THEN 1 ELSE 0 END) as em_andamento
+              SUM(CASE WHEN t.status = 'Concluída' THEN 1 ELSE 0 END) as concluidas,
+              SUM(CASE WHEN t.status = 'Pendente' THEN 1 ELSE 0 END) as pendentes,
+              SUM(CASE WHEN t.status = 'Em Andamento' THEN 1 ELSE 0 END) as em_andamento
             FROM users u
             LEFT JOIN tarefas t ON t.cotador_id = u.id
-            WHERE u.role = 'cotador'
+            WHERE u.role IN ('cotador','admin','proprietario')
+              AND u.is_active = 1
+              AND u.name <> 'Suporte'
             GROUP BY u.id, u.name, u.photo_url
           ) t2
         ) as por_cotador,
@@ -58,7 +60,7 @@ async function createTarefasMetricasView() {
             SELECT
               DATE_FORMAT(created_at, '%Y-%m-01') as mes,
               COUNT(*) as criadas,
-              SUM(CASE WHEN tarefa_status = 'Concluída' THEN 1 ELSE 0 END) as concluidas
+              SUM(CASE WHEN status = 'Concluída' THEN 1 ELSE 0 END) as concluidas
             FROM tarefas
             WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
             GROUP BY DATE_FORMAT(created_at, '%Y-%m-01')
