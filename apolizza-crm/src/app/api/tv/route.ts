@@ -169,7 +169,7 @@ export async function GET(req: NextRequest) {
     const COTADOR_FIELDS = ["totalCotacoes","fechadas","perdas","faturamento","taxaConversao","totalRenovacoes","fechadasRenovacao","faturamentoRenovacao","fechadasNovas","faturamentoNovas"];
 
     const metaRow = metaEmpresaRows[0] as Record<string, unknown> | undefined;
-    const metaMensal = metaRow?.metaValor ? parseFloat(String(metaRow.metaValor)) : null;
+    const metaMensal = metaRow?.metaValor ? Number(metaRow.metaValor) : null;
 
     // Preenche 4 semanas com acumulado
     const semanasNorm = [1,2,3,4].map((s) => {

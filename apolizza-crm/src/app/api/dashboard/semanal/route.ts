@@ -23,9 +23,7 @@ export async function GET(req: NextRequest) {
 
     if (isNaN(ano) || !mes) return apiError("Parametros invalidos", 400);
 
-    const userFilter = user.role === "cotador"
-      ? sql`AND assignee_id = ${user.id}`
-      : sql``;
+    const userFilter = sql``;
 
     const mesUpper = mes.toUpperCase();
     const mesNum = MES_MAP[mesUpper] ?? 0;
@@ -69,7 +67,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     const metaMensal = metaEmpresa[0]?.metaValor
-      ? parseFloat(metaEmpresa[0].metaValor)
+      ? Number(metaEmpresa[0].metaValor)
       : null;
 
     const rows = semanasRows.map((r) => ({

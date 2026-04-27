@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     const mesNum = MES_MAP[mes];
     const mesFull = mesFullName(mes);
-    const userFilter = user.role === "cotador" ? sql`AND assignee_id = ${user.id}` : sql``;
+    const userFilter = sql``;
 
     // Real achieved per product (cotacoes fechadas)
     const reaisRows = await dbQuery<{ produto: string; qtd: number; realizado: number }>(sql`
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     const metaEmpresa = metaEmpresaRow[0]?.metaValor
-      ? parseFloat(metaEmpresaRow[0].metaValor)
+      ? Number(metaEmpresaRow[0].metaValor)
       : null;
 
     const reaisMap = Object.fromEntries(
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     const metasMap = Object.fromEntries(
       metasProdutoRows.map((m) => [
         m.produto,
-        m.metaValor ? parseFloat(m.metaValor) : 0,
+        m.metaValor ? Number(m.metaValor) : 0,
       ])
     );
 
