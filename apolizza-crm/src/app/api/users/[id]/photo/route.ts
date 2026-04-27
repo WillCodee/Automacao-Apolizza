@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
+import { put, del } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -8,7 +9,18 @@ import { apiError, apiSuccess } from "@/lib/api-helpers";
 type Params = { params: Promise<{ id: string }> };
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE = 2 * 1024 * 1024; // 2MB (base64 fica ~33% maior)
+const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+
+const BLOB_HOST = "blob.vercel-storage.com";
+
+function isBlobUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  try {
+    return new URL(url).hostname.endsWith(BLOB_HOST);
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(req: NextRequest, { params }: Params) {
   try {
@@ -33,13 +45,33 @@ export async function POST(req: NextRequest, { params }: Params) {
       return apiError("Arquivo muito grande. Maximo 2 MB.", 400);
     }
 
-    // Upload de foto está temporariamente desativado: o storage como data-URL
-    // base64 estourava cookies de sessão (Vercel 494). Aguardando migração
-    // para Vercel Blob — ver /api/users/[id]/photo na próxima story.
-    return apiError(
-      "Upload de foto temporariamente indisponível. Migração para storage externo em andamento.",
-      503
-    );
+    const ext = file.type.split("/")[1] ?? "jpg";
+    const pathname = `users/${id}/avatar-${Date.now()}.${ext}`;
+
+    const blob = await put(pathname, file, {
+      access: "public",
+      contentType: file.type,
+      addRandomSuffix: false,
+    });
+
+    // Apaga a foto antiga se também era do Blob (evita lixo acumulando)
+    const [previous] = await db
+      .select({ photoUrl: users.photoUrl })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+
+    await db.update(users).set({ photoUrl: blob.url }).where(eq(users.id, id));
+
+    if (isBlobUrl(previous?.photoUrl) && previous!.photoUrl !== blob.url) {
+      try {
+        await del(previous!.photoUrl!);
+      } catch (cleanupErr) {
+        console.warn("[photo] cleanup do blob anterior falhou:", cleanupErr);
+      }
+    }
+
+    return apiSuccess({ photoUrl: blob.url });
   } catch (error) {
     console.error("POST /api/users/[id]/photo:", error);
     return apiError("Erro ao fazer upload da foto", 500);
@@ -57,10 +89,21 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       return apiError("Sem permissao", 403);
     }
 
-    await db
-      .update(users)
-      .set({ photoUrl: null })
-      .where(eq(users.id, id));
+    const [previous] = await db
+      .select({ photoUrl: users.photoUrl })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+
+    await db.update(users).set({ photoUrl: null }).where(eq(users.id, id));
+
+    if (isBlobUrl(previous?.photoUrl)) {
+      try {
+        await del(previous!.photoUrl!);
+      } catch (cleanupErr) {
+        console.warn("[photo] cleanup do blob falhou:", cleanupErr);
+      }
+    }
 
     return apiSuccess({ photoUrl: null });
   } catch (error) {
