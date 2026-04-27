@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { PRODUTO_OPTIONS } from "@/lib/constants";
 
 type Cotador = { id: string; name: string; photoUrl: string | null };
@@ -23,9 +24,11 @@ const MESES = [
 
 const anos = Array.from({ length: 6 }, (_, i) => 2024 + i);
 
-function fmtBRL(v: string) {
+function fmtBRL(v: string | number) {
   let n: number;
-  if (v.includes(",")) {
+  if (typeof v === "number") {
+    n = v;
+  } else if (v.includes(",")) {
     n = parseFloat(v.replace(/\./g, "").replace(",", "."));
   } else {
     n = parseFloat(v);
@@ -97,7 +100,7 @@ function MetaRow({ label, photo, color, meta, onSave, clearTrigger }: MetaRowPro
       setTimeout(() => setSaved(false), 2000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro ao salvar";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -523,7 +526,7 @@ export function MetasAdmin({ cotadores, grupos }: { cotadores: Cotador[]; grupos
       );
       const hasError = results.some((r) => !r.success);
       if (hasError) {
-        alert("Erro ao salvar algumas metas. Tente novamente.");
+        toast.error("Erro ao salvar algumas metas. Tente novamente.");
         return;
       }
       await fetchMetas();
