@@ -24,8 +24,13 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const ano = now.getFullYear();
     const mes = now.getMonth() + 1;
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    // Mapeia mês numérico -> abreviação usada em mes_referencia
+    // Atenção: "MAI" e "MAIO" coexistem (inconsistência da migração ClickUp).
+    const MES_ABREV: Record<number, string[]> = {
+      1: ["JAN"], 2: ["FEV"], 3: ["MAR"], 4: ["ABR"], 5: ["MAI", "MAIO"],
+      6: ["JUN"], 7: ["JUL"], 8: ["AGO"], 9: ["SET"], 10: ["OUT"], 11: ["NOV"], 12: ["DEZ"],
+    };
+    const mesAbrevs = MES_ABREV[mes];
 
     // Cotacoes recentes: build conditions array
     const cotacoesConditions = [
@@ -73,7 +78,8 @@ export async function GET(req: NextRequest) {
         .where(and(eq(metas.ano, ano), eq(metas.mes, mes), eq(metas.userId, user.id)))
         .limit(1),
 
-      // Produtividade: cotacoes deste mes atribuidas ao usuario
+      // Produtividade: cotacoes deste mes_referencia/ano_referencia atribuidas ao usuario
+      // (NÃO usar created_at — toda migração ClickUp criou registros em abril/2026)
       dbQuery(sql`
         SELECT
           CAST(COUNT(*) AS SIGNED)                                                 AS qtd_cotacoes,
@@ -84,8 +90,8 @@ export async function GET(req: NextRequest) {
         FROM cotacoes
         WHERE assignee_id = ${user.id}
           AND deleted_at IS NULL
-          AND created_at >= ${monthStart.toISOString()}
-          AND created_at <  ${monthEnd.toISOString()}
+          AND ano_referencia = ${ano}
+          AND UPPER(mes_referencia) IN (${sql.join(mesAbrevs.map((m) => sql`${m}`), sql`, `)})
       `),
 
       // Cotacoes recentes com filtros — db.select() (MySQL 5.7 safe)
