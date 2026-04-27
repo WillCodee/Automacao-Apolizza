@@ -24,8 +24,8 @@ interface ViewMetricas {
 interface KPIs {
   pendentes: number;
   atrasadas: number;
-  concluidasHoje: number;
-  concluidasSemana: number;
+  concluidas_hoje: number;
+  concluidas_semana: number;
 }
 
 export async function GET() {
@@ -46,10 +46,10 @@ export async function GET() {
     // Calcular KPIs adicionais
     const kpisResult = await dbQuery(sql`
       SELECT
-        CAST(SUM(CASE WHEN tarefa_status = 'Pendente' THEN 1 ELSE 0 END) AS SIGNED) as pendentes,
-        CAST(SUM(CASE WHEN data_vencimento < NOW() AND tarefa_status != 'Concluída' AND tarefa_status != 'Cancelada' THEN 1 ELSE 0 END) AS SIGNED) as atrasadas,
-        CAST(SUM(CASE WHEN tarefa_status = 'Concluída' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as concluidas_hoje,
-        CAST(SUM(CASE WHEN tarefa_status = 'Concluída' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) THEN 1 ELSE 0 END) AS SIGNED) as concluidas_semana
+        CAST(SUM(CASE WHEN status = 'Pendente' THEN 1 ELSE 0 END) AS SIGNED) as pendentes,
+        CAST(SUM(CASE WHEN data_vencimento < NOW() AND status != 'Concluída' AND status != 'Cancelada' THEN 1 ELSE 0 END) AS SIGNED) as atrasadas,
+        CAST(SUM(CASE WHEN status = 'Concluída' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as concluidas_hoje,
+        CAST(SUM(CASE WHEN status = 'Concluída' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) THEN 1 ELSE 0 END) AS SIGNED) as concluidas_semana
       FROM tarefas
     `);
 
@@ -62,8 +62,8 @@ export async function GET() {
       kpis: {
         pendentes: Number(kpis.pendentes) || 0,
         atrasadas: Number(kpis.atrasadas) || 0,
-        concluidasHoje: Number(kpis.concluidasHoje) || 0,
-        concluidasSemana: Number(kpis.concluidasSemana) || 0,
+        concluidasHoje: Number(kpis.concluidas_hoje) || 0,
+        concluidasSemana: Number(kpis.concluidas_semana) || 0,
       },
     });
   } catch (error) {
