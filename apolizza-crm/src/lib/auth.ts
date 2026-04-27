@@ -43,7 +43,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
-          image: user.photoUrl,
+          // image NÃO entra no User aqui: fotos são salvas como data-URL base64
+          // e estouravam o cookie (Vercel 494 REQUEST_HEADER_TOO_LARGE).
+          // Migrar para Vercel Blob é o fix definitivo (ver /api/users/[id]/photo).
         };
       },
     }),
@@ -53,15 +55,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: string }).role;
-        token.image = user.image ?? null;
-      }
-      // Refresh photo from DB when session is updated
-      if (trigger === "update" && session?.image !== undefined) {
-        token.image = session.image;
       }
       return token;
     },
@@ -69,7 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as "admin" | "cotador" | "proprietario";
-        session.user.image = (token.image as string | null) ?? null;
+        session.user.image = null;
       }
       return session;
     },
