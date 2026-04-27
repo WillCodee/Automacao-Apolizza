@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { STATUS_BADGES } from "@/lib/status-config";
 
@@ -31,10 +32,11 @@ function formatDate(dateStr: string) {
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   const formatted = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-  if (diff === 0) return { label: `Hoje · ${formatted}`, urgent: true };
-  if (diff === 1) return { label: `Amanhã · ${formatted}`, urgent: true };
-  if (diff <= 3) return { label: `Em ${diff}d · ${formatted}`, urgent: true };
-  return { label: formatted, urgent: false };
+  if (diff < 0) return { label: `Atrasada ${Math.abs(diff)}d · ${formatted}`, urgent: true, overdue: true };
+  if (diff === 0) return { label: `Hoje · ${formatted}`, urgent: true, overdue: false };
+  if (diff === 1) return { label: `Amanhã · ${formatted}`, urgent: true, overdue: false };
+  if (diff <= 3) return { label: `Em ${diff}d · ${formatted}`, urgent: true, overdue: false };
+  return { label: formatted, urgent: false, overdue: false };
 }
 
 const PRIORITY_DOT: Record<string, string> = {
@@ -45,7 +47,7 @@ const PRIORITY_DOT: Record<string, string> = {
 };
 
 function TrativaCard({ item }: { item: Tratativa }) {
-  const { label, urgent } = formatDate(item.proximaTratativa);
+  const { label, urgent, overdue } = formatDate(item.proximaTratativa);
   return (
     <Link
       href={`/cotacoes/${item.id}`}
@@ -63,7 +65,7 @@ function TrativaCard({ item }: { item: Tratativa }) {
             </p>
           )}
           <div className="flex items-center justify-between mt-1.5 gap-1 flex-wrap">
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${urgent ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}`}>
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${overdue ? "bg-red-100 text-red-700 font-semibold" : urgent ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}`}>
               {label}
             </span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${STATUS_BADGES[item.status] || "bg-slate-100 text-slate-600"}`}>
@@ -111,7 +113,7 @@ export function ProximasTrativasKanban() {
     ]).then(([tratativas, grps]) => {
       setItems(tratativas.data ?? []);
       setGrupos(grps.data ?? []);
-    }).finally(() => setLoading(false));
+    }).catch(() => toast.error("Erro ao carregar tratativas")).finally(() => setLoading(false));
   }, []);
 
   const columns = useMemo(() => {
