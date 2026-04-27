@@ -88,7 +88,7 @@ function DropdownGroup({
     <div ref={wrapperRef} className="relative">
       <button
         onClick={onToggle}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all select-none ${
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all select-none whitespace-nowrap ${
           isGroupActive || isOpen
             ? "bg-white/15 text-white"
             : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -291,20 +291,20 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
   return (
     <header className="bg-apolizza-header shadow-lg print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-0">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-3">
 
           {/* Logo + Nav */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
             <Link href="/inicio" className="flex items-center flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
             </Link>
 
             {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1 min-w-0">
               <Link
                 href="/inicio"
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
@@ -313,7 +313,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
               {userRole !== "cotador" && (
                 <Link
                   href="/dashboard"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                     activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
@@ -322,12 +322,13 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
               )}
               <Link
                 href="/base-conhecimento"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {IconBook}
-                Base de Conhecimento
+                <span className="hidden xl:inline">Base de Conhecimento</span>
+                <span className="xl:hidden">Base</span>
               </Link>
               {groups.map((group) => (
                 <DropdownGroup
@@ -343,7 +344,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
               {userRole !== "proprietario" && (
                 <Link
                   href="/configuracoes/tema"
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                     activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
@@ -355,19 +356,19 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
           </div>
 
           {/* User info + actions */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
               {userPhoto ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={userPhoto} alt={userName} className="w-8 h-8 rounded-full object-cover" />
+                <img src={userPhoto} alt={userName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-sm font-semibold">
+                <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
                   {userName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="text-right">
-                <p className="text-sm font-medium text-white leading-tight">{userName}</p>
-                <p className={`text-xs leading-tight ${
+              <div className="text-right max-w-[140px] xl:max-w-none">
+                <p className="text-sm font-medium text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={userName}>{userName}</p>
+                <p className={`text-xs leading-tight whitespace-nowrap ${
                   userRole === "proprietario" ? "text-yellow-400" :
                   userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"
                 }`}>
@@ -379,7 +380,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
 
             <button
               onClick={() => { setMobileMenuOpen((v) => !v); setMobileSubMenu(null); }}
-              className="md:hidden p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="lg:hidden p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Menu"
             >
               {mobileMenuOpen ? (
@@ -398,7 +399,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-white/10">
+        <div className="lg:hidden border-t border-white/10">
           <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
             {/* Drilled into a group — show back button + group items */}
             {mobileSubMenu !== null ? (() => {
