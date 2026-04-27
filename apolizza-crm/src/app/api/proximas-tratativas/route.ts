@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, isNull, isNotNull, asc } from "drizzle-orm";
+import { and, isNull, isNotNull, asc, gte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -11,9 +11,14 @@ export async function GET(_req: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
 
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    cutoff.setHours(0, 0, 0, 0);
+
     const conditions = [
       isNull(cotacoes.deletedAt),
       isNotNull(cotacoes.proximaTratativa),
+      gte(cotacoes.proximaTratativa, cutoff),
     ];
 
     // Todos veem todas as próximas tratativas (colaboração)
@@ -34,7 +39,7 @@ export async function GET(_req: NextRequest) {
       .leftJoin(users, eq(cotacoes.assigneeId, users.id))
       .where(and(...conditions))
       .orderBy(asc(cotacoes.proximaTratativa))
-      .limit(100);
+      .limit(500);
 
     return apiSuccess(rows);
   } catch (err) {
