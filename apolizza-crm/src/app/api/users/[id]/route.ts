@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, count } from "drizzle-orm";
+import { eq, count, and, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users, cotacoes } from "@/lib/schema";
@@ -18,6 +18,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = await req.json();
     const { name, email, role, password, isActive } = body;
+
+    if (email !== undefined) {
+      const [dup] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.email, email), ne(users.id, id)));
+      if (dup) return apiError("Email já cadastrado por outro usuário", 409);
+    }
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
