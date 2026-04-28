@@ -66,7 +66,7 @@ export function UsersList() {
 
     let res: Response;
     if (editingId) {
-      const body: Record<string, unknown> = { name: form.name, email: form.email, role: form.role };
+      const body: Record<string, unknown> = { name: form.name, email: form.email, username: form.username, role: form.role };
       if (form.password) body.password = form.password;
       res = await fetch(`/api/users/${editingId}`, {
         method: "PUT",
@@ -247,11 +247,10 @@ export function UsersList() {
               <label className="text-xs text-slate-500 font-medium">Username</label>
               <input
                 type="text"
-                required={!editingId}
-                disabled={!!editingId}
+                required
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50 disabled:text-slate-400 focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#03a4ed] focus:border-[#03a4ed] outline-none transition"
               />
             </div>
             <div>

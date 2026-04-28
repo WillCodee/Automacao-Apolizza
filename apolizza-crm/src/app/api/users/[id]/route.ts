@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     const { id } = await params;
     const body = await req.json();
-    const { name, email, role, password, isActive } = body;
+    const { name, email, username, role, password, isActive } = body;
 
     if (email !== undefined) {
       const [dup] = await db
@@ -27,9 +27,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
       if (dup) return apiError("Email já cadastrado por outro usuário", 409);
     }
 
+    if (username !== undefined) {
+      const [dup] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.username, username), ne(users.id, id)));
+      if (dup) return apiError("Username já cadastrado por outro usuário", 409);
+    }
+
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
+    if (username !== undefined) updateData.username = username;
     if (role !== undefined) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (password) {
