@@ -64,20 +64,27 @@ export function UsersList() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    let res: Response;
     if (editingId) {
       const body: Record<string, unknown> = { name: form.name, email: form.email, role: form.role };
       if (form.password) body.password = form.password;
-      await fetch(`/api/users/${editingId}`, {
+      res = await fetch(`/api/users/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
     } else {
-      await fetch("/api/users", {
+      res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+    }
+
+    if (!res.ok) {
+      const json = await res.json();
+      alert(json.error || "Erro ao salvar usuário");
+      return;
     }
 
     resetForm();
@@ -85,11 +92,16 @@ export function UsersList() {
   }
 
   async function toggleActive(userId: string, isActive: boolean) {
-    await fetch(`/api/users/${userId}`, {
+    const res = await fetch(`/api/users/${userId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !isActive }),
     });
+    if (!res.ok) {
+      const json = await res.json();
+      alert(json.error || "Erro ao atualizar status");
+      return;
+    }
     fetchUsers();
   }
 

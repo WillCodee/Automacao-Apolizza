@@ -81,7 +81,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     if (!toDelete) return apiError("Usuario nao encontrado", 404);
 
-    // Exclui o usuário — cotações terão assignee_id = NULL (ON DELETE SET NULL)
+    // Desvincula cotações antes de deletar (FK sem ON DELETE SET NULL)
+    await db.update(cotacoes).set({ assigneeId: null }).where(eq(cotacoes.assigneeId, id));
+
     await db.delete(users).where(eq(users.id, id));
 
     return apiSuccess({ ...toDelete, cotacoesDesvinculadas: Number(cotacoesCount) });
