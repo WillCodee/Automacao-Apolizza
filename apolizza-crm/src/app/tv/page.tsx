@@ -218,7 +218,7 @@ function TvPage() {
       >
         <div className="flex items-center gap-3">
           <img
-            src="/logo-apolizza-tv.png"
+            src="/logo-apolizza-fundo-clear.png"
             alt="Apolizza"
             className="object-contain flex-shrink-0"
             style={{ width: "clamp(2rem, 3.5vw, 4rem)", height: "clamp(2rem, 3.5vw, 4rem)" }}
