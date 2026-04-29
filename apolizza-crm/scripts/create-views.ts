@@ -146,7 +146,7 @@ async function createViews() {
         AND c2.mes_referencia IS NOT NULL
         AND c2.assignee_id != cr.user_id
     ) c ON c.uid = u.id
-    WHERE u.is_active = 1 AND u.role IN ('cotador', 'admin', 'proprietario')
+    WHERE u.is_active = 1 AND u.role IN ('cotador', 'admin')
     GROUP BY u.id, u.name, u.photo_url, c.ano_referencia, c.mes_referencia
   `);
   console.log("vw_cotadores criada");
