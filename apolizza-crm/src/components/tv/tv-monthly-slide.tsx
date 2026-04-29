@@ -34,8 +34,17 @@ function fmtCurrency(v: number) {
   return `R$${v.toFixed(0)}`;
 }
 
+const MES_ORDER: Record<string, number> = {
+  JAN:1, FEV:2, MAR:3, ABR:4, MAI:5, JUN:6,
+  JUL:7, AGO:8, SET:9, OUT:10, NOV:11, DEZ:12,
+};
+
 export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: MonthlyData[] }) {
-  const data = monthlyTrend.slice(-6);
+  const sorted = [...monthlyTrend].sort((a, b) => {
+    if (a.ano !== b.ano) return a.ano - b.ano;
+    return (MES_ORDER[a.mes] ?? 0) - (MES_ORDER[b.mes] ?? 0);
+  });
+  const data = sorted.slice(-6);
   const labels = data.map(d => d.mes);
 
   const chartData = {

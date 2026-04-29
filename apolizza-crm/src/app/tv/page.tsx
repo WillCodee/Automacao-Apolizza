@@ -6,13 +6,14 @@ import TvRankingSlide from "@/components/tv/tv-ranking-slide";
 import TvMetaSlide from "@/components/tv/tv-meta-slide";
 import TvMonthlySlide from "@/components/tv/tv-monthly-slide";
 import TvKpisSlide from "@/components/tv/tv-kpis-slide";
+import TvCclienteSlide from "@/components/tv/tv-ccliente-slide";
 
 const MES_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
-const SLIDE_NAMES = ["Ranking", "Meta", "Evolucao", "KPIs"];
+const SLIDE_NAMES = ["Ranking", "Meta", "Evolucao", "KPIs", "C.Cliente"];
 const SLIDE_INTERVAL = 300_000; // 5 min
-const REFRESH_INTERVAL = 300_000; // 5 min
+const REFRESH_INTERVAL = 2_000; // 2 segundos
 const FADE_DURATION = 500;
-const TOTAL_SLIDES = 4;
+const TOTAL_SLIDES = 5;
 
 interface TVData {
   ano: number;
@@ -50,6 +51,7 @@ interface TVData {
   }[];
   metaMensal: number | null;
   semanas: { semana: number; novas: number; fechadas: number; perdas: number; ganho: number; ganhoAcumulado: number }[];
+  ccliente: { total: number; valorPotencial: number; emConversao: number; valorConversao: number };
 }
 
 function fmt(v: number) {
@@ -215,12 +217,12 @@ function TvPage() {
         style={{ padding: "clamp(0.5rem, 1.2vw, 1.25rem) clamp(1rem, 2.5vw, 3rem)" }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="bg-gradient-to-br from-[#ff695f] to-[#ff9068] rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0"
-            style={{ width: "clamp(2.5rem, 4vw, 4rem)", height: "clamp(2.5rem, 4vw, 4rem)", fontSize: "clamp(1rem, 1.8vw, 1.75rem)" }}
-          >
-            A
-          </div>
+          <img
+            src="/logo-apolizza.png"
+            alt="Apolizza"
+            className="object-contain flex-shrink-0"
+            style={{ width: "clamp(2.5rem, 5vw, 6rem)", height: "clamp(2.5rem, 5vw, 6rem)" }}
+          />
           <span className="font-bold tracking-wide" style={{ fontSize: "clamp(1.125rem, 2.2vw, 2.25rem)" }}>
             Painel TV
           </span>
@@ -295,6 +297,7 @@ function TvPage() {
           {slideIndex === 1 && <TvMetaSlide metaMensal={data.metaMensal} semanas={data.semanas} />}
           {slideIndex === 2 && <TvMonthlySlide monthlyTrend={data.monthlyTrend} />}
           {slideIndex === 3 && <TvKpisSlide kpis={data.kpis} />}
+          {slideIndex === 4 && <TvCclienteSlide ccliente={data.ccliente ?? { total: 0, valorPotencial: 0, emConversao: 0, valorConversao: 0 }} />}
         </div>
       </div>
 

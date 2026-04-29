@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const anoFilter = sql`and ano = ${ano}`;
     const mesFilter = sql`and mes = ${mes}`;
 
-    const [kpiRows, statusRows, monthlyRows, cotadoresRows, semanasRows, metaEmpresaRows] = await Promise.all([
+    const [kpiRows, statusRows, monthlyRows, cotadoresRows, semanasRows, metaEmpresaRows, cclienteRows] = await Promise.all([
       // KPIs
       dbQuery<Record<string, unknown>>(sql`
         select
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
           END asc
       `),
 
-      // Cotadores
+      // Cotadores + Admin
       dbQuery<Record<string, unknown>>(sql`
         select
           u.id as userId, u.name, u.photo_url as photoUrl,
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
           where true ${anoFilter} ${mesFilter}
           group by user_id
         ) v on v.user_id = u.id
-        where u.is_active = 1 and u.role = 'cotador'
+        where u.is_active = 1 and u.role in ('cotador', 'admin', 'proprietario')
         order by coalesce(v.faturamento, 0) desc
       `),
 
@@ -156,6 +156,18 @@ export async function GET(req: NextRequest) {
         WHERE ano = ${ano} AND mes = ${mesNum} AND user_id IS NULL
         LIMIT 1
       `),
+
+      // CCliente status
+      dbQuery<Record<string, unknown>>(sql`
+        SELECT
+          COUNT(*)+0 as total,
+          COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0) as valorPotencial,
+          COUNT(CASE WHEN updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END)+0 as emConversao,
+          COALESCE(SUM(CASE WHEN updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) as valorConversao
+        FROM cotacoes
+        WHERE deleted_at IS NULL AND LOWER(situacao) LIKE '%cliente%'
+      `),
     ]);
 
     // Normalize
@@ -170,6 +182,10 @@ export async function GET(req: NextRequest) {
 
     const metaRow = metaEmpresaRows[0] as Record<string, unknown> | undefined;
     const metaMensal = metaRow?.metaValor ? Number(metaRow.metaValor) : null;
+
+    const CCLIENTE_FIELDS = ["total", "valorPotencial", "emConversao", "valorConversao"];
+    const cclienteRaw = (cclienteRows[0] ?? {}) as Record<string, unknown>;
+    const ccliente = normalizeRow(cclienteRaw, CCLIENTE_FIELDS);
 
     // Preenche 4 semanas com acumulado
     const semanasNorm = [1,2,3,4].map((s) => {
@@ -198,6 +214,7 @@ export async function GET(req: NextRequest) {
       cotadores: normalizeRows(cotadoresRows, COTADOR_FIELDS),
       metaMensal,
       semanas,
+      ccliente,
     });
   } catch (error) {
     console.error("API GET /api/tv:", error);
