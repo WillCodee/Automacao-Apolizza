@@ -329,7 +329,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
             <div className="flex items-center gap-4 min-w-0 flex-1">
               <Link href="/inicio" className="flex items-center flex-shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
+                <img src="/logo-apolizza-fundo-clear.png" alt="Apolizza" className="h-10 w-auto object-contain" />
               </Link>
 
               {/* Desktop nav */}
@@ -436,7 +436,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
           <div className="flex items-center justify-between px-4 h-16 border-b border-white/10 flex-shrink-0">
             <Link href="/inicio" onClick={closeMobile} className="flex items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
+              <img src="/logo-apolizza-fundo-clear.png" alt="Apolizza" className="h-10 w-auto object-contain" />
             </Link>
             <button
               onClick={closeMobile}
