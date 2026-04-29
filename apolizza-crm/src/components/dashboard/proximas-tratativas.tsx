@@ -79,7 +79,7 @@ export function ProximasTratativas() {
             return (
               <li key={item.id}>
                 <Link
-                  href={`/cotacoes/${item.id}`}
+                  href={`/cotacoes/${item.id}?from=dashboard`}
                   className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors group"
                 >
                   {/* Priority dot */}

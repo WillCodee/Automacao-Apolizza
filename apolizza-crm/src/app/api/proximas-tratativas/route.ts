@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, isNull, isNotNull, asc, gte } from "drizzle-orm";
+import { and, isNull, isNotNull, asc, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, users } from "@/lib/schema";
 import { getCurrentUser } from "@/lib/auth-helpers";
@@ -11,14 +11,18 @@ export async function GET(_req: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return apiError("Nao autenticado", 401);
 
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    // Exibe apenas tratativas de hoje e amanhã
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 59, 999);
 
     const conditions = [
       isNull(cotacoes.deletedAt),
       isNotNull(cotacoes.proximaTratativa),
-      gte(cotacoes.proximaTratativa, cutoff),
+      gte(cotacoes.proximaTratativa, today),
+      lte(cotacoes.proximaTratativa, tomorrow),
     ];
 
     // Todos veem todas as próximas tratativas (colaboração)

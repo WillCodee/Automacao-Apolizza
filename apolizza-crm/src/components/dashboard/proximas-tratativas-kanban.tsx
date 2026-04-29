@@ -50,7 +50,7 @@ function TrativaCard({ item }: { item: Tratativa }) {
   const { label, urgent, overdue } = formatDate(item.proximaTratativa);
   return (
     <Link
-      href={`/cotacoes/${item.id}`}
+      href={`/cotacoes/${item.id}?from=dashboard`}
       className="block bg-white rounded-xl border border-slate-100 p-3 hover:border-[#03a4ed]/40 hover:shadow-sm transition-all group"
     >
       <div className="flex items-start gap-2">

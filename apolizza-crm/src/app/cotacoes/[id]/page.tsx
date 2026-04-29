@@ -12,15 +12,20 @@ import { ObservacaoEditor } from "@/components/observacao-editor";
 import { STATUS_BADGES } from "@/lib/status-config";
 import { ExportPDFButton } from "@/components/export-pdf-button";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+};
 
 const STATUS_BADGE = STATUS_BADGES;
 
-export default async function CotacaoDetailPage({ params }: Params) {
+export default async function CotacaoDetailPage({ params, searchParams }: Params) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await params;
+  const { from } = await searchParams;
+  const backHref = from === "dashboard" ? "/dashboard" : "/cotacoes";
 
   const [row] = await db
     .select()
@@ -81,7 +86,7 @@ export default async function CotacaoDetailPage({ params }: Params) {
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <Link href="/cotacoes" className="text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium print:hidden">
+            <Link href={backHref} className="text-sm text-[#03a4ed] hover:text-[#0288d1] font-medium print:hidden">
               ← Voltar
             </Link>
             <h1 className="text-2xl font-bold text-slate-900 mt-1">{row.name}</h1>
