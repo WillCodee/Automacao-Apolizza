@@ -69,12 +69,12 @@ export function CotadoresPie() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
+      <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100 h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-900">Desempenho por Cotador</h3>
           <CardFilter ano={ano} mes={mes} onChange={({ ano: a, mes: m }) => { setAno(a); setMes(m); }} />
         </div>
-        <div className="flex items-center justify-center py-12">
+        <div className="flex-1 flex items-center justify-center">
           <div className="w-7 h-7 border-2 border-[#03a4ed] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
@@ -83,12 +83,14 @@ export function CotadoresPie() {
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
+      <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100 h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-900">Desempenho por Cotador</h3>
           <CardFilter ano={ano} mes={mes} onChange={({ ano: a, mes: m }) => { setAno(a); setMes(m); }} />
         </div>
-        <p className="text-slate-400 text-sm py-8 text-center">Sem dados para exibir</p>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-slate-400 text-sm">Sem dados para exibir</p>
+        </div>
       </div>
     );
   }
@@ -140,7 +142,7 @@ export function CotadoresPie() {
   const total = data.reduce((acc, d) => acc + (Number(d[metric]) || 0), 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className="text-sm font-semibold text-slate-900">Desempenho por Cotador</h3>
         <div className="flex items-center gap-2">
@@ -157,7 +159,7 @@ export function CotadoresPie() {
         </div>
       </div>
 
-      <div className="h-[200px]">
+      <div className="flex-1 min-h-[200px]">
         <Doughnut data={chartData} options={options} />
       </div>
 

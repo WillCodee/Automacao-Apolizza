@@ -168,7 +168,7 @@ export function MetasDashboard({ isAdmin }: { isAdmin: boolean }) {
   const empColor = (pct: number) => pct >= 100 ? "#10b981" : pct >= 60 ? "#03a4ed" : "#f59e0b";
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
       {/* Header */}
       <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-slate-900">Metas & Desempenho</h3>

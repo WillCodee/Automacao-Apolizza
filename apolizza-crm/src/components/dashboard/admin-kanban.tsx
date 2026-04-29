@@ -102,7 +102,7 @@ export function AdminKanban() {
 
       {/* Kanban columns */}
       <div className="p-4 overflow-x-auto">
-        <div className="flex gap-4" style={{ minWidth: `${Math.max(columns.length * 280, 400)}px` }}>
+        <div className="flex gap-4" style={{ minWidth: `${Math.max(columns.length * 256, 400)}px` }}>
           {columns.map(([key, col]) => (
             <KanbanColumn key={key} col={col as KanbanData["byUser"][string]} viewMode={viewMode} />
           ))}
@@ -127,7 +127,7 @@ function KanbanColumn({ col, viewMode }: {
   const emAndamento = col.cotacoes.filter((c) => !["fechado", "perda", "concluido ocultar"].includes(c.status));
 
   return (
-    <div className="flex-shrink-0 w-64 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+    <div className="flex-1 min-w-[220px] max-w-[340px] bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
       {/* Column header */}
       <button
         onClick={() => setCollapsed(!collapsed)}

@@ -35,7 +35,7 @@ export function StatusBreakdown() {
   const maxCount = Math.max(...data.map((d) => d.count), 1);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100">
+    <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-100 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className="text-sm font-semibold text-slate-900">
           Status das Cotacoes
@@ -50,7 +50,7 @@ export function StatusBreakdown() {
       ) : data.length === 0 ? (
         <p className="text-slate-400 text-sm py-4 text-center">Sem dados para exibir</p>
       ) : (
-        <div className="space-y-3">
+        <div className="flex-1 space-y-3 overflow-y-auto">
           {data.map((item) => (
             <div key={item.status}>
               <div className="flex items-center justify-between text-sm mb-1">

@@ -84,7 +84,7 @@ export function MetasProdutoChart() {
   const produtosComDados = Array.from(new Set(rows.map((r) => r.produto)));
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
 
       {/* Header */}
       <div className="px-5 py-3.5 bg-gradient-to-r from-violet-700 to-violet-900 flex flex-wrap items-center justify-between gap-3">

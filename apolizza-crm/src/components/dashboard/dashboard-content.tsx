@@ -30,19 +30,22 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
         <div className="lg:col-span-2">
           <MonthlyChart />
         </div>
-        <div className="space-y-6">
+        {/* Sidebar: flex column so StatusBreakdown fills remaining height */}
+        <div className="flex flex-col gap-6 h-full">
           <MetasCard isAdmin={isAdminOrProprietario} />
-          <StatusBreakdown />
+          <div className="flex-1 min-h-0">
+            <StatusBreakdown />
+          </div>
         </div>
       </div>
 
       {/* Row 3: Analise por filtro + Pie cotadores (admin/proprietario) */}
-      <div className={`grid grid-cols-1 gap-6 ${isAdminOrProprietario ? "lg:grid-cols-3" : ""}`}>
+      <div className={`grid grid-cols-1 gap-6 items-stretch ${isAdminOrProprietario ? "lg:grid-cols-3" : ""}`}>
         <div className={isAdminOrProprietario ? "lg:col-span-2" : ""}>
           <FilteredChart userRole={userRole} />
         </div>
         {isAdminOrProprietario && (
-          <div>
+          <div className="h-full">
             <CotadoresPie />
           </div>
         )}
@@ -55,7 +58,7 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
       <WeeklyGoalChart />
 
       {/* Row 6: Metas & Desempenho detalhado + Meta por Produto */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         <MetasDashboard isAdmin={isAdminOrProprietario} />
         <MetasProdutoChart />
       </div>
