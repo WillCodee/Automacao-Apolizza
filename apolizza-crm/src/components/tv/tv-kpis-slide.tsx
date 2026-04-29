@@ -24,7 +24,7 @@ function fmt(v: number) {
 
 const cards: { label: string; getValue: (k: KPIs) => string; getSub: (k: KPIs) => string; color: string; icon: string }[] = [
   {
-    label: "Total Cotacoes",
+    label: "Total Cotações",
     getValue: k => String(k.totalCotacoes),
     getSub: k => `${k.totalNovas} novas + ${k.totalRenovacoes} renov.`,
     color: "text-sky-400",
@@ -52,14 +52,14 @@ const cards: { label: string; getValue: (k: KPIs) => string; getSub: (k: KPIs) =
     icon: "💰",
   },
   {
-    label: "Taxa de Conversao",
+    label: "Taxa de Conversão",
     getValue: k => `${Number(k.taxaConversao).toFixed(1)}%`,
     getSub: k => `${k.fechadas} de ${k.totalCotacoes}`,
     color: "text-purple-400",
     icon: "📊",
   },
   {
-    label: "Premio s/ IOF",
+    label: "Prêmio s/ IOF",
     getValue: k => fmt(k.totalPremio),
     getSub: () => "Total premiado",
     color: "text-amber-400",
@@ -69,39 +69,39 @@ const cards: { label: string; getValue: (k: KPIs) => string; getSub: (k: KPIs) =
 
 export default function TvKpisSlide({ kpis }: { kpis: KPIs }) {
   return (
-    <div className="flex flex-col h-full" style={{ padding: "clamp(0.75rem, 1.5vw, 1.75rem) clamp(1rem, 2vw, 2.5rem)" }}>
+    <div className="flex flex-col h-full" style={{ padding: "clamp(0.5rem, 1.2vmin, 1.75rem) clamp(0.75rem, 1.5vmin, 2.5rem)" }}>
       <h2
         className="font-bold text-white text-center tracking-wide flex-shrink-0"
-        style={{ fontSize: "clamp(1.25rem, 2.8vw, 3rem)", marginBottom: "clamp(0.5rem, 1vw, 1.25rem)" }}
+        style={{ fontSize: "clamp(1rem, 2.8vmin, 3rem)", marginBottom: "clamp(0.3rem, 0.8vmin, 1.25rem)" }}
       >
         KPIs Detalhados
       </h2>
 
-      <div className="flex-1 grid grid-cols-3 grid-rows-2 min-h-0" style={{ gap: "clamp(0.5rem, 1.2vw, 1.5rem)" }}>
+      <div className="flex-1 grid grid-cols-3 grid-rows-2 min-h-0" style={{ gap: "clamp(0.4rem, 1vmin, 1.5rem)" }}>
         {cards.map(card => (
           <div
             key={card.label}
             className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center shadow-lg"
-            style={{ padding: "clamp(0.75rem, 1.5vw, 2rem)" }}
+            style={{ padding: "clamp(0.4rem, 1vmin, 2rem)" }}
           >
-            <span style={{ fontSize: "clamp(1.5rem, 3.5vw, 4rem)", marginBottom: "clamp(0.25rem, 0.5vw, 0.75rem)" }}>
+            <span style={{ fontSize: "clamp(1.25rem, 3.5vmin, 4rem)", marginBottom: "clamp(0.15rem, 0.4vmin, 0.75rem)" }}>
               {card.icon}
             </span>
             <p
               className="text-slate-400 font-medium uppercase tracking-wider text-center"
-              style={{ fontSize: "clamp(0.6rem, 1.1vw, 1rem)", marginBottom: "clamp(0.25rem, 0.5vw, 0.75rem)" }}
+              style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginBottom: "clamp(0.15rem, 0.4vmin, 0.75rem)" }}
             >
               {card.label}
             </p>
             <p
               className={`font-bold leading-none ${card.color}`}
-              style={{ fontSize: "clamp(1.5rem, 3.8vw, 4.5rem)", marginBottom: "clamp(0.2rem, 0.4vw, 0.5rem)" }}
+              style={{ fontSize: "clamp(1.25rem, 4vmin, 4.5rem)", marginBottom: "clamp(0.15rem, 0.3vmin, 0.5rem)" }}
             >
               {card.getValue(kpis)}
             </p>
             <p
               className="text-slate-500 text-center"
-              style={{ fontSize: "clamp(0.65rem, 1.1vw, 1rem)" }}
+              style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)" }}
             >
               {card.getSub(kpis)}
             </p>

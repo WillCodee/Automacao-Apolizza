@@ -17,7 +17,7 @@ function ThermometerSVG({ pct, color }: { pct: number; color: string }) {
   const clampedPct = Math.min(pct, 120);
   const fillHeight = Math.min((clampedPct / 120) * 240, 240);
   return (
-    <svg viewBox="0 0 100 340" className="w-auto mx-auto" style={{ height: "clamp(14rem, 28vw, 32rem)" }}>
+    <svg viewBox="0 0 100 340" className="w-auto mx-auto" style={{ height: "clamp(10rem, 38vmin, 30rem)" }}>
       {/* Tube */}
       <rect x="35" y="20" width="30" height="260" rx="15" fill="#1e293b" stroke="#334155" strokeWidth="2" />
       {/* Fill */}
@@ -55,8 +55,8 @@ export default function TvMetaSlide({ metaMensal, semanas }: { metaMensal: numbe
   if (metaMensal === null || metaMensal === 0) {
     return (
       <div className="flex items-center justify-center h-full px-4">
-        <p className="text-slate-400 font-semibold text-center" style={{ fontSize: "clamp(1.25rem, 3vw, 3rem)" }}>
-          Meta mensal nao definida
+        <p className="text-slate-400 font-semibold text-center" style={{ fontSize: "clamp(1rem, 3vmin, 3rem)" }}>
+          Meta mensal não definida
         </p>
       </div>
     );
@@ -76,10 +76,10 @@ export default function TvMetaSlide({ metaMensal, semanas }: { metaMensal: numbe
   return (
     <div
       className="flex items-center justify-center h-full"
-      style={{ gap: "clamp(1.5rem, 4vw, 5rem)", padding: "clamp(0.75rem, 1.5vw, 2rem) clamp(1rem, 2vw, 3rem)" }}
+      style={{ gap: "clamp(0.75rem, 3vmin, 5rem)", padding: "clamp(0.5rem, 1.2vmin, 2rem) clamp(0.75rem, 2vmin, 3rem)" }}
     >
       {/* Left cards */}
-      <div className="flex flex-col" style={{ gap: "clamp(0.75rem, 1.5vw, 1.5rem)", width: "clamp(10rem, 18vw, 20rem)" }}>
+      <div className="flex flex-col" style={{ gap: "clamp(0.5rem, 1.2vmin, 1.5rem)", width: "clamp(8rem, 18vmin, 20rem)" }}>
         <MetaCard label="Meta Mensal" value={fmt(metaMensal)} color="text-slate-300" />
         <MetaCard label="Total Atingido" value={fmt(totalAtingido)} sub={`${pct.toFixed(1)}%`} color="text-sky-400" />
       </div>
@@ -89,12 +89,12 @@ export default function TvMetaSlide({ metaMensal, semanas }: { metaMensal: numbe
         <ThermometerSVG pct={pct} color={color} />
         {batida && (
           <div
-            className="mt-3 px-6 py-2 bg-green-600/20 border border-green-500/40 rounded-xl"
-            style={{ marginTop: "clamp(0.5rem, 1vw, 1.25rem)" }}
+            className="px-4 py-1.5 bg-green-600/20 border border-green-500/40 rounded-xl"
+            style={{ marginTop: "clamp(0.4rem, 0.8vmin, 1.25rem)" }}
           >
             <span
               className="text-green-400 font-bold tracking-wider"
-              style={{ fontSize: "clamp(1rem, 2.2vw, 2.25rem)" }}
+              style={{ fontSize: "clamp(0.875rem, 2vmin, 2.25rem)" }}
             >
               META BATIDA!
             </span>
@@ -103,7 +103,7 @@ export default function TvMetaSlide({ metaMensal, semanas }: { metaMensal: numbe
       </div>
 
       {/* Right cards */}
-      <div className="flex flex-col" style={{ gap: "clamp(0.75rem, 1.5vw, 1.5rem)", width: "clamp(10rem, 18vw, 20rem)" }}>
+      <div className="flex flex-col" style={{ gap: "clamp(0.5rem, 1.2vmin, 1.5rem)", width: "clamp(8rem, 18vmin, 20rem)" }}>
         <MetaCard label="Faltam" value={fmt(faltam)} color={batida ? "text-green-400" : "text-orange-400"} />
         <MetaCard
           label={`Semana ${weekNum}`}
@@ -120,24 +120,24 @@ function MetaCard({ label, value, sub, color }: { label: string; value: string; 
   return (
     <div
       className="bg-slate-800/80 border border-slate-700/50 rounded-2xl"
-      style={{ padding: "clamp(0.75rem, 1.5vw, 1.75rem)" }}
+      style={{ padding: "clamp(0.5rem, 1.2vmin, 1.75rem)" }}
     >
       <p
         className="text-slate-400 font-medium"
-        style={{ fontSize: "clamp(0.7rem, 1.2vw, 1.125rem)", marginBottom: "clamp(0.2rem, 0.4vw, 0.5rem)" }}
+        style={{ fontSize: "clamp(0.6rem, 1.1vmin, 1.125rem)", marginBottom: "clamp(0.15rem, 0.35vmin, 0.5rem)" }}
       >
         {label}
       </p>
       <p
         className={`font-bold leading-tight ${color}`}
-        style={{ fontSize: "clamp(1rem, 2.2vw, 2.5rem)" }}
+        style={{ fontSize: "clamp(0.875rem, 2.2vmin, 2.5rem)" }}
       >
         {value}
       </p>
       {sub && (
         <p
           className="text-slate-400"
-          style={{ fontSize: "clamp(0.65rem, 1.1vw, 1rem)", marginTop: "clamp(0.15rem, 0.3vw, 0.35rem)" }}
+          style={{ fontSize: "clamp(0.6rem, 1vmin, 1rem)", marginTop: "clamp(0.1rem, 0.25vmin, 0.35rem)" }}
         >
           {sub}
         </p>

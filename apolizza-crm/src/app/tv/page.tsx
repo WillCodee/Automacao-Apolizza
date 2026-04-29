@@ -66,7 +66,7 @@ function Clock() {
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, []);
-  return <span className="font-mono text-slate-300" style={{ fontSize: "clamp(1rem, 1.6vw, 1.75rem)" }}>{time}</span>;
+  return <span className="font-mono text-slate-300" style={{ fontSize: "clamp(0.875rem, 1.8vmin, 1.75rem)" }}>{time}</span>;
 }
 
 export default function TvPageWrapper() {
@@ -214,21 +214,21 @@ function TvPage() {
       {/* ── Header ── */}
       <header
         className="flex items-center justify-between bg-gradient-to-r from-[#1e293b] to-[#0f172a] border-b border-slate-700/50 flex-shrink-0"
-        style={{ padding: "clamp(0.4rem, 1vw, 1rem) clamp(1rem, 2.5vw, 2.5rem)" }}
+        style={{ padding: "clamp(0.3rem, 0.8vmin, 1rem) clamp(0.75rem, 2vw, 2.5rem)" }}
       >
         <div className="flex items-center gap-3">
           <img
             src="/logo-apolizza-fundo-clear.png"
             alt="Apolizza"
             className="object-contain flex-shrink-0"
-            style={{ width: "clamp(2rem, 3.5vw, 4rem)", height: "clamp(2rem, 3.5vw, 4rem)" }}
+            style={{ width: "clamp(1.75rem, 4vmin, 4rem)", height: "clamp(1.75rem, 4vmin, 4rem)" }}
           />
-          <span className="font-bold tracking-wide" style={{ fontSize: "clamp(1rem, 1.8vw, 1.75rem)" }}>
+          <span className="font-bold tracking-wide" style={{ fontSize: "clamp(0.875rem, 1.8vmin, 1.75rem)" }}>
             Painel TV
           </span>
         </div>
-        <div className="flex items-center" style={{ gap: "clamp(0.75rem, 2vw, 2rem)" }}>
-          <span className="text-slate-400 font-medium" style={{ fontSize: "clamp(0.85rem, 1.5vw, 1.5rem)" }}>
+        <div className="flex items-center" style={{ gap: "clamp(0.5rem, 1.5vmin, 2rem)" }}>
+          <span className="text-slate-400 font-medium" style={{ fontSize: "clamp(0.8rem, 1.5vmin, 1.5rem)" }}>
             {mesLabel}/{data.ano}
           </span>
           <Clock />
@@ -238,7 +238,7 @@ function TvPage() {
       {/* ── KPI Strip ── */}
       <div
         className="grid grid-cols-4 flex-shrink-0"
-        style={{ gap: "clamp(0.4rem, 1vw, 1.25rem)", padding: "clamp(0.4rem, 0.8vw, 0.875rem) clamp(1rem, 2vw, 2.5rem)" }}
+        style={{ gap: "clamp(0.3rem, 0.8vmin, 1.25rem)", padding: "clamp(0.3rem, 0.6vmin, 0.875rem) clamp(0.75rem, 2vw, 2.5rem)" }}
       >
         <KpiCard label="Total Cotações" value={String(data.kpis.totalCotacoes)} color="text-sky-400" />
         <KpiCard label="Fechadas" value={String(data.kpis.fechadas)} color="text-green-400" />
@@ -305,8 +305,8 @@ function TvPage() {
       <footer
         className="flex flex-wrap items-center justify-between gap-y-1 text-slate-500 flex-shrink-0"
         style={{
-          padding: "clamp(0.25rem, 0.6vw, 0.625rem) clamp(1rem, 2.5vw, 2.5rem)",
-          fontSize: "clamp(0.7rem, 1.1vw, 1rem)",
+          padding: "clamp(0.2rem, 0.5vmin, 0.625rem) clamp(0.75rem, 2vw, 2.5rem)",
+          fontSize: "clamp(0.65rem, 1vmin, 1rem)",
         }}
       >
         <span className="text-slate-600">Atualizado: {lastUpdate || "--:--"}</span>
@@ -344,17 +344,17 @@ function KpiCard({ label, value, color }: { label: string; value: string; color:
   return (
     <div
       className="bg-slate-800/70 border border-slate-700/40 rounded-xl text-center"
-      style={{ padding: "clamp(0.4rem, 0.9vw, 1rem) clamp(0.5rem, 1.2vw, 1.25rem)" }}
+      style={{ padding: "clamp(0.25rem, 0.7vmin, 1rem) clamp(0.4rem, 1vmin, 1.25rem)" }}
     >
       <p
         className="text-slate-400 uppercase tracking-wider font-medium"
-        style={{ fontSize: "clamp(0.6rem, 0.9vw, 0.875rem)", marginBottom: "clamp(0.15rem, 0.35vw, 0.375rem)" }}
+        style={{ fontSize: "clamp(0.55rem, 0.9vmin, 0.875rem)", marginBottom: "clamp(0.1rem, 0.3vmin, 0.375rem)" }}
       >
         {label}
       </p>
       <p
         className={`font-bold leading-tight ${color}`}
-        style={{ fontSize: "clamp(1rem, 2.6vw, 3rem)" }}
+        style={{ fontSize: "clamp(0.875rem, 2.8vmin, 3rem)" }}
       >
         {value}
       </p>
