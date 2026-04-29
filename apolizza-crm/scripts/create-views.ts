@@ -88,6 +88,8 @@ async function createViews() {
   console.log("vw_status_breakdown criada");
 
   // ── vw_cotadores ──────────────────────────────────────────────────────────────
+  // Inclui co-responsáveis (cotacao_responsaveis) via UNION para que Ivo
+  // apareça no ranking com as cotações CCliente das quais é co-responsável.
   await pool.execute(`
     CREATE VIEW vw_cotadores AS
     SELECT
@@ -125,11 +127,26 @@ async function createViews() {
       COALESCE(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS faturamento_novas
 
     FROM users u
-    LEFT JOIN cotacoes c ON c.assignee_id = u.id
-      AND c.deleted_at IS NULL
-      AND c.ano_referencia IS NOT NULL
-      AND c.mes_referencia IS NOT NULL
-    WHERE u.is_active = 1 AND u.role IN ('cotador', 'proprietario')
+    LEFT JOIN (
+      -- cotações onde o usuário é responsável direto
+      SELECT assignee_id AS uid, c2.id, c2.situacao, c2.status, c2.a_receber,
+             c2.tipo_cliente, c2.is_renovacao, c2.ano_referencia, c2.mes_referencia
+      FROM cotacoes c2
+      WHERE c2.deleted_at IS NULL
+        AND c2.ano_referencia IS NOT NULL
+        AND c2.mes_referencia IS NOT NULL
+      UNION
+      -- cotações onde o usuário é co-responsável (sem duplicar com linha acima)
+      SELECT cr.user_id AS uid, c2.id, c2.situacao, c2.status, c2.a_receber,
+             c2.tipo_cliente, c2.is_renovacao, c2.ano_referencia, c2.mes_referencia
+      FROM cotacao_responsaveis cr
+      JOIN cotacoes c2 ON c2.id = cr.cotacao_id
+      WHERE c2.deleted_at IS NULL
+        AND c2.ano_referencia IS NOT NULL
+        AND c2.mes_referencia IS NOT NULL
+        AND c2.assignee_id != cr.user_id
+    ) c ON c.uid = u.id
+    WHERE u.is_active = 1 AND u.role IN ('cotador', 'admin', 'proprietario')
     GROUP BY u.id, u.name, u.photo_url, c.ano_referencia, c.mes_referencia
   `);
   console.log("vw_cotadores criada");

@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cotacoes, statusConfig, cotacaoHistory, situacaoConfig, cotacaoNotificacoes, cotacaoResponsaveis, users } from "@/lib/schema";
+
+const IVO_ID = "dec868b3-e8e3-4dbe-a11f-04485f55bc06";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
@@ -189,6 +191,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
       const [row] = await tx.select().from(cotacoes).where(eq(cotacoes.id, id));
       return row;
     });
+
+    // Auto-adicionar Ivo como co-responsável quando situação muda para CCliente
+    const finalSituacao = (updateData.situacao as string | undefined) ?? existing.situacao;
+    if (finalSituacao && /cliente/i.test(finalSituacao) && updated.assigneeId !== IVO_ID) {
+      await db.execute(sql`
+        INSERT IGNORE INTO cotacao_responsaveis (cotacao_id, user_id) VALUES (${id}, ${IVO_ID})
+      `);
+    }
 
     const coRespRows = await db
       .select({ id: users.id, name: users.name, photoUrl: users.photoUrl })

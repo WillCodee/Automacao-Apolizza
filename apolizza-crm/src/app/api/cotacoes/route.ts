@@ -2,6 +2,20 @@ import { NextRequest } from "next/server";
 import { eq, and, isNull, sql, count, gte, lte, inArray, desc } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
 import { cotacoes, statusConfig, cotacaoHistory, users, grupoMembros, gruposUsuarios, situacaoConfig, cotacaoResponsaveis } from "@/lib/schema";
+
+const IANNE_ID = "eaaf6668-abe6-4b17-ab2f-16d741ff3d76";
+const CAIO_ID  = "a4aec230-844c-457d-9d65-fe5a33b8606d";
+const LUIS_ID  = "2147534d-1177-497f-adf1-db9b9156e0c6";
+const IVO_ID   = "dec868b3-e8e3-4dbe-a11f-04485f55bc06";
+const GRUPO_SAUDE_ID = "74ebff63-1454-41ae-b92d-0698e4e82c2a";
+const GRUPO_RE_ID    = "e62230ef-ccfe-4757-8b25-1c8f3e6ac92f";
+
+const SAUDE_ODONTO_UPPER = new Set([
+  "VIDA PF", "VIDA PJ", "VIDA PME",
+  "SAUDE PF", "SAUDE PJ", "SAÚDE PME", "SAÚDE EMPRESARIAL",
+  "ODONTO PF", "ODONTO PJ", "ODONTO PME", "DENTAL EMPRESARIAL",
+  "PREVIDENCIA", "GARANTIA", "GARATIA", "MIP", "PME/SUZANA",
+]);
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { cotacaoCreateSchema } from "@/lib/validations";
 import { validateStatusFields } from "@/lib/status-validation";
@@ -147,13 +161,44 @@ export async function POST(req: NextRequest) {
       return apiError(`Campos obrigatorios para status "${input.status ?? "não iniciado"}": ${missing}`, 422);
     }
 
+    // Auto-assign por produto quando não há responsável explícito
+    let autoAssigneeId: string = user.id;
+    let autoGrupoId: string | null = null;
+    if (!input.assigneeId && input.produto) {
+      const prodUpper = input.produto.toUpperCase();
+      if (SAUDE_ODONTO_UPPER.has(prodUpper)) {
+        // Saúde e Odonto: ratio 95% Ianne / 5% Caio baseado no mês atual
+        const mesRef = input.mesReferencia ?? null;
+        const anoRef = input.anoReferencia ?? null;
+        if (mesRef && anoRef) {
+          const [ratio] = await dbQuery<{ ianne: number; total: number }>(sql`
+            SELECT
+              SUM(CASE WHEN assignee_id = ${IANNE_ID} THEN 1 ELSE 0 END) as ianne,
+              COUNT(*) as total
+            FROM cotacoes
+            WHERE deleted_at IS NULL AND grupo_id = ${GRUPO_SAUDE_ID}
+              AND mes_referencia = ${mesRef} AND ano_referencia = ${anoRef}
+          `);
+          const ianneShare = ratio?.total > 0 ? ratio.ianne / ratio.total : 0;
+          autoAssigneeId = ianneShare < 0.95 ? IANNE_ID : CAIO_ID;
+        } else {
+          autoAssigneeId = IANNE_ID;
+        }
+        autoGrupoId = GRUPO_SAUDE_ID;
+      } else {
+        autoAssigneeId = LUIS_ID;
+        autoGrupoId = GRUPO_RE_ID;
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const insertValues: any = {
       name: input.name,
       status: input.status,
       priority: input.priority,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
-      assigneeId: input.assigneeId ?? user.id,
+      assigneeId: input.assigneeId ?? autoAssigneeId,
+      grupoId: autoGrupoId,
       tipoCliente: input.tipoCliente,
       contatoCliente: input.contatoCliente,
       seguradora: input.seguradora,
@@ -206,6 +251,13 @@ export async function POST(req: NextRequest) {
           uniq.map((uid) => ({ cotacaoId: newId, userId: uid }))
         );
       }
+    }
+
+    // Auto-adicionar Ivo como co-responsável quando situação é CCliente
+    if (input.situacao && /cliente/i.test(input.situacao) && insertValues.assigneeId !== IVO_ID) {
+      await db.execute(sql`
+        INSERT IGNORE INTO cotacao_responsaveis (cotacao_id, user_id) VALUES (${newId}, ${IVO_ID})
+      `);
     }
 
     const [created] = await db
