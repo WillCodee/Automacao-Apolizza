@@ -6,6 +6,7 @@ interface Cotador {
   photoUrl: string | null;
   totalCotacoes: number;
   fechadas: number;
+  perdas: number;
   faturamento: number;
   taxaConversao: number;
   totalRenovacoes: number;
@@ -22,6 +23,8 @@ function fmt(v: number) {
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
+
+const COLS = "clamp(1.25rem,2.2vmin,3rem) clamp(1.75rem,3vmin,4rem) 1fr clamp(3.5rem,7vmin,9rem) clamp(3.5rem,7vmin,9rem) clamp(3.5rem,7vmin,9rem) clamp(5.5rem,10vmin,14rem) clamp(3rem,5.5vmin,7rem)";
 
 export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) {
   const top = cotadores.slice(0, 10);
@@ -41,24 +44,28 @@ export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) 
         <div
           className="grid items-center text-slate-400 uppercase tracking-wider font-semibold flex-shrink-0"
           style={{
-            gridTemplateColumns: "clamp(1.5rem,2.5vmin,3.5rem) clamp(2rem,3.5vmin,4.5rem) 1fr clamp(4rem,8vmin,10rem) clamp(6rem,12vmin,16rem) clamp(3.5rem,6vmin,8rem)",
-            gap: "clamp(0.3rem, 0.7vmin, 1rem)",
+            gridTemplateColumns: COLS,
+            gap: "clamp(0.25rem, 0.6vmin, 0.875rem)",
             padding: "0 clamp(0.4rem, 0.8vmin, 1.25rem)",
-            fontSize: "clamp(0.5rem, 0.85vmin, 0.9rem)",
+            fontSize: "clamp(0.5rem, 0.8vmin, 0.875rem)",
           }}
         >
           <span>#</span>
           <span></span>
           <span>Nome</span>
-          <span style={{ textAlign: "right" }}>Fechadas</span>
-          <span style={{ textAlign: "right" }}>Faturamento</span>
-          <span style={{ textAlign: "right" }}>Taxa</span>
+          <span className="text-right">Fechadas</span>
+          <span className="text-right text-red-400">Perdas</span>
+          <span className="text-right text-sky-400">Andamento</span>
+          <span className="text-right">Faturamento</span>
+          <span className="text-right">Taxa</span>
         </div>
 
         {top.map((c, i) => {
           const pct = (c.faturamento / maxFat) * 100;
           const isFirst = i === 0;
-          const avatarSize = "clamp(1.5rem, 3.2vmin, 4rem)";
+          const avatarSize = "clamp(1.5rem, 3vmin, 4rem)";
+          const emAndamento = Math.max(c.totalCotacoes - c.fechadas - c.perdas, 0);
+
           return (
             <div
               key={c.userId}
@@ -68,8 +75,8 @@ export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) 
                   : "bg-slate-800/60"
               }`}
               style={{
-                gridTemplateColumns: "clamp(1.5rem,2.5vmin,3.5rem) clamp(2rem,3.5vmin,4.5rem) 1fr clamp(4rem,8vmin,10rem) clamp(6rem,12vmin,16rem) clamp(3.5rem,6vmin,8rem)",
-                gap: "clamp(0.3rem, 0.7vmin, 1rem)",
+                gridTemplateColumns: COLS,
+                gap: "clamp(0.25rem, 0.6vmin, 0.875rem)",
                 padding: "clamp(0.2rem, 0.5vmin, 0.75rem) clamp(0.4rem, 0.8vmin, 1.25rem)",
               }}
             >
@@ -101,7 +108,7 @@ export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) 
                     className={`rounded-full flex items-center justify-center font-bold ${
                       isFirst ? "bg-yellow-600 text-white" : "bg-slate-600 text-slate-300"
                     }`}
-                    style={{ width: avatarSize, height: avatarSize, fontSize: "clamp(0.55rem, 1.1vmin, 1.25rem)" }}
+                    style={{ width: avatarSize, height: avatarSize, fontSize: "clamp(0.5rem, 1vmin, 1.25rem)" }}
                   >
                     {initials(c.name)}
                   </div>
@@ -111,7 +118,7 @@ export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) 
               {/* Name */}
               <span
                 className="relative z-10 text-white font-semibold truncate"
-                style={{ fontSize: "clamp(0.75rem, 1.6vmin, 1.75rem)" }}
+                style={{ fontSize: "clamp(0.7rem, 1.5vmin, 1.75rem)" }}
               >
                 {c.name}
               </span>
@@ -119,15 +126,31 @@ export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) 
               {/* Fechadas */}
               <span
                 className="relative z-10 text-right text-green-400 font-bold"
-                style={{ fontSize: "clamp(0.875rem, 2vmin, 2.25rem)" }}
+                style={{ fontSize: "clamp(0.8rem, 1.8vmin, 2rem)" }}
               >
                 {c.fechadas}
               </span>
 
+              {/* Perdas */}
+              <span
+                className="relative z-10 text-right text-red-400 font-bold"
+                style={{ fontSize: "clamp(0.8rem, 1.8vmin, 2rem)" }}
+              >
+                {c.perdas}
+              </span>
+
+              {/* Em Andamento */}
+              <span
+                className="relative z-10 text-right text-sky-400 font-semibold"
+                style={{ fontSize: "clamp(0.8rem, 1.8vmin, 2rem)" }}
+              >
+                {emAndamento}
+              </span>
+
               {/* Faturamento */}
               <span
-                className="relative z-10 text-right text-sky-400 font-bold"
-                style={{ fontSize: "clamp(0.75rem, 1.6vmin, 1.875rem)" }}
+                className="relative z-10 text-right text-emerald-400 font-bold"
+                style={{ fontSize: "clamp(0.7rem, 1.5vmin, 1.75rem)" }}
               >
                 {fmt(c.faturamento)}
               </span>
@@ -135,7 +158,7 @@ export default function TvRankingSlide({ cotadores }: { cotadores: Cotador[] }) 
               {/* Taxa */}
               <span
                 className="relative z-10 text-right text-slate-300 font-semibold"
-                style={{ fontSize: "clamp(0.7rem, 1.5vmin, 1.625rem)" }}
+                style={{ fontSize: "clamp(0.65rem, 1.4vmin, 1.5rem)" }}
               >
                 {Number(c.taxaConversao).toFixed(1)}%
               </span>
