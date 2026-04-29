@@ -81,6 +81,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (input.contatoCliente !== undefined) updateData.contatoCliente = input.contatoCliente;
     if (input.seguradora !== undefined) updateData.seguradora = input.seguradora;
     if (input.produto !== undefined) updateData.produto = input.produto;
+    let previousAssigneeForCcliente: string | null = null;
     if (input.situacao !== undefined) {
       updateData.situacao = input.situacao;
       if (input.situacao && input.situacao !== existing.situacao) {
@@ -89,6 +90,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
           .from(situacaoConfig)
           .where(eq(situacaoConfig.nome, input.situacao));
         if (sitCfg?.defaultCotadorId) {
+          // Ao mover para CCLIENTE: salvar assignee anterior para virar co-responsável
+          if (existing.assigneeId && existing.assigneeId !== sitCfg.defaultCotadorId) {
+            previousAssigneeForCcliente = existing.assigneeId;
+          }
           updateData.assigneeId = sitCfg.defaultCotadorId;
         }
       }
@@ -188,17 +193,17 @@ export async function PUT(req: NextRequest, { params }: Params) {
         }
       }
 
+      // Ao mover para CCLIENTE: salvar assignee anterior como co-responsável
+      if (previousAssigneeForCcliente) {
+        await tx.execute(sql`
+          INSERT IGNORE INTO cotacao_responsaveis (cotacao_id, user_id)
+          VALUES (${id}, ${previousAssigneeForCcliente})
+        `);
+      }
+
       const [row] = await tx.select().from(cotacoes).where(eq(cotacoes.id, id));
       return row;
     });
-
-    // Auto-adicionar Ivo como co-responsável quando situação muda para CCliente
-    const finalSituacao = (updateData.situacao as string | undefined) ?? existing.situacao;
-    if (finalSituacao && /cliente/i.test(finalSituacao) && updated.assigneeId !== IVO_ID) {
-      await db.execute(sql`
-        INSERT IGNORE INTO cotacao_responsaveis (cotacao_id, user_id) VALUES (${id}, ${IVO_ID})
-      `);
-    }
 
     const coRespRows = await db
       .select({ id: users.id, name: users.name, photoUrl: users.photoUrl })

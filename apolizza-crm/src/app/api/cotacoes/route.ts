@@ -225,12 +225,18 @@ export async function POST(req: NextRequest) {
     };
 
     // Auto-assign por situação (ex: CCLIENTE → Ivo)
+    // Se a situação tem um defaultCotadorId, o assignee anterior vira co-responsável
+    let originalAssigneeForCcliente: string | null = null;
     if (input.situacao) {
       const [sitCfg] = await db
         .select({ defaultCotadorId: situacaoConfig.defaultCotadorId })
         .from(situacaoConfig)
         .where(eq(situacaoConfig.nome, input.situacao));
       if (sitCfg?.defaultCotadorId) {
+        const prevAssignee = insertValues.assigneeId as string | undefined;
+        if (prevAssignee && prevAssignee !== sitCfg.defaultCotadorId) {
+          originalAssigneeForCcliente = prevAssignee;
+        }
         insertValues.assigneeId = sitCfg.defaultCotadorId;
       }
     }
@@ -243,21 +249,15 @@ export async function POST(req: NextRequest) {
     await db.insert(cotacoes).values(insertValues);
 
     // Co-responsáveis (PRD-016)
-    if (input.coResponsaveisIds && input.coResponsaveisIds.length > 0) {
-      const principalId = insertValues.assigneeId;
-      const uniq = [...new Set(input.coResponsaveisIds.filter((uid) => uid !== principalId))];
-      if (uniq.length > 0) {
-        await db.insert(cotacaoResponsaveis).values(
-          uniq.map((uid) => ({ cotacaoId: newId, userId: uid }))
-        );
-      }
-    }
-
-    // Auto-adicionar Ivo como co-responsável quando situação é CCliente
-    if (input.situacao && /cliente/i.test(input.situacao) && insertValues.assigneeId !== IVO_ID) {
-      await db.execute(sql`
-        INSERT IGNORE INTO cotacao_responsaveis (cotacao_id, user_id) VALUES (${newId}, ${IVO_ID})
-      `);
+    const coRespIds = new Set<string>(input.coResponsaveisIds ?? []);
+    // Assignee original (antes do override de situação) vira co-responsável automaticamente
+    if (originalAssigneeForCcliente) coRespIds.add(originalAssigneeForCcliente);
+    const principalId = insertValues.assigneeId as string;
+    const uniq = [...coRespIds].filter((uid) => uid !== principalId);
+    if (uniq.length > 0) {
+      await db.insert(cotacaoResponsaveis).values(
+        uniq.map((uid) => ({ cotacaoId: newId, userId: uid }))
+      );
     }
 
     const [created] = await db
