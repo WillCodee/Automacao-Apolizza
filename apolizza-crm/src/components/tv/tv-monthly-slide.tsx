@@ -35,9 +35,7 @@ function fmtCurrency(v: number) {
 }
 
 export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: MonthlyData[] }) {
-  // Last 6 months with data
   const data = monthlyTrend.slice(-6);
-
   const labels = data.map(d => d.mes);
 
   const chartData = {
@@ -50,7 +48,7 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         backgroundColor: "rgba(34, 197, 94, 0.7)",
         borderColor: "#22c55e",
         borderWidth: 1,
-        borderRadius: 4,
+        borderRadius: 6,
         yAxisID: "y",
         order: 2,
       },
@@ -61,7 +59,7 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         backgroundColor: "rgba(255, 105, 95, 0.7)",
         borderColor: "#ff695f",
         borderWidth: 1,
-        borderRadius: 4,
+        borderRadius: 6,
         yAxisID: "y",
         order: 2,
       },
@@ -71,8 +69,8 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         data: data.map(d => d.aReceber),
         borderColor: "#03a4ed",
         backgroundColor: "rgba(3, 164, 237, 0.1)",
-        borderWidth: 3,
-        pointRadius: 5,
+        borderWidth: 4,
+        pointRadius: 7,
         pointBackgroundColor: "#03a4ed",
         tension: 0.3,
         fill: true,
@@ -91,8 +89,9 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         position: "bottom" as const,
         labels: {
           color: "#e2e8f0",
-          font: { size: 14, family: "Poppins" },
-          padding: 20,
+          font: { size: 20, family: "Poppins" },
+          padding: 28,
+          boxWidth: 18,
         },
       },
       title: { display: false },
@@ -102,8 +101,9 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         bodyColor: "#e2e8f0",
         borderColor: "#334155",
         borderWidth: 1,
-        titleFont: { size: 14, family: "Poppins" },
-        bodyFont: { size: 13, family: "Poppins" },
+        titleFont: { size: 18, family: "Poppins" },
+        bodyFont: { size: 17, family: "Poppins" },
+        padding: 14,
         callbacks: {
           label(ctx: { dataset: { label?: string }; parsed: { y: number | null } }) {
             const label = ctx.dataset.label || "";
@@ -116,21 +116,21 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
     },
     scales: {
       x: {
-        ticks: { color: "#94a3b8", font: { size: 14, family: "Poppins" } },
+        ticks: { color: "#94a3b8", font: { size: 18, family: "Poppins" } },
         grid: { color: "rgba(255,255,255,0.05)" },
       },
       y: {
         position: "left" as const,
-        title: { display: true, text: "Quantidade", color: "#94a3b8", font: { size: 12 } },
-        ticks: { color: "#94a3b8", font: { size: 12 } },
+        title: { display: true, text: "Quantidade", color: "#94a3b8", font: { size: 16 } },
+        ticks: { color: "#94a3b8", font: { size: 16 } },
         grid: { color: "rgba(255,255,255,0.08)" },
       },
       y1: {
         position: "right" as const,
-        title: { display: true, text: "Faturamento (R$)", color: "#94a3b8", font: { size: 12 } },
+        title: { display: true, text: "Faturamento (R$)", color: "#94a3b8", font: { size: 16 } },
         ticks: {
           color: "#94a3b8",
-          font: { size: 12 },
+          font: { size: 16 },
           callback(value: string | number) {
             return fmtCurrency(Number(value));
           },
@@ -141,8 +141,11 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
   };
 
   return (
-    <div className="flex flex-col h-full px-6 py-4">
-      <h2 className="text-2xl font-bold text-white mb-4 text-center tracking-wide">
+    <div className="flex flex-col h-full" style={{ padding: "clamp(0.75rem, 1.5vw, 1.75rem) clamp(1rem, 2vw, 2.5rem)" }}>
+      <h2
+        className="font-bold text-white text-center tracking-wide flex-shrink-0"
+        style={{ fontSize: "clamp(1.25rem, 2.8vw, 3rem)", marginBottom: "clamp(0.5rem, 1vw, 1.25rem)" }}
+      >
         Evolucao Mensal
       </h2>
       <div className="flex-1 min-h-0">

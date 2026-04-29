@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { SignOutButton } from "./sign-out-button";
 
@@ -18,7 +18,7 @@ function useNotifCount() {
       } catch {}
     }
     fetchCount();
-    const interval = setInterval(fetchCount, 60_000); // atualiza a cada 1 min
+    const interval = setInterval(fetchCount, 60_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
@@ -28,6 +28,7 @@ function useNotifCount() {
 type ActivePage =
   | "inicio"
   | "dashboard"
+  | "tv"
   | "cotacoes"
   | "pedidos"
   | "usuarios"
@@ -222,19 +223,49 @@ const IconShoppingCart = (
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6H19" />
   </svg>
 );
+const IconTv = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <rect x="2" y="3" width="20" height="14" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 21h8m-4-4v4" />
+  </svg>
+);
 
 // ─── Main Header ──────────────────────────────────────────────────────────────
 
 export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  // null = main mobile menu; string = drilled into this group key
   const [mobileSubMenu, setMobileSubMenu] = useState<string | null>(null);
   const notifCount = useNotifCount();
+
+  // Lock body scroll when the full-screen mobile overlay is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenuOpen]);
 
   function toggleGroup(key: string) {
     setOpenGroup((prev) => (prev === key ? null : key));
   }
+
+  function closeMobile() {
+    setMobileMenuOpen(false);
+    setMobileSubMenu(null);
+  }
+
+  // Dashboard group with Sessão TV — visible for admin/proprietario only
+  const dashboardGroup: NavGroup | null = userRole !== "cotador" ? {
+    label: "Dashboard",
+    key: "dashboard-group",
+    items: [
+      { href: "/dashboard", label: "Dashboard", key: "dashboard", icon: IconChart },
+      { href: "/tv?token=apolizza-tv-2026-secret", label: "Sessão TV", key: "tv", icon: IconTv },
+    ],
+  } : null;
 
   const groups: NavGroup[] = [
     {
@@ -253,7 +284,6 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
       items: [
         { href: "/tarefas", label: "Tarefas", key: "tarefas", icon: IconTasks },
         { href: "/calendario", label: "Calendário", key: "calendario", icon: IconCalendar },
-        // Cotadores também recebem notificações de mensagens
         ...(userRole === "cotador"
           ? [{ href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes" as ActivePage, icon: IconBell, badge: notifCount > 0 ? notifCount : undefined }]
           : []),
@@ -261,7 +291,6 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
     },
   ];
 
-  // Admin e Proprietário: Administração
   if (userRole === "admin" || userRole === "proprietario") {
     const adminItems: NavItem[] = [
       ...(userRole === "proprietario" ? [{ href: "/relatorios", label: "Relatórios", key: "relatorios" as ActivePage, icon: IconChart }] : []),
@@ -274,7 +303,6 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
     groups.push({ label: "Administração", key: "admin-group", items: adminItems });
   }
 
-  // Proprietário: Configurações
   if (userRole === "proprietario") {
     groups.push({
       label: "Configurações",
@@ -288,148 +316,174 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
     });
   }
 
+  // All groups including the dashboard group — used for mobile sub-menu lookup
+  const allGroups: NavGroup[] = dashboardGroup ? [dashboardGroup, ...groups] : groups;
+
   return (
-    <header className="bg-apolizza-header shadow-lg print:hidden">
-      <div className="max-w-7xl mx-auto px-4 py-0">
-        <div className="flex items-center justify-between h-16 gap-3">
+    <>
+      <header className="bg-apolizza-header shadow-lg print:hidden relative z-40">
+        <div className="max-w-7xl mx-auto px-4 py-0">
+          <div className="flex items-center justify-between h-16 gap-3">
 
-          {/* Logo + Nav */}
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <Link href="/inicio" className="flex items-center flex-shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
-            </Link>
-
-            {/* Desktop nav */}
-            <nav className="hidden lg:flex items-center gap-1 min-w-0">
-              <Link
-                href="/inicio"
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                  activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                Início
+            {/* Logo + Desktop Nav */}
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <Link href="/inicio" className="flex items-center flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
               </Link>
-              {userRole !== "cotador" && (
+
+              {/* Desktop nav */}
+              <nav className="hidden lg:flex items-center gap-1 min-w-0">
                 <Link
-                  href="/dashboard"
+                  href="/inicio"
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                    activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  Dashboard
+                  Início
                 </Link>
-              )}
-              <Link
-                href="/base-conhecimento"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                  activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {IconBook}
-                <span className="hidden xl:inline">Base de Conhecimento</span>
-                <span className="xl:hidden">Base</span>
-              </Link>
-              {groups.map((group) => (
-                <DropdownGroup
-                  key={group.key}
-                  group={group}
-                  activePage={activePage}
-                  isOpen={openGroup === group.key}
-                  onToggle={() => toggleGroup(group.key)}
-                  onClose={() => setOpenGroup(null)}
-                />
-              ))}
-              {/* Tema: visível para cotador e admin (proprietário já tem no menu Configurações) */}
-              {userRole !== "proprietario" && (
+
+                {/* Dashboard dropdown with Sessão TV */}
+                {dashboardGroup && (
+                  <DropdownGroup
+                    group={dashboardGroup}
+                    activePage={activePage}
+                    isOpen={openGroup === "dashboard-group"}
+                    onToggle={() => toggleGroup("dashboard-group")}
+                    onClose={() => setOpenGroup(null)}
+                  />
+                )}
+
                 <Link
-                  href="/configuracoes/tema"
+                  href="/base-conhecimento"
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                    activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  {IconPalette}
-                  Tema
+                  {IconBook}
+                  <span className="hidden xl:inline">Base de Conhecimento</span>
+                  <span className="xl:hidden">Base</span>
                 </Link>
-              )}
-            </nav>
-          </div>
 
-          {/* User info + actions */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-              {userPhoto ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={userPhoto} alt={userName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="text-right max-w-[140px] xl:max-w-none">
-                <p className="text-sm font-medium text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={userName}>{userName}</p>
-                <p className={`text-xs leading-tight whitespace-nowrap ${
-                  userRole === "proprietario" ? "text-yellow-400" :
-                  userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"
-                }`}>
-                  {userRole}
-                </p>
-              </div>
+                {groups.map((group) => (
+                  <DropdownGroup
+                    key={group.key}
+                    group={group}
+                    activePage={activePage}
+                    isOpen={openGroup === group.key}
+                    onToggle={() => toggleGroup(group.key)}
+                    onClose={() => setOpenGroup(null)}
+                  />
+                ))}
+
+                {userRole !== "proprietario" && (
+                  <Link
+                    href="/configuracoes/tema"
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                      activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {IconPalette}
+                    Tema
+                  </Link>
+                )}
+              </nav>
             </div>
-            <SignOutButton />
 
-            <button
-              onClick={() => { setMobileMenuOpen((v) => !v); setMobileSubMenu(null); }}
-              className="lg:hidden p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Menu"
-            >
-              {mobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
+            {/* User info + actions */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                {userPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={userPhoto} alt={userName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="text-right max-w-[140px] xl:max-w-none">
+                  <p className="text-sm font-medium text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={userName}>{userName}</p>
+                  <p className={`text-xs leading-tight whitespace-nowrap ${
+                    userRole === "proprietario" ? "text-yellow-400" :
+                    userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"
+                  }`}>
+                    {userRole}
+                  </p>
+                </div>
+              </div>
+              <SignOutButton />
+
+              {/* Hamburger button — only on mobile */}
+              <button
+                onClick={() => { setMobileMenuOpen((v) => !v); setMobileSubMenu(null); }}
+                className="lg:hidden p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Menu"
+              >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
-              )}
-            </button>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile menu */}
+      {/* ── Full-screen mobile menu overlay ─────────────────────────────────── */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-white/10">
-          <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
-            {/* Drilled into a group — show back button + group items */}
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col" style={{ background: "linear-gradient(160deg, #1e293b 0%, #0f172a 100%)" }}>
+
+          {/* Top bar: logo + close */}
+          <div className="flex items-center justify-between px-4 h-16 border-b border-white/10 flex-shrink-0">
+            <Link href="/inicio" onClick={closeMobile} className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-apolizza-fundo.png" alt="Apolizza" className="h-10 w-auto object-contain" />
+            </Link>
+            <button
+              onClick={closeMobile}
+              className="p-2 rounded-lg text-white hover:bg-white/10 transition min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Fechar menu"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Menu content — scrollable */}
+          <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+
+            {/* Drilled into a group — back + group items */}
             {mobileSubMenu !== null ? (() => {
-              const group = groups.find((g) => g.key === mobileSubMenu);
+              const group = allGroups.find((g) => g.key === mobileSubMenu);
               if (!group) return null;
               return (
                 <>
-                  {/* Back button */}
                   <button
                     onClick={() => setMobileSubMenu(null)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all min-h-[44px] w-full"
+                    className="flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all min-h-[48px] w-full mb-2"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
                     Voltar
                   </button>
-                  <p className="px-3 pt-1 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest">
+                  <p className="px-3 pt-1 pb-2 text-[11px] font-semibold text-white/40 uppercase tracking-widest">
                     {group.label}
                   </p>
                   {group.items.map((item) => {
                     const isActive = activePage === item.key;
                     return (
-                      <Link key={item.href} href={item.href}
-                        onClick={() => { setMobileMenuOpen(false); setMobileSubMenu(null); }}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={closeMobile}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${
                           isActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                         }`}
                       >
-                        {item.icon}
+                        <span className={`flex-shrink-0 ${isActive ? "text-white" : "text-slate-400"}`}>
+                          {item.icon}
+                        </span>
                         <span className="flex-1">{item.label}</span>
                         {(item.badge ?? 0) > 0 && (
                           <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff695f] text-white text-[10px] font-bold flex items-center justify-center">
@@ -442,32 +496,71 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
                 </>
               );
             })() : (
-              /* Main mobile menu */
+              /* ── Main mobile menu ── */
               <>
-                <Link href="/inicio" onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                {/* User info strip */}
+                <div className="flex items-center gap-3 px-4 py-3 mb-3 bg-white/5 rounded-2xl">
+                  {userPhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={userPhoto} alt={userName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                      {userName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{userName}</p>
+                    <p className={`text-xs ${
+                      userRole === "proprietario" ? "text-yellow-400" :
+                      userRole === "admin" ? "text-[#ff695f]" : "text-[#03a4ed]"
+                    }`}>{userRole}</p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/inicio"
+                  onClick={closeMobile}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${
                     activePage === "inicio" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
                   Início
                 </Link>
-                {userRole !== "cotador" && (
-                  <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
-                      activePage === "dashboard" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                )}
-                <Link href="/base-conhecimento" onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+
+                {/* Dashboard group (non-cotador) */}
+                {dashboardGroup && (() => {
+                  const isGroupActive = dashboardGroup.items.some((i) => i.key === activePage);
+                  return (
+                    <button
+                      onClick={() => setMobileSubMenu("dashboard-group")}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] w-full ${
+                        isGroupActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <span className="flex-shrink-0 text-slate-400">{IconChart}</span>
+                      <span className="flex-1 text-left">Dashboard</span>
+                      <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  );
+                })()}
+
+                <Link
+                  href="/base-conhecimento"
+                  onClick={closeMobile}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${
                     activePage === "base-conhecimento" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  {IconBook}
+                  <span className="flex-shrink-0 text-slate-400">{IconBook}</span>
                   Base de Conhecimento
                 </Link>
+
+                {/* Other groups */}
                 {groups.map((group) => {
                   const isGroupActive = group.items.some((i) => i.key === activePage);
                   const groupBadge = group.items.reduce((s, i) => s + (i.badge ?? 0), 0);
@@ -475,7 +568,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
                     <button
                       key={group.key}
                       onClick={() => setMobileSubMenu(group.key)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] w-full ${
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] w-full ${
                         isGroupActive ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                       }`}
                     >
@@ -485,27 +578,35 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
                           {groupBadge > 99 ? "99+" : groupBadge}
                         </span>
                       )}
-                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
                   );
                 })}
+
                 {userRole !== "proprietario" && (
-                  <Link href="/configuracoes/tema" onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                  <Link
+                    href="/configuracoes/tema"
+                    onClick={closeMobile}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${
                       activePage === "tema" ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >
-                    {IconPalette}
+                    <span className="flex-shrink-0 text-slate-400">{IconPalette}</span>
                     Tema
                   </Link>
                 )}
+
+                {/* Sign out at the bottom */}
+                <div className="pt-4 mt-2 border-t border-white/10">
+                  <SignOutButton />
+                </div>
               </>
             )}
           </nav>
         </div>
       )}
-    </header>
+    </>
   );
 }
