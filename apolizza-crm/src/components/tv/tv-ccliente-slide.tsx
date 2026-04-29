@@ -19,87 +19,66 @@ export default function TvCclienteSlide({ ccliente }: { ccliente: CclienteData }
   const textColor = pct >= 50 ? "text-emerald-400" : pct >= 25 ? "text-amber-400" : "text-red-400";
 
   return (
-    <div className="flex flex-col h-full" style={{ padding: "clamp(0.5rem, 1.2vmin, 1.75rem) clamp(0.75rem, 1.5vmin, 2.5rem)" }}>
+    <div className="flex flex-col h-full" style={{ padding: "14px 20px" }}>
       <h2
         className="font-bold text-white text-center tracking-wide flex-shrink-0"
-        style={{ fontSize: "clamp(1rem, 2.8vmin, 3rem)", marginBottom: "clamp(0.3rem, 0.8vmin, 1.25rem)" }}
+        style={{ fontSize: 28, marginBottom: 10 }}
       >
         C.Cliente — Conversões em Andamento
       </h2>
 
-      <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0" style={{ gap: "clamp(0.5rem, 1.2vmin, 2rem)" }}>
+      <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0" style={{ gap: 14 }}>
 
-        {/* Total C.Cliente */}
-        <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center"
-             style={{ padding: "clamp(0.4rem, 1vmin, 2rem)" }}>
-          <p className="text-slate-400 uppercase tracking-wider font-medium text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginBottom: "clamp(0.15rem, 0.4vmin, 0.5rem)" }}>
+        <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center" style={{ padding: "12px 16px" }}>
+          <p className="text-slate-400 uppercase tracking-wider font-medium text-center" style={{ fontSize: 11, marginBottom: 6 }}>
             Total C.Cliente
           </p>
-          <p className="font-bold text-sky-400 leading-none"
-             style={{ fontSize: "clamp(2rem, 8vmin, 7rem)" }}>
+          <p className="font-bold text-sky-400 leading-none" style={{ fontSize: 86 }}>
             {ccliente.total}
           </p>
-          <p className="text-slate-500 text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginTop: "clamp(0.15rem, 0.35vmin, 0.5rem)" }}>
+          <p className="text-slate-500 text-center" style={{ fontSize: 11, marginTop: 6 }}>
             cotações aguardando cliente
           </p>
         </div>
 
-        {/* Em Conversão */}
-        <div className="bg-slate-800/80 border border-emerald-800/40 rounded-2xl flex flex-col items-center justify-center"
-             style={{ padding: "clamp(0.4rem, 1vmin, 2rem)" }}>
-          <p className="text-slate-400 uppercase tracking-wider font-medium text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginBottom: "clamp(0.15rem, 0.4vmin, 0.5rem)" }}>
+        <div className="bg-slate-800/80 border border-emerald-800/40 rounded-2xl flex flex-col items-center justify-center" style={{ padding: "12px 16px" }}>
+          <p className="text-slate-400 uppercase tracking-wider font-medium text-center" style={{ fontSize: 11, marginBottom: 6 }}>
             Em Conversão
           </p>
-          <p className="font-bold text-emerald-400 leading-none"
-             style={{ fontSize: "clamp(2rem, 8vmin, 7rem)" }}>
+          <p className="font-bold text-emerald-400 leading-none" style={{ fontSize: 86 }}>
             {ccliente.emConversao}
           </p>
-          <p className="text-emerald-700 text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginTop: "clamp(0.15rem, 0.35vmin, 0.5rem)" }}>
+          <p className="text-emerald-700 text-center" style={{ fontSize: 11, marginTop: 6 }}>
             ativas nos últimos 7 dias
           </p>
         </div>
 
-        {/* Potencial Total */}
-        <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center"
-             style={{ padding: "clamp(0.4rem, 1vmin, 2rem)" }}>
-          <p className="text-slate-400 uppercase tracking-wider font-medium text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginBottom: "clamp(0.15rem, 0.4vmin, 0.5rem)" }}>
+        <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center" style={{ padding: "12px 16px" }}>
+          <p className="text-slate-400 uppercase tracking-wider font-medium text-center" style={{ fontSize: 11, marginBottom: 6 }}>
             Potencial Total
           </p>
-          <p className="font-bold text-amber-400 leading-none"
-             style={{ fontSize: "clamp(1.25rem, 4.5vmin, 4.5rem)" }}>
+          <p className="font-bold text-amber-400 leading-none" style={{ fontSize: 48 }}>
             {fmt(ccliente.valorPotencial)}
           </p>
-          <p className="text-slate-500 text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginTop: "clamp(0.15rem, 0.35vmin, 0.5rem)" }}>
+          <p className="text-slate-500 text-center" style={{ fontSize: 11, marginTop: 6 }}>
             valor esperado (a receber)
           </p>
         </div>
 
-        {/* Taxa de Conversão */}
-        <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center"
-             style={{ padding: "clamp(0.4rem, 1vmin, 2rem)" }}>
-          <p className="text-slate-400 uppercase tracking-wider font-medium text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)", marginBottom: "clamp(0.15rem, 0.4vmin, 0.5rem)" }}>
+        <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center" style={{ padding: "12px 16px" }}>
+          <p className="text-slate-400 uppercase tracking-wider font-medium text-center" style={{ fontSize: 11, marginBottom: 6 }}>
             Taxa de Conversão
           </p>
-          <p className={`font-bold leading-none ${textColor}`}
-             style={{ fontSize: "clamp(2rem, 8vmin, 7rem)" }}>
+          <p className={`font-bold leading-none ${textColor}`} style={{ fontSize: 86 }}>
             {pct}%
           </p>
-          <div className="w-full bg-slate-700 rounded-full overflow-hidden"
-               style={{ height: "clamp(0.3rem, 0.7vmin, 0.75rem)", margin: "clamp(0.3rem, 0.6vmin, 0.8rem) 0" }}>
+          <div className="w-full bg-slate-700 rounded-full overflow-hidden" style={{ height: 8, margin: "8px 0" }}>
             <div
               className="h-full rounded-full transition-all duration-700"
               style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
             />
           </div>
-          <p className="text-slate-500 text-center"
-             style={{ fontSize: "clamp(0.55rem, 0.9vmin, 1rem)" }}>
+          <p className="text-slate-500 text-center" style={{ fontSize: 11 }}>
             {fmt(ccliente.valorConversao)} em negociação ativa
           </p>
         </div>

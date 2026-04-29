@@ -10,10 +10,13 @@ import TvCclienteSlide from "@/components/tv/tv-ccliente-slide";
 
 const MES_ARR = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
 const SLIDE_NAMES = ["Ranking", "Meta", "Evolucao", "KPIs", "C.Cliente"];
-const SLIDE_INTERVAL = 300_000; // 5 min
-const REFRESH_INTERVAL = 2_000; // 2 segundos
+const SLIDE_INTERVAL = 300_000;
+const REFRESH_INTERVAL = 2_000;
 const FADE_DURATION = 500;
 const TOTAL_SLIDES = 5;
+
+const DESIGN_W = 1920;
+const DESIGN_H = 1080;
 
 interface TVData {
   ano: number;
@@ -58,6 +61,34 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+function useTvScale() {
+  const [scaleStyle, setScaleStyle] = useState<React.CSSProperties>({
+    position: "absolute", width: DESIGN_W, height: DESIGN_H, top: 0, left: 0,
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const scale = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+      const x = (window.innerWidth - DESIGN_W * scale) / 2;
+      const y = (window.innerHeight - DESIGN_H * scale) / 2;
+      setScaleStyle({
+        position: "absolute",
+        width: DESIGN_W,
+        height: DESIGN_H,
+        top: 0,
+        left: 0,
+        transformOrigin: "top left",
+        transform: `translate(${x}px, ${y}px) scale(${scale})`,
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return scaleStyle;
+}
+
 function Clock() {
   const [time, setTime] = useState("");
   useEffect(() => {
@@ -66,14 +97,14 @@ function Clock() {
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, []);
-  return <span className="font-mono text-slate-300" style={{ fontSize: "clamp(0.875rem, 1.8vmin, 1.75rem)" }}>{time}</span>;
+  return <span className="font-mono text-slate-300" style={{ fontSize: 20 }}>{time}</span>;
 }
 
 export default function TvPageWrapper() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-        <div className="text-slate-400 animate-pulse" style={{ fontSize: "clamp(1.25rem, 2vw, 2rem)" }}>Carregando...</div>
+      <div style={{ position: "fixed", inset: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="text-slate-400 animate-pulse" style={{ fontSize: 28 }}>Carregando...</div>
       </div>
     }>
       <TvPage />
@@ -84,6 +115,7 @@ export default function TvPageWrapper() {
 function TvPage() {
   const params = useSearchParams();
   const token = params.get("token");
+  const tvStyle = useTvScale();
 
   const [data, setData] = useState<TVData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -174,8 +206,8 @@ function TvPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center px-4">
-        <p className="text-red-400 text-center" style={{ fontSize: "clamp(1rem, 2.5vw, 2rem)" }}>
+      <div style={{ position: "fixed", inset: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <p className="text-red-400 text-center" style={{ fontSize: 24 }}>
           Token nao fornecido. Use: /tv?token=SEU_TOKEN
         </p>
       </div>
@@ -184,16 +216,16 @@ function TvPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center px-4">
-        <p className="text-red-400 text-center" style={{ fontSize: "clamp(1rem, 2.5vw, 2rem)" }}>{error}</p>
+      <div style={{ position: "fixed", inset: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <p className="text-red-400 text-center" style={{ fontSize: 24 }}>{error}</p>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-        <div className="text-slate-400 animate-pulse" style={{ fontSize: "clamp(1.25rem, 2vw, 2rem)" }}>Carregando dados...</div>
+      <div style={{ position: "fixed", inset: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="text-slate-400 animate-pulse" style={{ fontSize: 28 }}>Carregando dados...</div>
       </div>
     );
   }
@@ -203,139 +235,116 @@ function TvPage() {
   const mins = Math.floor(countdown / 60);
   const secs = countdown % 60;
 
-  // Nav arrow size scales with viewport
-  const arrowSize = "clamp(2.5rem, 4vw, 4.5rem)";
-
   return (
-    <div
-      className="bg-[#0f172a] text-white flex flex-col overflow-hidden select-none"
-      style={{ height: "100dvh", minHeight: "600px", fontFamily: "Poppins, sans-serif" }}
-    >
-      {/* ── Header ── */}
-      <header
-        className="flex items-center justify-between bg-gradient-to-r from-[#1e293b] to-[#0f172a] border-b border-slate-700/50 flex-shrink-0"
-        style={{ padding: "clamp(0.3rem, 0.8vmin, 1rem) clamp(0.75rem, 2vw, 2.5rem)" }}
-      >
-        <div className="flex items-center gap-3">
-          <img
-            src="/logo-apolizza-fundo-clear.png"
-            alt="Apolizza"
-            className="object-contain flex-shrink-0"
-            style={{ width: "clamp(1.75rem, 4vmin, 4rem)", height: "clamp(1.75rem, 4vmin, 4rem)" }}
-          />
-          <span className="font-bold tracking-wide" style={{ fontSize: "clamp(0.875rem, 1.8vmin, 1.75rem)" }}>
-            Painel TV
-          </span>
-        </div>
-        <div className="flex items-center" style={{ gap: "clamp(0.5rem, 1.5vmin, 2rem)" }}>
-          <span className="text-slate-400 font-medium" style={{ fontSize: "clamp(0.8rem, 1.5vmin, 1.5rem)" }}>
-            {mesLabel}/{data.ano}
-          </span>
-          <Clock />
-        </div>
-      </header>
-
-      {/* ── KPI Strip ── */}
+    <div style={{ position: "fixed", inset: 0, background: "#0f172a", overflow: "hidden" }}>
       <div
-        className="grid grid-cols-4 flex-shrink-0"
-        style={{ gap: "clamp(0.3rem, 0.8vmin, 1.25rem)", padding: "clamp(0.3rem, 0.6vmin, 0.875rem) clamp(0.75rem, 2vw, 2.5rem)" }}
+        className="text-white flex flex-col select-none overflow-hidden"
+        style={{ ...tvStyle, fontFamily: "Poppins, sans-serif" }}
       >
-        <KpiCard label="Total Cotações" value={String(data.kpis.totalCotacoes)} color="text-sky-400" />
-        <KpiCard label="Fechadas" value={String(data.kpis.fechadas)} color="text-green-400" />
-        <KpiCard label="Perdas" value={String(data.kpis.perdas)} color="text-red-400" />
-        <KpiCard label="Faturamento" value={fmt(data.kpis.totalAReceber)} color="text-emerald-400" />
-      </div>
-
-      {/* ── Carousel ── */}
-      <div
-        className="flex-1 min-h-0 relative"
-        style={{ padding: "0 clamp(0.75rem, 1.5vw, 2rem) clamp(0.2rem, 0.4vw, 0.5rem)", minHeight: "280px" }}
-      >
-        {/* Left arrow */}
-        <button
-          onClick={goPrev}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center transition-colors cursor-pointer"
-          style={{ width: arrowSize, height: arrowSize, left: "clamp(0.2rem, 0.6vw, 0.75rem)" }}
+        {/* ── Header ── */}
+        <header
+          className="flex items-center justify-between bg-gradient-to-r from-[#1e293b] to-[#0f172a] border-b border-slate-700/50 flex-shrink-0"
+          style={{ padding: "10px 40px" }}
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ width: "clamp(0.875rem, 1.6vw, 1.75rem)", height: "clamp(0.875rem, 1.6vw, 1.75rem)" }}
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-
-        {/* Right arrow */}
-        <button
-          onClick={goNext}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center transition-colors cursor-pointer"
-          style={{ width: arrowSize, height: arrowSize, right: "clamp(0.2rem, 0.6vw, 0.75rem)" }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ width: "clamp(0.875rem, 1.6vw, 1.75rem)", height: "clamp(0.875rem, 1.6vw, 1.75rem)" }}
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-
-        <div
-          className="h-full rounded-2xl bg-slate-900/50 border border-slate-800/50 overflow-hidden"
-          style={{ opacity, transition: `opacity ${FADE_DURATION}ms ease-in-out` }}
-        >
-          {slideIndex === 0 && <TvRankingSlide cotadores={data.cotadores} />}
-          {slideIndex === 1 && <TvMetaSlide metaMensal={data.metaMensal} semanas={data.semanas} />}
-          {slideIndex === 2 && <TvMonthlySlide monthlyTrend={data.monthlyTrend} />}
-          {slideIndex === 3 && <TvKpisSlide kpis={data.kpis} />}
-          {slideIndex === 4 && <TvCclienteSlide ccliente={data.ccliente ?? { total: 0, valorPotencial: 0, emConversao: 0, valorConversao: 0 }} />}
-        </div>
-      </div>
-
-      {/* ── Footer ── */}
-      <footer
-        className="flex flex-wrap items-center justify-between gap-y-1 text-slate-500 flex-shrink-0"
-        style={{
-          padding: "clamp(0.2rem, 0.5vmin, 0.625rem) clamp(0.75rem, 2vw, 2.5rem)",
-          fontSize: "clamp(0.65rem, 1vmin, 1rem)",
-        }}
-      >
-        <span className="text-slate-600">Atualizado: {lastUpdate || "--:--"}</span>
-        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 justify-center">
-          <div className="flex flex-wrap justify-center" style={{ gap: "clamp(0.3rem, 0.6vw, 0.625rem)" }}>
-            {SLIDE_NAMES.map((name, i) => (
-              <button
-                key={i}
-                onClick={() => goToSlide(i)}
-                className={`rounded-full font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                  i === slideIndex
-                    ? "bg-sky-500/20 text-sky-400 border border-sky-500/40"
-                    : "bg-slate-800/50 text-slate-500 border border-slate-700/30 hover:text-slate-300"
-                }`}
-                style={{
-                  padding: "clamp(0.15rem, 0.35vw, 0.3rem) clamp(0.5rem, 1vw, 0.875rem)",
-                  fontSize: "clamp(0.65rem, 1vw, 0.9rem)",
-                }}
-              >
-                {name}
-              </button>
-            ))}
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <img
+              src="/logo-apolizza-fundo-clear.png"
+              alt="Apolizza"
+              className="object-contain flex-shrink-0"
+              style={{ width: 44, height: 44 }}
+            />
+            <span className="font-bold tracking-wide" style={{ fontSize: 20 }}>
+              Painel TV
+            </span>
           </div>
-          <span className="font-mono text-slate-600 tabular-nums">
-            {mins}:{secs.toString().padStart(2, "0")}
-          </span>
+          <div className="flex items-center" style={{ gap: 24 }}>
+            <span className="text-slate-400 font-medium" style={{ fontSize: 17 }}>
+              {mesLabel}/{data.ano}
+            </span>
+            <Clock />
+          </div>
+        </header>
+
+        {/* ── KPI Strip ── */}
+        <div
+          className="grid grid-cols-4 flex-shrink-0"
+          style={{ gap: 12, padding: "6px 40px" }}
+        >
+          <KpiCard label="Total Cotações" value={String(data.kpis.totalCotacoes)} color="text-sky-400" />
+          <KpiCard label="Fechadas" value={String(data.kpis.fechadas)} color="text-green-400" />
+          <KpiCard label="Perdas" value={String(data.kpis.perdas)} color="text-red-400" />
+          <KpiCard label="Faturamento" value={fmt(data.kpis.totalAReceber)} color="text-emerald-400" />
         </div>
-        <span className="text-slate-600">Apolizza CRM</span>
-      </footer>
+
+        {/* ── Carousel ── */}
+        <div
+          className="flex-1 min-h-0 relative"
+          style={{ padding: "0 32px 8px" }}
+        >
+          {/* Left arrow */}
+          <button
+            onClick={goPrev}
+            className="absolute top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center transition-colors cursor-pointer"
+            style={{ width: 64, height: 64, left: 10 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 26, height: 26 }}>
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          {/* Right arrow */}
+          <button
+            onClick={goNext}
+            className="absolute top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center transition-colors cursor-pointer"
+            style={{ width: 64, height: 64, right: 10 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 26, height: 26 }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+
+          <div
+            className="h-full rounded-2xl bg-slate-900/50 border border-slate-800/50 overflow-hidden"
+            style={{ opacity, transition: `opacity ${FADE_DURATION}ms ease-in-out` }}
+          >
+            {slideIndex === 0 && <TvRankingSlide cotadores={data.cotadores} />}
+            {slideIndex === 1 && <TvMetaSlide metaMensal={data.metaMensal} semanas={data.semanas} />}
+            {slideIndex === 2 && <TvMonthlySlide monthlyTrend={data.monthlyTrend} />}
+            {slideIndex === 3 && <TvKpisSlide kpis={data.kpis} />}
+            {slideIndex === 4 && <TvCclienteSlide ccliente={data.ccliente ?? { total: 0, valorPotencial: 0, emConversao: 0, valorConversao: 0 }} />}
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <footer
+          className="flex items-center justify-between text-slate-500 flex-shrink-0"
+          style={{ padding: "6px 40px", fontSize: 11 }}
+        >
+          <span className="text-slate-600">Atualizado: {lastUpdate || "--:--"}</span>
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <div className="flex" style={{ gap: 8 }}>
+              {SLIDE_NAMES.map((name, i) => (
+                <button
+                  key={i}
+                  onClick={() => goToSlide(i)}
+                  className={`rounded-full font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    i === slideIndex
+                      ? "bg-sky-500/20 text-sky-400 border border-sky-500/40"
+                      : "bg-slate-800/50 text-slate-500 border border-slate-700/30 hover:text-slate-300"
+                  }`}
+                  style={{ padding: "3px 14px", fontSize: 13 }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            <span className="font-mono text-slate-600 tabular-nums">
+              {mins}:{secs.toString().padStart(2, "0")}
+            </span>
+          </div>
+          <span className="text-slate-600">Apolizza CRM</span>
+        </footer>
+      </div>
     </div>
   );
 }
@@ -344,18 +353,12 @@ function KpiCard({ label, value, color }: { label: string; value: string; color:
   return (
     <div
       className="bg-slate-800/70 border border-slate-700/40 rounded-xl text-center"
-      style={{ padding: "clamp(0.25rem, 0.7vmin, 1rem) clamp(0.4rem, 1vmin, 1.25rem)" }}
+      style={{ padding: "6px 16px" }}
     >
-      <p
-        className="text-slate-400 uppercase tracking-wider font-medium"
-        style={{ fontSize: "clamp(0.55rem, 0.9vmin, 0.875rem)", marginBottom: "clamp(0.1rem, 0.3vmin, 0.375rem)" }}
-      >
+      <p className="text-slate-400 uppercase tracking-wider font-medium" style={{ fontSize: 10, marginBottom: 2 }}>
         {label}
       </p>
-      <p
-        className={`font-bold leading-tight ${color}`}
-        style={{ fontSize: "clamp(0.875rem, 2.8vmin, 3rem)" }}
-      >
+      <p className={`font-bold leading-tight ${color}`} style={{ fontSize: 28 }}>
         {value}
       </p>
     </div>

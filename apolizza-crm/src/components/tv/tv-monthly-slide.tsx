@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,27 +39,10 @@ function fmtCurrency(v: number) {
   return `R$${v.toFixed(0)}`;
 }
 
-function useChartFonts() {
-  const [fonts, setFonts] = useState({ legend: 13, tick: 11, tooltip: 12 });
-  useEffect(() => {
-    const update = () => {
-      const h = window.innerHeight;
-      setFonts(
-        h >= 900 ? { legend: 18, tick: 16, tooltip: 16 } :
-        h >= 700 ? { legend: 14, tick: 12, tooltip: 13 } :
-                   { legend: 11, tick: 10, tooltip: 11 }
-      );
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-  return fonts;
-}
+// Fixed font sizes designed for 1920×1080 (scale transform handles other resolutions)
+const FONTS = { legend: 18, tick: 15, tooltip: 16 };
 
 export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: MonthlyData[] }) {
-  const fonts = useChartFonts();
-
   const sorted = [...monthlyTrend].sort((a, b) => {
     if (a.ano !== b.ano) return a.ano - b.ano;
     return (MES_ORDER[a.mes] ?? 0) - (MES_ORDER[b.mes] ?? 0);
@@ -119,7 +101,7 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         position: "bottom" as const,
         labels: {
           color: "#e2e8f0",
-          font: { size: fonts.legend, family: "Poppins" },
+          font: { size: FONTS.legend, family: "Poppins" },
           padding: 16,
           boxWidth: 14,
         },
@@ -131,8 +113,8 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
         bodyColor: "#e2e8f0",
         borderColor: "#334155",
         borderWidth: 1,
-        titleFont: { size: fonts.tooltip, family: "Poppins" },
-        bodyFont: { size: fonts.tooltip, family: "Poppins" },
+        titleFont: { size: FONTS.tooltip, family: "Poppins" },
+        bodyFont: { size: FONTS.tooltip, family: "Poppins" },
         padding: 10,
         callbacks: {
           label(ctx: { dataset: { label?: string }; parsed: { y: number | null } }) {
@@ -146,21 +128,21 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
     },
     scales: {
       x: {
-        ticks: { color: "#94a3b8", font: { size: fonts.tick, family: "Poppins" } },
+        ticks: { color: "#94a3b8", font: { size: FONTS.tick, family: "Poppins" } },
         grid: { color: "rgba(255,255,255,0.05)" },
       },
       y: {
         position: "left" as const,
-        title: { display: true, text: "Qtd", color: "#94a3b8", font: { size: fonts.tick } },
-        ticks: { color: "#94a3b8", font: { size: fonts.tick } },
+        title: { display: true, text: "Qtd", color: "#94a3b8", font: { size: FONTS.tick } },
+        ticks: { color: "#94a3b8", font: { size: FONTS.tick } },
         grid: { color: "rgba(255,255,255,0.08)" },
       },
       y1: {
         position: "right" as const,
-        title: { display: true, text: "Faturamento (R$)", color: "#94a3b8", font: { size: fonts.tick } },
+        title: { display: true, text: "Faturamento (R$)", color: "#94a3b8", font: { size: FONTS.tick } },
         ticks: {
           color: "#94a3b8",
-          font: { size: fonts.tick },
+          font: { size: FONTS.tick },
           callback(value: string | number) {
             return fmtCurrency(Number(value));
           },
@@ -171,10 +153,10 @@ export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: Monthly
   };
 
   return (
-    <div className="flex flex-col h-full" style={{ padding: "clamp(0.5rem, 1.2vmin, 1.75rem) clamp(0.75rem, 1.5vmin, 2.5rem)" }}>
+    <div className="flex flex-col h-full" style={{ padding: "14px 20px" }}>
       <h2
         className="font-bold text-white text-center tracking-wide flex-shrink-0"
-        style={{ fontSize: "clamp(1rem, 2.8vmin, 3rem)", marginBottom: "clamp(0.3rem, 0.8vmin, 1.25rem)" }}
+        style={{ fontSize: 28, marginBottom: 10 }}
       >
         Evolução Mensal
       </h2>

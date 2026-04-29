@@ -25,7 +25,10 @@ export async function GET(_req: NextRequest) {
       lte(cotacoes.proximaTratativa, tomorrow),
     ];
 
-    // Todos veem todas as próximas tratativas (colaboração)
+    // Cotador vê apenas as suas próprias tratativas; admin e proprietario veem todas
+    if (user.role === "cotador") {
+      conditions.push(eq(cotacoes.assigneeId, user.id));
+    }
 
     const rows = await db
       .select({
