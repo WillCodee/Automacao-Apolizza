@@ -91,6 +91,7 @@ export const cotacoes = mysqlTable(
     comissaoParcelada: json("comissao_parcelada").$type<{ parcelas: number; percentuais: number[] } | null>(),
     tags: json("tags").$type<string[]>(),
     isRenovacao: boolean("is_renovacao").notNull().default(false),
+    atrasadoDesde: date("atrasado_desde"),
     deletedAt: datetime("deleted_at"),
     createdAt: datetime("created_at")
       .notNull()
@@ -107,6 +108,7 @@ export const cotacoes = mysqlTable(
     index("cotacoes_ano_idx").on(table.anoReferencia),
     index("cotacoes_clickup_id_idx").on(table.clickupId),
     index("cotacoes_deleted_at_idx").on(table.deletedAt),
+    index("idx_atrasado_desde").on(table.atrasadoDesde),
   ]
 );
 

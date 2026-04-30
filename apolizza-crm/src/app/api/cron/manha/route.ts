@@ -10,7 +10,7 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
-import { cotacaoNotificacoes } from "@/lib/schema";
+import { cotacaoNotificacoes, cotacaoHistory } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import {
   notifyWithFallback,
@@ -27,47 +27,87 @@ function verifyCron(req: NextRequest): boolean {
   return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-// ─── 1. Cotações atrasadas ───────────────────────────────────────────────────
+// ─── 1. Cotações atrasadas (FLAG, não status) ───────────────────────────────
+//
+// Marca/desmarca a flag `atrasado_desde` sem tocar no campo `status`. O status real
+// (implantando, pendencia, raut, etc.) é preservado. Toda mudança é registrada em
+// cotacao_history para auditoria.
 
 async function processarAtrasados() {
-  // MySQL doesn't support RETURNING — use two queries
-  await db.execute(sql`
-    UPDATE cotacoes
-    SET status = 'atrasado', updated_at = now()
-    WHERE deleted_at IS NULL
-      AND due_date < now()
-      AND status NOT IN ('fechado', 'perda', 'concluido ocultar', 'atrasado')
-  `);
-
-  // Fetch the rows that were just updated
-  const updated = await dbQuery<{ id: string; name: string; assignee_id: string | null; status: string }>(sql`
+  // 1) Marca como atrasada (set atrasado_desde = hoje) cotações vencidas que não
+  //    estão em status terminal e ainda não foram marcadas como atrasadas.
+  const novasAtrasadas = await dbQuery<{ id: string; name: string; assignee_id: string | null; status: string }>(sql`
     SELECT id, name, assignee_id, status
     FROM cotacoes
     WHERE deleted_at IS NULL
-      AND status = 'atrasado'
-      AND DATE(updated_at) = CURDATE()
-      AND due_date < now()
+      AND atrasado_desde IS NULL
+      AND due_date < CURDATE()
+      AND status NOT IN ('fechado', 'perda', 'concluido ocultar')
   `);
 
-  if (updated.length > 0) {
+  if (novasAtrasadas.length > 0) {
+    const ids = novasAtrasadas.map((c) => c.id);
+    await db.execute(sql`
+      UPDATE cotacoes
+      SET atrasado_desde = CURDATE(), updated_at = NOW()
+      WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+    `);
+
+    // Audit trail (D4: todo write sistêmico grava history)
+    await db.insert(cotacaoHistory).values(
+      novasAtrasadas.map((c) => ({
+        cotacaoId: c.id,
+        userId: null,
+        fieldName: "atrasado_desde",
+        oldValue: null,
+        newValue: new Date().toISOString().slice(0, 10),
+      }))
+    );
+
     await db.insert(cotacaoNotificacoes).values(
-      updated.map((c) => ({
+      novasAtrasadas.map((c) => ({
         cotacaoId: c.id,
         cotacaoNome: c.name,
         autorId: null as string | null,
         autorNome: "Sistema",
         tipo: "atrasado",
-        texto: `Cotação "${c.name}" passou do prazo e foi marcada como atrasada.`,
+        texto: `Cotação "${c.name}" passou do prazo (status real: ${c.status}).`,
         destinatarioId: null as string | null,
         lida: false,
       }))
     );
 
-    const telegramRows = updated.map((c) => ({ id: c.id, name: c.name, due_date: "", assignee_name: null }));
+    const telegramRows = novasAtrasadas.map((c) => ({ id: c.id, name: c.name, due_date: "", assignee_name: null }));
     await notifyWithFallback(fmtAtrasado(telegramRows));
   }
 
-  return updated.length;
+  // 2) Desmarca (atrasado_desde = NULL) quando a cotação virou terminal ou
+  //    o due_date foi ajustado para o futuro.
+  const desmarcadas = await dbQuery<{ id: string }>(sql`
+    SELECT id FROM cotacoes
+    WHERE deleted_at IS NULL
+      AND atrasado_desde IS NOT NULL
+      AND (status IN ('fechado', 'perda', 'concluido ocultar') OR due_date >= CURDATE() OR due_date IS NULL)
+  `);
+  if (desmarcadas.length > 0) {
+    const ids = desmarcadas.map((d) => d.id);
+    await db.execute(sql`
+      UPDATE cotacoes
+      SET atrasado_desde = NULL, updated_at = NOW()
+      WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+    `);
+    await db.insert(cotacaoHistory).values(
+      desmarcadas.map((d) => ({
+        cotacaoId: d.id,
+        userId: null,
+        fieldName: "atrasado_desde",
+        oldValue: "(set)",
+        newValue: null,
+      }))
+    );
+  }
+
+  return novasAtrasadas.length;
 }
 
 // ─── 2. Tratativas (hoje + amanhã) ──────────────────────────────────────────
@@ -155,7 +195,7 @@ async function processarNotificacoesTarefas() {
     SELECT t.id, t.titulo, u.name as cotador_name
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
-    WHERE DATE(t.updated_at) = CURDATE() AND t.tarefa_status = 'Concluída' AND u.is_active = true
+    WHERE DATE(t.updated_at) = CURDATE() AND t.status = 'Concluída' AND u.is_active = true
   `);
 
   const msgNovas = fmtNovasTarefas(novas);
@@ -173,7 +213,7 @@ async function processarTarefasPendentes() {
   const rows = await dbQuery<{ id: string; titulo: string; cotador_name: string; data_vencimento: string | null }>(sql`
     SELECT t.id, t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
+    WHERE t.status NOT IN ('Concluída','Cancelada')
       AND t.data_vencimento IS NOT NULL
       AND t.data_vencimento < now()
     ORDER BY t.data_vencimento ASC LIMIT 30

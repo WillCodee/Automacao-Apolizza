@@ -109,7 +109,7 @@ async function getAtrasados() {
   const rows = await dbQuery<{ id: string; name: string; due_date: string; assignee_name: string }>(sql`
     SELECT c.id, c.name, CAST(c.due_date AS CHAR) AS due_date, u.name as assignee_name
     FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
-    WHERE c.deleted_at IS NULL AND c.status = 'atrasado'
+    WHERE c.deleted_at IS NULL AND c.atrasado_desde IS NOT NULL
     ORDER BY c.due_date ASC LIMIT 20
   `);
   return fmtAtrasado(rows as never);
@@ -119,7 +119,7 @@ async function getTarefasHoje() {
   const rows = await dbQuery<{ id: string; titulo: string; cotador_name: string }>(sql`
     SELECT t.id, t.titulo, u.name as cotador_name
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
+    WHERE t.status NOT IN ('Concluída','Cancelada')
       AND DATE(t.data_vencimento) = CURDATE()
     ORDER BY t.created_at ASC LIMIT 20
   `);
@@ -148,7 +148,7 @@ async function getTarefasPendentes() {
   const rows = await dbQuery<{ titulo: string; cotador_name: string; data_vencimento: string }>(sql`
     SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) AS data_vencimento
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
+    WHERE t.status NOT IN ('Concluída','Cancelada')
       AND (t.data_vencimento IS NULL OR t.data_vencimento < now())
     ORDER BY t.data_vencimento ASC LIMIT 20
   `);
@@ -180,7 +180,7 @@ async function getRelatorio() {
 async function getResumo() {
   const [counts] = await dbQuery<{ atrasadas: number; tratativas_hoje: number; tratativas_amanha: number }>(sql`
     SELECT
-      CAST(sum(case when status='atrasado' then 1 else 0 end) AS SIGNED) as atrasadas,
+      CAST(sum(case when atrasado_desde IS NOT NULL then 1 else 0 end) AS SIGNED) as atrasadas,
       CAST(sum(case when proxima_tratativa = CURDATE() then 1 else 0 end) AS SIGNED) as tratativas_hoje,
       CAST(sum(case when proxima_tratativa = CURDATE() + INTERVAL 1 DAY then 1 else 0 end) AS SIGNED) as tratativas_amanha
     FROM cotacoes WHERE deleted_at IS NULL

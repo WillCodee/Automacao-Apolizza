@@ -32,7 +32,7 @@ async function processarTarefasHoje() {
   const rows = await dbQuery<{ id: string; titulo: string; cotador_id: string; cotador_name: string }>(sql`
     SELECT t.id, t.titulo, t.cotador_id, u.name as cotador_name
     FROM tarefas t JOIN users u ON t.cotador_id = u.id
-    WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
+    WHERE t.status NOT IN ('Concluída','Cancelada')
       AND DATE(t.data_vencimento) = CURDATE()
     ORDER BY t.created_at ASC LIMIT 30
   `);
@@ -103,7 +103,7 @@ async function processarTarefasAtrasadas() {
     FROM tarefas t
     JOIN users u ON t.cotador_id = u.id
     WHERE t.data_vencimento < NOW()
-      AND t.tarefa_status NOT IN ('Concluída', 'Cancelada')
+      AND t.status NOT IN ('Concluída', 'Cancelada')
       AND u.is_active = true
     ORDER BY t.data_vencimento ASC LIMIT 30
   `);
@@ -121,7 +121,7 @@ async function processarResumoDiario() {
   const rows = await dbQuery<Record<string, unknown>>(sql`
     SELECT
       SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as novas_hoje,
-      SUM(CASE WHEN status = 'atrasado' THEN 1 ELSE 0 END) as atrasadas,
+      SUM(CASE WHEN atrasado_desde IS NOT NULL THEN 1 ELSE 0 END) as atrasadas,
       SUM(CASE WHEN status = 'fechado' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) as fechadas_hoje,
       SUM(CASE WHEN fim_vigencia IS NOT NULL AND fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 30 DAY THEN 1 ELSE 0 END) as vencendo_30d
     FROM cotacoes WHERE deleted_at IS NULL

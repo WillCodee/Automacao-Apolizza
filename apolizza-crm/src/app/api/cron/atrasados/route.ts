@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
-import { cotacaoNotificacoes } from "@/lib/schema";
+import { cotacaoNotificacoes, cotacaoHistory } from "@/lib/schema";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
 import { notifyWithFallback, fmtAtrasado } from "@/lib/telegram";
 
-// POST/GET /api/cron/atrasados
-// Protected by CRON_SECRET header (Vercel Cron chama GET)
 export async function GET(req: NextRequest) {
   return POST(req);
 }
@@ -24,61 +22,89 @@ export async function POST(req: NextRequest) {
       return apiError("Nao autorizado", 401);
     }
 
-    // Mark cotacoes as "atrasado" when:
-    // - due_date < now
-    // - status is not terminal (fechado, perda, concluido ocultar)
-    // - not already "atrasado"
-    // - not soft deleted
-    // MySQL does not support RETURNING, so we do UPDATE + SELECT
-    await db.execute(sql`
-      UPDATE cotacoes
-      SET status = 'atrasado', updated_at = NOW()
-      WHERE deleted_at IS NULL
-        AND due_date < NOW()
-        AND status NOT IN ('fechado', 'perda', 'concluido ocultar', 'atrasado')
-    `);
-
-    const updatedRows = await dbQuery(sql`
+    // Marca atrasado_desde = CURDATE() em cotacoes vencidas que nao estao em status
+    // terminal e ainda nao tinham a flag setada. Status real e preservado.
+    const novasAtrasadas = await dbQuery<{ id: string; name: string; assignee_id: string | null; status: string }>(sql`
       SELECT id, name, assignee_id, status
       FROM cotacoes
       WHERE deleted_at IS NULL
-        AND status = 'atrasado'
-        AND updated_at >= NOW() - INTERVAL 1 MINUTE
-        AND due_date < NOW()
+        AND atrasado_desde IS NULL
+        AND due_date < CURDATE()
+        AND status NOT IN ('fechado', 'perda', 'concluido ocultar')
     `);
 
-    const updated = updatedRows as { id: string; name: string; assignee_id: string | null; status: string }[];
+    if (novasAtrasadas.length > 0) {
+      const ids = novasAtrasadas.map((c) => c.id);
+      await db.execute(sql`
+        UPDATE cotacoes
+        SET atrasado_desde = CURDATE(), updated_at = NOW()
+        WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+      `);
 
-    // Cria notificacoes para admins/proprietarios sobre cotacoes atrasadas
-    if (updated.length > 0) {
-      const notifs = updated.map((c) => ({
-        cotacaoId: c.id,
-        cotacaoNome: c.name,
-        autorId: null as string | null,
-        autorNome: "Sistema",
-        tipo: "atrasado",
-        texto: `Cota\u00e7\u00e3o "${c.name}" passou do prazo e foi marcada como atrasada.`,
-        destinatarioId: null as string | null, // null = visivel a todos admin/proprietario
-        lida: false,
-      }));
+      // Audit trail (D4)
+      await db.insert(cotacaoHistory).values(
+        novasAtrasadas.map((c) => ({
+          cotacaoId: c.id,
+          userId: null,
+          fieldName: "atrasado_desde",
+          oldValue: null,
+          newValue: new Date().toISOString().slice(0, 10),
+        }))
+      );
 
-      await db.insert(cotacaoNotificacoes).values(notifs);
+      await db.insert(cotacaoNotificacoes).values(
+        novasAtrasadas.map((c) => ({
+          cotacaoId: c.id,
+          cotacaoNome: c.name,
+          autorId: null as string | null,
+          autorNome: "Sistema",
+          tipo: "atrasado",
+          texto: `Cotacao "${c.name}" passou do prazo (status real: ${c.status}).`,
+          destinatarioId: null as string | null,
+          lida: false,
+        }))
+      );
 
-      // Envia ao Telegram imediatamente
-      const telegramRows = updated.map((c) => ({
+      const telegramRows = novasAtrasadas.map((c) => ({
         id: c.id, name: c.name, due_date: "", assignee_name: null,
       }));
       const atrasadoText = fmtAtrasado(telegramRows);
       await notifyWithFallback(
         atrasadoText,
-        `${updated.length} cotação(ões) atrasada(s)`,
-        `<h2>Cotações Atrasadas</h2><p>${updated.map((c) => c.name).join(", ")}</p>`,
+        `${novasAtrasadas.length} cotação(ões) atrasada(s)`,
+        `<h2>Cotações Atrasadas</h2><p>${novasAtrasadas.map((c) => c.name).join(", ")}</p>`,
+      );
+    }
+
+    // Limpa flag de cotacoes que voltaram a estar em dia ou viraram terminais
+    const desmarcadas = await dbQuery<{ id: string }>(sql`
+      SELECT id FROM cotacoes
+      WHERE deleted_at IS NULL
+        AND atrasado_desde IS NOT NULL
+        AND (status IN ('fechado', 'perda', 'concluido ocultar') OR due_date >= CURDATE() OR due_date IS NULL)
+    `);
+    if (desmarcadas.length > 0) {
+      const ids = desmarcadas.map((d) => d.id);
+      await db.execute(sql`
+        UPDATE cotacoes
+        SET atrasado_desde = NULL, updated_at = NOW()
+        WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+      `);
+      await db.insert(cotacaoHistory).values(
+        desmarcadas.map((d) => ({
+          cotacaoId: d.id,
+          userId: null,
+          fieldName: "atrasado_desde",
+          oldValue: "(set)",
+          newValue: null,
+        }))
       );
     }
 
     return apiSuccess({
-      message: `${updated.length} cotacao(oes) marcada(s) como atrasado`,
-      updated,
+      message: `${novasAtrasadas.length} marcada(s); ${desmarcadas.length} desmarcada(s)`,
+      novasAtrasadas: novasAtrasadas.length,
+      desmarcadas: desmarcadas.length,
     });
   } catch (error) {
     console.error("API POST /api/cron/atrasados:", error);

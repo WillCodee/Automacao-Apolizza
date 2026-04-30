@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       const rows = await dbQuery<{ id: string; name: string; due_date: string; assignee_name: string }>(sql`
         SELECT c.id, c.name, CAST(c.due_date AS CHAR) AS due_date, u.name as assignee_name
         FROM cotacoes c LEFT JOIN users u ON c.assignee_id = u.id
-        WHERE c.deleted_at IS NULL AND c.status = 'atrasado'
+        WHERE c.deleted_at IS NULL AND c.atrasado_desde IS NOT NULL
         ORDER BY c.due_date ASC LIMIT 30
       `);
       dados = rows;
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     case "resumo": {
       const [counts] = await dbQuery<Record<string, number>>(sql`
         SELECT
-          CAST(sum(case when status='atrasado' then 1 else 0 end) AS SIGNED) as atrasadas,
+          CAST(sum(case when atrasado_desde IS NOT NULL then 1 else 0 end) AS SIGNED) as atrasadas,
           CAST(sum(case when proxima_tratativa = CURDATE() then 1 else 0 end) AS SIGNED) as tratativas_hoje,
           CAST(sum(case when proxima_tratativa = CURDATE() + INTERVAL 1 DAY then 1 else 0 end) AS SIGNED) as tratativas_amanha
         FROM cotacoes WHERE deleted_at IS NULL

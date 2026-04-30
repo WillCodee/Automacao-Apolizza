@@ -162,7 +162,8 @@ async function alertasPrazo(): Promise<{ sent: number; cotacoes: number }> {
     FROM cotacoes c
     LEFT JOIN users u ON c.assignee_id = u.id
     WHERE c.deleted_at IS NULL
-      AND c.status NOT IN ('fechado', 'perda', 'cancelado', 'atrasado')
+      AND c.status NOT IN ('fechado', 'perda', 'cancelado')
+      AND c.atrasado_desde IS NULL
       AND DATE(c.due_date) = CURDATE()
     ORDER BY c.due_date ASC
   `);
@@ -202,7 +203,7 @@ async function resumoDiario(): Promise<{ sent: number }> {
   const resultRows = await dbQuery(sql`
     SELECT
       CAST(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as novas_hoje,
-      CAST(SUM(CASE WHEN status = 'atrasado' THEN 1 ELSE 0 END) AS SIGNED) as atrasadas,
+      CAST(SUM(CASE WHEN atrasado_desde IS NOT NULL THEN 1 ELSE 0 END) AS SIGNED) as atrasadas,
       CAST(SUM(CASE WHEN status = 'fechado' AND DATE(updated_at) = CURDATE() THEN 1 ELSE 0 END) AS SIGNED) as fechadas_hoje,
       CAST(SUM(CASE WHEN fim_vigencia IS NOT NULL AND fim_vigencia BETWEEN CURDATE() AND CURDATE() + INTERVAL 30 DAY THEN 1 ELSE 0 END) AS SIGNED) as vencendo_30d
     FROM cotacoes WHERE deleted_at IS NULL
