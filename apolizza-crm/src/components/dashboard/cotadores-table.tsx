@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { CardFilter } from "./card-filter";
+import { useSetor, appendSetorParam } from "./setor-context";
 
 type CotadorData = {
   userId: string;
@@ -56,16 +57,18 @@ export function CotadoresTable() {
   const [data, setData] = useState<CotadorData[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const { setor } = useSetor();
   const fetchData = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     params.set("ano", ano);
     if (mes) params.set("mes", mes);
+    appendSetorParam(params, setor);
     const res = await fetch(`/api/dashboard?${params}`);
     const json = await res.json();
     setData(json.data?.cotadores ?? []);
     setLoading(false);
-  }, [ano, mes]);
+  }, [ano, mes, setor]);
 
   useEffect(() => {
     fetchData();

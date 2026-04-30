@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSetor, appendSetorParam } from "./setor-context";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -99,16 +100,18 @@ export function MonthlyChart() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"mensal" | "anual">("mensal");
 
+  const { setor } = useSetor();
   const fetchData = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     // Mensal: filtra pelo ano selecionado. Anual: sem filtro para pegar todos os anos.
     if (view === "mensal") params.set("ano", ano);
+    appendSetorParam(params, setor);
     const res = await fetch(`/api/dashboard?${params}`);
     const json = await res.json();
     setData(sortByMonth(json.data?.monthlyTrend ?? []));
     setLoading(false);
-  }, [ano, view]);
+  }, [ano, view, setor]);
 
   useEffect(() => {
     fetchData();

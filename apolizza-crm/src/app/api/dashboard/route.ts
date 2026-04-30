@@ -15,7 +15,9 @@ export async function GET(req: NextRequest) {
     const dateTo   = searchParams.get("dateTo");
     const ano      = searchParams.get("ano");
     const mes      = searchParams.get("mes");
+    const setor    = searchParams.get("setor"); // 'BE' | 'RE' | null
     const isCotador = user.role === "cotador";
+    const setorFilter = (setor === "BE" || setor === "RE") ? sql`and setor = ${setor}` : sql``;
 
     let anoFilter = sql``;
     let mesFilter = sql``;
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest) {
           coalesce(sum(a_receber_novas), 0)                         as aReceberNovas
 
         from vw_kpis
-        where true ${anoFilter} ${mesFilter} ${userFilter}
+        where true ${anoFilter} ${mesFilter} ${userFilter} ${setorFilter}
       `),
 
       // Status breakdown
@@ -84,7 +86,7 @@ export async function GET(req: NextRequest) {
           sum(count)+0    as count,
           sum(total)      as total
         from vw_status_breakdown
-        where true ${anoFilter} ${mesFilter} ${userFilter}
+        where true ${anoFilter} ${mesFilter} ${userFilter} ${setorFilter}
         group by status
         order by sum(count) desc
       `),
@@ -103,7 +105,7 @@ export async function GET(req: NextRequest) {
           sum(fechadas_novas)+0        as fechadasNovas,
           sum(a_receber_novas)         as aReceberNovas
         from vw_monthly_trend
-        where true ${anoFilter} ${userFilter}
+        where true ${anoFilter} ${userFilter} ${setorFilter}
         group by mes, ano
         order by ano asc,
           CASE mes

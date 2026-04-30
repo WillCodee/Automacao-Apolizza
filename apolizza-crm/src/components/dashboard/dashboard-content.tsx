@@ -13,12 +13,23 @@ import { AnálisePanel } from "./analise-panel";
 import { MetasDashboard } from "./metas-dashboard";
 import { WeeklyGoalChart } from "./weekly-goal-chart";
 import { MetasProdutoChart } from "./metas-produto-chart";
+import { SetorProvider } from "./setor-context";
+import { SetorToggle } from "./setor-toggle";
 
 export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" | "proprietario" }) {
   const isAdminOrProprietario = userRole === "admin" || userRole === "proprietario";
   const isCotador = userRole === "cotador";
   return (
+    <SetorProvider>
     <div className="space-y-6">
+      {/* Setor toggle (admin/proprietario) */}
+      {isAdminOrProprietario && (
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Visão por Setor</h2>
+          <SetorToggle />
+        </div>
+      )}
+
       {/* Row 1: KPIs */}
       <KpiCards />
 
@@ -73,5 +84,6 @@ export function DashboardContent({ userRole }: { userRole: "admin" | "cotador" |
         <AdminKanban />
       )}
     </div>
+    </SetorProvider>
   );
 }

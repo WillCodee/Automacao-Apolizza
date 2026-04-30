@@ -18,6 +18,10 @@ async function createViews() {
       ano_referencia AS ano,
       UPPER(mes_referencia) AS mes,
       assignee_id,
+      CASE
+        WHEN UPPER(TRIM(produto)) IN ('GARANTIA','SAÚDE PME','SAUDE PME','SAÚDE PF','SAUDE PF','SAÚDE PJ','SAUDE PJ','ODONTO PME','ODONTO PF','ODONTO PJ','VIDA PME','VIDA PF','VIDA PJ')
+          THEN 'BE' ELSE 'RE'
+      END AS setor,
 
       -- Totais (novas + renovações)
       count(*)+0 AS total_cotacoes,
@@ -50,7 +54,7 @@ async function createViews() {
     WHERE deleted_at IS NULL
       AND ano_referencia IS NOT NULL
       AND mes_referencia IS NOT NULL
-    GROUP BY ano_referencia, mes_referencia, assignee_id
+    GROUP BY ano_referencia, mes_referencia, assignee_id, setor
   `);
   console.log("vw_kpis criada");
 
@@ -61,6 +65,10 @@ async function createViews() {
       ano_referencia AS ano,
       UPPER(mes_referencia) AS mes,
       assignee_id,
+      CASE
+        WHEN UPPER(TRIM(produto)) IN ('GARANTIA','SAÚDE PME','SAUDE PME','SAÚDE PF','SAUDE PF','SAÚDE PJ','SAUDE PJ','ODONTO PME','ODONTO PF','ODONTO PJ','VIDA PME','VIDA PF','VIDA PJ')
+          THEN 'BE' ELSE 'RE'
+      END AS setor,
       status,
       count(*)+0 AS count,
       CASE
@@ -72,7 +80,7 @@ async function createViews() {
     WHERE deleted_at IS NULL
       AND ano_referencia IS NOT NULL
       AND mes_referencia IS NOT NULL
-    GROUP BY ano_referencia, mes_referencia, assignee_id, status
+    GROUP BY ano_referencia, mes_referencia, assignee_id, setor, status
   `);
   console.log("vw_status_breakdown criada");
 
@@ -139,6 +147,10 @@ async function createViews() {
       ano_referencia AS ano,
       UPPER(mes_referencia) AS mes,
       assignee_id,
+      CASE
+        WHEN UPPER(TRIM(produto)) IN ('GARANTIA','SAÚDE PME','SAUDE PME','SAÚDE PF','SAUDE PF','SAÚDE PJ','SAUDE PJ','ODONTO PME','ODONTO PF','ODONTO PJ','VIDA PME','VIDA PF','VIDA PJ')
+          THEN 'BE' ELSE 'RE'
+      END AS setor,
 
       -- Totais
       SUM(CASE WHEN status = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
@@ -158,7 +170,7 @@ async function createViews() {
     WHERE deleted_at IS NULL
       AND ano_referencia IS NOT NULL
       AND mes_referencia IS NOT NULL
-    GROUP BY ano_referencia, mes_referencia, assignee_id
+    GROUP BY ano_referencia, mes_referencia, assignee_id, setor
   `);
   console.log("vw_monthly_trend criada");
 

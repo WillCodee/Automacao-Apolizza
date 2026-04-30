@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { CardFilter } from "./card-filter";
+import { useSetor, appendSetorParam } from "./setor-context";
 
 type KpiData = {
   totalCotacoes: number;
@@ -66,16 +67,18 @@ export function KpiCards() {
   const [mes, setMes] = useState(currentMes);
   const [kpis, setKpis] = useState<KpiData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { setor } = useSetor();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ ano });
     if (mes) params.set("mes", mes);
+    appendSetorParam(params, setor);
     const res = await fetch(`/api/dashboard?${params}`);
     const json = await res.json();
     setKpis(json.data?.kpis ?? null);
     setLoading(false);
-  }, [ano, mes]);
+  }, [ano, mes, setor]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

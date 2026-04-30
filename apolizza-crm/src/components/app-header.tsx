@@ -36,6 +36,7 @@ type ActivePage =
   | "situacao-config"
   | "renovacoes"
   | "relatorios"
+  | "indicadores"
   | "calendario"
   | "tarefas"
   | "tema"
@@ -294,6 +295,7 @@ export function AppHeader({ userName, userRole, userPhoto, activePage }: AppHead
   if (userRole === "admin" || userRole === "proprietario") {
     const adminItems: NavItem[] = [
       ...(userRole === "proprietario" ? [{ href: "/relatorios", label: "Relatórios", key: "relatorios" as ActivePage, icon: IconChart }] : []),
+      ...((userRole === "proprietario" || userRole === "admin") ? [{ href: "/indicadores", label: "Indicadores", key: "indicadores" as ActivePage, icon: IconChart }] : []),
       { href: "/administracao/notificacoes", label: "Notificações", key: "notificacoes", icon: IconBell, badge: notifCount > 0 ? notifCount : undefined },
       { href: "/configuracoes/auditoria", label: "Auditoria", key: "auditoria", icon: IconBriefcase },
     ];
