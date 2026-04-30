@@ -26,7 +26,10 @@ interface TVData {
     fechadas: number;
     perdas: number;
     emAndamento: number;
+    atrasadas: number;
     totalAReceber: number;
+    totalPipeline: number;
+    totalAReceberTotal: number;
     totalValorPerda: number;
     totalPremio: number;
     taxaConversao: number;
@@ -273,7 +276,7 @@ function TvPage() {
           <KpiCard label="Total Cotações" value={String(data.kpis.totalCotacoes)} color="text-sky-400" />
           <KpiCard label="Fechadas" value={String(data.kpis.fechadas)} color="text-green-400" />
           <KpiCard label="Perdas" value={String(data.kpis.perdas)} color="text-red-400" />
-          <KpiCard label="Faturamento" value={fmt(data.kpis.totalAReceber)} color="text-emerald-400" />
+          <KpiCard label="A Receber" value={fmt(data.kpis.totalAReceberTotal)} color="text-emerald-400" />
         </div>
 
         {/* ── Carousel ── */}

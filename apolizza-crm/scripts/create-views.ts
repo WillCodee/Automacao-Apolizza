@@ -10,44 +10,41 @@ async function createViews() {
   console.log("Views antigas removidas");
 
   // ── vw_kpis ──────────────────────────────────────────────────────────────────
+  // Usa `status` como fonte única (sincronizado com `situacao` via script).
+  // Evita double-counting que ocorria ao misturar situacao + status.
   await pool.execute(`
     CREATE VIEW vw_kpis AS
     SELECT
       ano_referencia AS ano,
-      CASE UPPER(mes_referencia)
-        WHEN 'JANEIRO'   THEN 'JAN' WHEN 'FEVEREIRO' THEN 'FEV'
-        WHEN 'MARÇO'     THEN 'MAR' WHEN 'MARCO'     THEN 'MAR'
-        WHEN 'ABRIL'     THEN 'ABR' WHEN 'MAIO'      THEN 'MAI'
-        WHEN 'JUNHO'     THEN 'JUN' WHEN 'JULHO'     THEN 'JUL'
-        WHEN 'AGOSTO'    THEN 'AGO' WHEN 'SETEMBRO'  THEN 'SET'
-        WHEN 'OUTUBRO'   THEN 'OUT' WHEN 'NOVEMBRO'  THEN 'NOV'
-        WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(mes_referencia)
-      END AS mes,
+      UPPER(mes_referencia) AS mes,
       assignee_id,
 
       -- Totais (novas + renovações)
       count(*)+0 AS total_cotacoes,
-      SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
-      SUM(CASE WHEN LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda' THEN 1 ELSE 0 END)+0 AS perdas,
-      SUM(CASE WHEN LOWER(situacao) NOT IN ('fechado','perda','perda/resgate') OR situacao IS NULL THEN 1 ELSE 0 END)+0 AS em_andamento,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS total_a_receber,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda' THEN CAST(valor_perda AS DECIMAL(12,2)) ELSE 0 END), 0) AS total_valor_perda,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN CAST(premio_sem_iof AS DECIMAL(12,2)) ELSE 0 END), 0) AS total_premio,
+      SUM(CASE WHEN status = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
+      SUM(CASE WHEN status = 'perda' THEN 1 ELSE 0 END)+0 AS perdas,
+      SUM(CASE WHEN status NOT IN ('fechado','perda') THEN 1 ELSE 0 END)+0 AS em_andamento,
+      SUM(CASE WHEN atrasado_desde IS NOT NULL THEN 1 ELSE 0 END)+0 AS atrasadas,
+      COALESCE(SUM(CASE WHEN status = 'fechado' THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS total_a_receber,
+      COALESCE(SUM(CASE WHEN status NOT IN ('fechado','perda') THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS total_pipeline,
+      COALESCE(SUM(CASE WHEN status <> 'perda' THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS total_a_receber_total,
+      COALESCE(SUM(CASE WHEN status = 'perda' THEN CAST(valor_perda AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS total_valor_perda,
+      COALESCE(SUM(CASE WHEN status = 'fechado' THEN CAST(premio_sem_iof AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS total_premio,
       ROUND(
-        SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN 1 ELSE 0 END)
+        SUM(CASE WHEN status = 'fechado' THEN 1 ELSE 0 END)
         / NULLIF(count(*), 0) * 100, 1
-      ) AS taxa_conversao,
+      )+0 AS taxa_conversao,
 
       -- Renovações (tipo_cliente = 'RENOVAÇÃO' ou is_renovacao = true)
       SUM(CASE WHEN UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1 THEN 1 ELSE 0 END)+0 AS total_renovacoes,
-      SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_renovacao,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS a_receber_renovacao,
-      SUM(CASE WHEN (LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda') AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS perdas_renovacao,
+      SUM(CASE WHEN status = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_renovacao,
+      COALESCE(SUM(CASE WHEN status = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS a_receber_renovacao,
+      SUM(CASE WHEN status = 'perda' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS perdas_renovacao,
 
       -- Novas (não renovação)
       SUM(CASE WHEN NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS total_novas,
-      SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_novas,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS a_receber_novas
+      SUM(CASE WHEN status = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_novas,
+      COALESCE(SUM(CASE WHEN status = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS a_receber_novas
 
     FROM cotacoes
     WHERE deleted_at IS NULL
@@ -62,22 +59,14 @@ async function createViews() {
     CREATE VIEW vw_status_breakdown AS
     SELECT
       ano_referencia AS ano,
-      CASE UPPER(mes_referencia)
-        WHEN 'JANEIRO'   THEN 'JAN' WHEN 'FEVEREIRO' THEN 'FEV'
-        WHEN 'MARÇO'     THEN 'MAR' WHEN 'MARCO'     THEN 'MAR'
-        WHEN 'ABRIL'     THEN 'ABR' WHEN 'MAIO'      THEN 'MAI'
-        WHEN 'JUNHO'     THEN 'JUN' WHEN 'JULHO'     THEN 'JUL'
-        WHEN 'AGOSTO'    THEN 'AGO' WHEN 'SETEMBRO'  THEN 'SET'
-        WHEN 'OUTUBRO'   THEN 'OUT' WHEN 'NOVEMBRO'  THEN 'NOV'
-        WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(mes_referencia)
-      END AS mes,
+      UPPER(mes_referencia) AS mes,
       assignee_id,
       status,
       count(*)+0 AS count,
       CASE
         WHEN status = 'perda'
-        THEN COALESCE(SUM(CAST(valor_perda AS DECIMAL(12,2))), 0)
-        ELSE COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0)
+        THEN COALESCE(SUM(CAST(valor_perda AS DECIMAL(12,2))), 0)+0
+        ELSE COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0)+0
       END AS total
     FROM cotacoes
     WHERE deleted_at IS NULL
@@ -97,34 +86,26 @@ async function createViews() {
       u.name,
       u.photo_url,
       c.ano_referencia AS ano,
-      CASE UPPER(c.mes_referencia)
-        WHEN 'JANEIRO'   THEN 'JAN' WHEN 'FEVEREIRO' THEN 'FEV'
-        WHEN 'MARÇO'     THEN 'MAR' WHEN 'MARCO'     THEN 'MAR'
-        WHEN 'ABRIL'     THEN 'ABR' WHEN 'MAIO'      THEN 'MAI'
-        WHEN 'JUNHO'     THEN 'JUN' WHEN 'JULHO'     THEN 'JUL'
-        WHEN 'AGOSTO'    THEN 'AGO' WHEN 'SETEMBRO'  THEN 'SET'
-        WHEN 'OUTUBRO'   THEN 'OUT' WHEN 'NOVEMBRO'  THEN 'NOV'
-        WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(c.mes_referencia)
-      END AS mes,
+      UPPER(c.mes_referencia) AS mes,
 
       -- Totais
       count(c.id)+0 AS total_cotacoes,
-      SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
-      SUM(CASE WHEN LOWER(c.situacao) IN ('perda','perda/resgate') OR c.status = 'perda' THEN 1 ELSE 0 END)+0 AS perdas,
-      COALESCE(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS faturamento,
+      SUM(CASE WHEN c.status = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
+      SUM(CASE WHEN c.status = 'perda' THEN 1 ELSE 0 END)+0 AS perdas,
+      COALESCE(SUM(CASE WHEN c.status = 'fechado' THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS faturamento,
       ROUND(
-        SUM(CASE WHEN LOWER(c.situacao) = 'fechado' THEN 1 ELSE 0 END)
+        SUM(CASE WHEN c.status = 'fechado' THEN 1 ELSE 0 END)
         / NULLIF(count(c.id), 0) * 100, 1
-      ) AS taxa_conversao,
+      )+0 AS taxa_conversao,
 
       -- Renovações
       SUM(CASE WHEN UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1 THEN 1 ELSE 0 END)+0 AS total_renovacoes,
-      SUM(CASE WHEN LOWER(c.situacao) = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_renovacao,
-      COALESCE(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS faturamento_renovacao,
+      SUM(CASE WHEN c.status = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_renovacao,
+      COALESCE(SUM(CASE WHEN c.status = 'fechado' AND (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS faturamento_renovacao,
 
       -- Novas
-      SUM(CASE WHEN LOWER(c.situacao) = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_novas,
-      COALESCE(SUM(CASE WHEN LOWER(c.situacao) = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS faturamento_novas
+      SUM(CASE WHEN c.status = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_novas,
+      COALESCE(SUM(CASE WHEN c.status = 'fechado' AND NOT (UPPER(c.tipo_cliente) = 'RENOVAÇÃO' OR c.is_renovacao = 1) THEN CAST(c.a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS faturamento_novas
 
     FROM users u
     LEFT JOIN (
@@ -156,30 +137,22 @@ async function createViews() {
     CREATE VIEW vw_monthly_trend AS
     SELECT
       ano_referencia AS ano,
-      CASE UPPER(mes_referencia)
-        WHEN 'JANEIRO'   THEN 'JAN' WHEN 'FEVEREIRO' THEN 'FEV'
-        WHEN 'MARÇO'     THEN 'MAR' WHEN 'MARCO'     THEN 'MAR'
-        WHEN 'ABRIL'     THEN 'ABR' WHEN 'MAIO'      THEN 'MAI'
-        WHEN 'JUNHO'     THEN 'JUN' WHEN 'JULHO'     THEN 'JUL'
-        WHEN 'AGOSTO'    THEN 'AGO' WHEN 'SETEMBRO'  THEN 'SET'
-        WHEN 'OUTUBRO'   THEN 'OUT' WHEN 'NOVEMBRO'  THEN 'NOV'
-        WHEN 'DEZEMBRO'  THEN 'DEZ' ELSE UPPER(mes_referencia)
-      END AS mes,
+      UPPER(mes_referencia) AS mes,
       assignee_id,
 
       -- Totais
-      SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
-      SUM(CASE WHEN LOWER(situacao) IN ('perda','perda/resgate') OR status = 'perda' THEN 1 ELSE 0 END)+0 AS perdas,
+      SUM(CASE WHEN status = 'fechado' THEN 1 ELSE 0 END)+0 AS fechadas,
+      SUM(CASE WHEN status = 'perda' THEN 1 ELSE 0 END)+0 AS perdas,
       count(*)+0 AS total,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS a_receber,
+      COALESCE(SUM(CASE WHEN status = 'fechado' THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS a_receber,
 
       -- Renovações
-      SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_renovacao,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS a_receber_renovacao,
+      SUM(CASE WHEN status = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_renovacao,
+      COALESCE(SUM(CASE WHEN status = 'fechado' AND (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS a_receber_renovacao,
 
       -- Novas
-      SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_novas,
-      COALESCE(SUM(CASE WHEN LOWER(situacao) = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) AS a_receber_novas
+      SUM(CASE WHEN status = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN 1 ELSE 0 END)+0 AS fechadas_novas,
+      COALESCE(SUM(CASE WHEN status = 'fechado' AND NOT (UPPER(tipo_cliente) = 'RENOVAÇÃO' OR is_renovacao = 1) THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0)+0 AS a_receber_novas
 
     FROM cotacoes
     WHERE deleted_at IS NULL

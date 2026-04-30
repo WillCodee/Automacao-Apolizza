@@ -38,7 +38,10 @@ export async function GET(req: NextRequest) {
           coalesce(sum(fechadas), 0)+0              as fechadas,
           coalesce(sum(perdas), 0)+0                as perdas,
           coalesce(sum(em_andamento), 0)+0          as emAndamento,
+          coalesce(sum(atrasadas), 0)+0             as atrasadas,
           coalesce(sum(total_a_receber), 0)         as totalAReceber,
+          coalesce(sum(total_pipeline), 0)          as totalPipeline,
+          coalesce(sum(total_a_receber_total), 0)   as totalAReceberTotal,
           coalesce(sum(total_valor_perda), 0)       as totalValorPerda,
           coalesce(sum(total_premio), 0)            as totalPremio,
           ROUND(

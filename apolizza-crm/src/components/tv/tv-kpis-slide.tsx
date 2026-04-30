@@ -4,7 +4,10 @@ interface KPIs {
   totalCotacoes: number;
   fechadas: number;
   perdas: number;
+  atrasadas: number;
   totalAReceber: number;
+  totalPipeline: number;
+  totalAReceberTotal: number;
   totalValorPerda: number;
   totalPremio: number;
   taxaConversao: number;
@@ -45,11 +48,32 @@ const cards: { label: string; getValue: (k: KPIs) => string; getSub: (k: KPIs) =
     icon: "❌",
   },
   {
-    label: "Faturamento Total",
+    label: "A Receber Total",
+    getValue: k => fmt(k.totalAReceberTotal),
+    getSub: k => `Pipeline + Realizado`,
+    color: "text-emerald-400",
+    icon: "📈",
+  },
+  {
+    label: "Pipeline em Andamento",
+    getValue: k => fmt(k.totalPipeline),
+    getSub: k => `${k.totalCotacoes - k.fechadas - k.perdas} cotações ativas`,
+    color: "text-cyan-400",
+    icon: "🎯",
+  },
+  {
+    label: "Faturamento Realizado",
     getValue: k => fmt(k.totalAReceber),
     getSub: k => `${fmt(k.aReceberNovas)} novas + ${fmt(k.aReceberRenovacao)} renov.`,
-    color: "text-emerald-400",
+    color: "text-green-400",
     icon: "💰",
+  },
+  {
+    label: "Atrasadas",
+    getValue: k => String(k.atrasadas),
+    getSub: () => "Prazo vencido",
+    color: "text-orange-400",
+    icon: "⏰",
   },
   {
     label: "Taxa de Conversão",
@@ -77,21 +101,21 @@ export default function TvKpisSlide({ kpis }: { kpis: KPIs }) {
         KPIs Detalhados
       </h2>
 
-      <div className="flex-1 grid grid-cols-3 grid-rows-2 min-h-0" style={{ gap: 14 }}>
+      <div className="flex-1 grid grid-cols-3 grid-rows-3 min-h-0" style={{ gap: 12 }}>
         {cards.map(card => (
           <div
             key={card.label}
             className="bg-slate-800/80 border border-slate-700/50 rounded-2xl flex flex-col items-center justify-center shadow-lg"
-            style={{ padding: "16px 20px" }}
+            style={{ padding: "12px 16px" }}
           >
-            <span style={{ fontSize: 40, marginBottom: 6 }}>{card.icon}</span>
-            <p className="text-slate-400 font-medium uppercase tracking-wider text-center" style={{ fontSize: 11, marginBottom: 6 }}>
+            <span style={{ fontSize: 32, marginBottom: 4 }}>{card.icon}</span>
+            <p className="text-slate-400 font-medium uppercase tracking-wider text-center" style={{ fontSize: 10, marginBottom: 4 }}>
               {card.label}
             </p>
-            <p className={`font-bold leading-none ${card.color}`} style={{ fontSize: 44, marginBottom: 4 }}>
+            <p className={`font-bold leading-none ${card.color}`} style={{ fontSize: 36, marginBottom: 2 }}>
               {card.getValue(kpis)}
             </p>
-            <p className="text-slate-500 text-center" style={{ fontSize: 11 }}>
+            <p className="text-slate-500 text-center" style={{ fontSize: 10 }}>
               {card.getSub(kpis)}
             </p>
           </div>
