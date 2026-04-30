@@ -1,0 +1,2 @@
+-- audit-abril-2026: INSERTs para cotações da planilha ausentes no banco
+-- ATENÇÃO: revisar antes de aplicar. assignee_id ficará NULL (precisa atribuir manualmente).
