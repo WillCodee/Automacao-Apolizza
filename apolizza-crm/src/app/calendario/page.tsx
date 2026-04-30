@@ -12,6 +12,7 @@ export default async function CalendarioPage() {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="calendario"
       />
       <div className="max-w-7xl mx-auto px-4 py-6">

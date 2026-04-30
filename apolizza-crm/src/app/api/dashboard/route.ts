@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, dbQuery } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { apiError, apiSuccess } from "@/lib/api-helpers";
+import { mesFullName } from "@/lib/normalize";
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
       const dFrom = new Date(dateFrom);
       anoFilter = sql`and ano = ${dFrom.getFullYear()}`;
       const mesNome = dFrom.toLocaleDateString("pt-BR", { month: "short" }).toUpperCase().replace(".", "");
-      mesFilter = sql`and mes = ${mesNome}`;
+      const mesNomeFull = mesFullName(mesNome);
+      mesFilter = sql`and (mes = ${mesNome} OR mes = ${mesNomeFull})`;
 
       if (dateTo) {
         const dTo = new Date(dateTo);
@@ -34,7 +36,10 @@ export async function GET(req: NextRequest) {
       }
     } else if (ano) {
       anoFilter = sql`and ano = ${Number(ano)}`;
-      if (mes) mesFilter = sql`and mes = ${mes}`;
+      if (mes) {
+        const mesFull = mesFullName(mes);
+        mesFilter = sql`and (mes = ${mes} OR mes = ${mesFull})`;
+      }
     }
 
     const userFilter = isCotador ? sql`and assignee_id = ${user.id}` : sql``;
@@ -48,6 +53,8 @@ export async function GET(req: NextRequest) {
           coalesce(sum(perdas), 0)+0                                as perdas,
           coalesce(sum(em_andamento), 0)+0                          as emAndamento,
           coalesce(sum(total_a_receber), 0)                         as totalAReceber,
+          coalesce(sum(total_a_receber_total), 0)                   as totalAReceberTotal,
+          coalesce(sum(total_pipeline), 0)                          as totalPipeline,
           coalesce(sum(total_valor_perda), 0)                       as totalValorPerda,
           coalesce(sum(total_premio), 0)                            as totalPremio,
           ROUND(

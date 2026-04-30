@@ -12,6 +12,7 @@ export default async function InicioPage() {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="inicio"
       />
       <InicioContent

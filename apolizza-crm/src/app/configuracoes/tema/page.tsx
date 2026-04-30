@@ -10,7 +10,7 @@ export default async function TemaPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader userName={session.user.name || ""} userRole={session.user.role} activePage="tema" />
+      <AppHeader userName={session.user.name || ""} userRole={session.user.role} userPhoto={session.user.image} activePage="tema" />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Personalização de Tema</h1>

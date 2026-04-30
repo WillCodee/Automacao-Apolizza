@@ -87,6 +87,7 @@ export default function NotificacoesPage() {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role as "admin" | "cotador" | "proprietario"}
+        userPhoto={session.user.image}
         activePage="notificacoes"
       />
       <div className="max-w-4xl mx-auto px-4 py-8">

@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
           AND c.deleted_at IS NULL
           ${anoC} ${mesC}
         WHERE u.is_active = true
-          AND u.name NOT IN ('Suporte', 'Gustavo')
+          AND u.role IN ('cotador', 'admin')
         GROUP BY u.id, u.name, u.photo_url
 
         UNION ALL

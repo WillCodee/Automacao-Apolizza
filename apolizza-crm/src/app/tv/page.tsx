@@ -56,6 +56,7 @@ interface TVData {
     faturamentoRenovacao: number; fechadasNovas: number; faturamentoNovas: number;
   }[];
   metaMensal: number | null;
+  metasCotadores: { userId: string; metaValor: number }[];
   semanas: { semana: number; novas: number; fechadas: number; perdas: number; ganho: number; ganhoAcumulado: number }[];
   ccliente: { total: number; emConversao: number; tratativasHoje: number; semTratativa: number };
 }
@@ -270,11 +271,12 @@ function TvPage() {
 
         {/* ── KPI Strip ── */}
         <div
-          className="grid grid-cols-4 flex-shrink-0"
+          className="grid grid-cols-5 flex-shrink-0"
           style={{ gap: 12, padding: "6px 40px" }}
         >
           <KpiCard label="Total Cotações" value={String(data.kpis.totalCotacoes)} color="text-sky-400" />
           <KpiCard label="Fechadas" value={String(data.kpis.fechadas)} color="text-green-400" />
+          <KpiCard label="Em Andamento" value={String(data.kpis.emAndamento)} color="text-cyan-400" />
           <KpiCard label="Perdas" value={String(data.kpis.perdas)} color="text-red-400" />
           <KpiCard label="A Receber" value={fmt(data.kpis.totalAReceberTotal)} color="text-emerald-400" />
         </div>
@@ -310,7 +312,7 @@ function TvPage() {
             className="h-full rounded-2xl bg-slate-900/50 border border-slate-800/50 overflow-hidden"
             style={{ opacity, transition: `opacity ${FADE_DURATION}ms ease-in-out` }}
           >
-            {slideIndex === 0 && <TvRankingSlide cotadores={data.cotadores} />}
+            {slideIndex === 0 && <TvRankingSlide cotadores={data.cotadores} metasCotadores={data.metasCotadores ?? []} />}
             {slideIndex === 1 && <TvMetaSlide metaMensal={data.metaMensal} semanas={data.semanas} />}
             {slideIndex === 2 && <TvMonthlySlide monthlyTrend={data.monthlyTrend} />}
             {slideIndex === 3 && <TvKpisSlide kpis={data.kpis} />}

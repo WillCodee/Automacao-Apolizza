@@ -25,7 +25,7 @@ export default async function CotacaoDetailPage({ params, searchParams }: Params
 
   const { id } = await params;
   const { from } = await searchParams;
-  const backHref = from === "dashboard" ? "/dashboard" : "/cotacoes";
+  const backHref = from === "dashboard" ? "/dashboard" : from === "inicio" ? "/inicio" : "/cotacoes";
 
   const [row] = await db
     .select()

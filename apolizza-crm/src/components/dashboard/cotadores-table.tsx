@@ -18,13 +18,16 @@ type CotadorData = {
 const fmt = (v: number | null | undefined) =>
   (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const MONTHS = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+
 function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
-  const initials = name
+  const initials = (name ?? "")
     .split(" ")
-    .map((p) => p[0])
+    .filter(Boolean)
     .slice(0, 2)
+    .map((p) => p[0])
     .join("")
-    .toUpperCase();
+    .toUpperCase() || "?";
 
   if (photoUrl) {
     return (
@@ -44,10 +47,12 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
 }
 
 export function CotadoresTable() {
-  const currentYear = String(new Date().getFullYear());
+  const now = new Date();
+  const currentYear = String(now.getFullYear());
+  const currentMes = MONTHS[now.getMonth()];
 
   const [ano, setAno] = useState(currentYear);
-  const [mes, setMes] = useState("");
+  const [mes, setMes] = useState(currentMes);
   const [data, setData] = useState<CotadorData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -105,15 +110,15 @@ export function CotadoresTable() {
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
-                    <p className="text-xs text-slate-500">Cotacoes</p>
-                    <p className="text-lg font-bold text-slate-900">
-                      {c.totalCotacoes}
-                    </p>
-                  </div>
-                  <div>
                     <p className="text-xs text-slate-500">Fechados</p>
                     <p className="text-lg font-bold text-emerald-600">
                       {c.fechadas}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Em Andamento</p>
+                    <p className="text-lg font-bold text-[#03a4ed]">
+                      {Math.max(c.totalCotacoes - c.fechadas - c.perdas, 0)}
                     </p>
                   </div>
                   <div>

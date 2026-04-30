@@ -9,6 +9,8 @@ type KpiData = {
   perdas: number;
   emAndamento: number;
   totalAReceber: number;
+  totalAReceberTotal: number;
+  totalPipeline: number;
   totalValorPerda: number;
   totalPremio: number;
   taxaConversao: number;
@@ -124,11 +126,11 @@ export function KpiCards() {
               </svg>
             </div>
           </div>
-          <p className="text-2xl font-bold text-emerald-700">{fmt(kpis.totalAReceber)}</p>
-          <p className="text-xs text-slate-400 mt-1">{kpis.fechadas} cotações fechadas</p>
+          <p className="text-2xl font-bold text-emerald-700">{fmt(kpis.totalAReceberTotal)}</p>
+          <p className="text-xs text-slate-400 mt-1">Realizado + Pipeline</p>
           <div className="flex flex-wrap gap-1 mt-2">
-            <SplitBadge label="Renov." value={fmt(kpis.aReceberRenovacao)} color="#8b5cf6" />
-            <SplitBadge label="Novas"  value={fmt(kpis.aReceberNovas)}     color="#10b981" />
+            <SplitBadge label="Realizado" value={fmt(kpis.totalAReceber)} color="#10b981" />
+            <SplitBadge label="Pipeline"  value={fmt(kpis.totalPipeline)} color="#03a4ed" />
           </div>
         </div>
 

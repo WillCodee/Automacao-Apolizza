@@ -18,6 +18,7 @@ export default async function PedidosPage() {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="cotacoes"
       />
       <div className="max-w-3xl mx-auto px-4 py-6">

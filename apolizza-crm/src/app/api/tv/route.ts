@@ -28,9 +28,9 @@ export async function GET(req: NextRequest) {
     const mesNum = MES_NUM[mes];
 
     const anoFilter = sql`and ano = ${ano}`;
-    const mesFilter = sql`and mes = ${mes}`;
+    const mesFilter = sql`and (mes = ${mes} OR mes = ${mesFull})`;
 
-    const [kpiRows, statusRows, monthlyRows, cotadoresRows, semanasRows, metaEmpresaRows, cclienteRows] = await Promise.all([
+    const [kpiRows, statusRows, monthlyRows, cotadoresRows, semanasRows, metaEmpresaRows, metasCotadoresRows, cclienteRows] = await Promise.all([
       // KPIs
       dbQuery<Record<string, unknown>>(sql`
         select
@@ -160,6 +160,13 @@ export async function GET(req: NextRequest) {
         LIMIT 1
       `),
 
+      // Metas por cotador (mês corrente)
+      dbQuery<Record<string, unknown>>(sql`
+        SELECT user_id as userId, meta_valor as metaValor
+        FROM metas
+        WHERE ano = ${ano} AND mes = ${mesNum} AND user_id IS NOT NULL
+      `),
+
       // CCliente status — filtro por mês corrente, baseado em proxima_tratativa
       // (campo a_receber e premio_sem_iof ficam zerados em CCLIENTE — não usar)
       dbQuery<Record<string, unknown>>(sql`
@@ -210,6 +217,11 @@ export async function GET(req: NextRequest) {
       return { ...s, ganhoAcumulado: parseFloat(acum.toFixed(2)) };
     });
 
+    const metasCotadores = (metasCotadoresRows as Record<string, unknown>[]).map(r => ({
+      userId: String(r.userId),
+      metaValor: Number(r.metaValor ?? 0),
+    }));
+
     return apiSuccess({
       ano,
       mes,
@@ -218,6 +230,7 @@ export async function GET(req: NextRequest) {
       monthlyTrend: normalizeRows(monthlyRows, MONTHLY_FIELDS),
       cotadores: normalizeRows(cotadoresRows, COTADOR_FIELDS),
       metaMensal,
+      metasCotadores,
       semanas,
       ccliente,
     });

@@ -12,6 +12,7 @@ export default async function BaseConhecimentoPage() {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="base-conhecimento"
       />
       <BaseConhecimentoContent userRole={session.user.role} />

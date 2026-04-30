@@ -35,7 +35,7 @@ const PRIORITY_DOT: Record<string, string> = {
   baixa: "bg-slate-300",
 };
 
-export function ProximasTratativas() {
+export function ProximasTratativas({ from = "dashboard" }: { from?: string }) {
   const [items, setItems] = useState<Tratativa[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +79,7 @@ export function ProximasTratativas() {
             return (
               <li key={item.id}>
                 <Link
-                  href={`/cotacoes/${item.id}?from=dashboard`}
+                  href={`/cotacoes/${item.id}?from=${from}`}
                   className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors group"
                 >
                   {/* Priority dot */}

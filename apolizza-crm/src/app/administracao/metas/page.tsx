@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/app-header";
 import { MetasAdmin } from "@/components/metas-admin";
 import { db } from "@/lib/db";
 import { users, gruposUsuarios } from "@/lib/schema";
-import { eq, and, notInArray } from "drizzle-orm";
+import { eq, and, inArray, notInArray } from "drizzle-orm";
 
 export default async function MetasAdminPage() {
   const session = await auth();
@@ -18,8 +18,8 @@ export default async function MetasAdminPage() {
       .where(
         and(
           eq(users.isActive, true),
-          notInArray(users.role, ["admin"]),
-          notInArray(users.name, ["Suporte"])
+          inArray(users.role, ["cotador", "admin"]),
+          notInArray(users.name, ["Suporte", "RAMOS ELEMENTARES"])
         )
       )
       .orderBy(users.name),

@@ -29,9 +29,22 @@ interface MonthlyData {
 }
 
 const MES_ORDER: Record<string, number> = {
-  JAN:1, FEV:2, MAR:3, ABR:4, MAI:5, JUN:6,
-  JUL:7, AGO:8, SET:9, OUT:10, NOV:11, DEZ:12,
+  JAN:1, JANEIRO:1, FEV:2, FEVEREIRO:2, MAR:3, MARÇO:3, MARCO:3,
+  ABR:4, ABRIL:4, MAI:5, MAIO:5, JUN:6, JUNHO:6,
+  JUL:7, JULHO:7, AGO:8, AGOSTO:8, SET:9, SETEMBRO:9,
+  OUT:10, OUTUBRO:10, NOV:11, NOVEMBRO:11, DEZ:12, DEZEMBRO:12,
 };
+
+const MES_SHORT: Record<string, string> = {
+  JANEIRO:'JAN', FEVEREIRO:'FEV', MARÇO:'MAR', MARCO:'MAR',
+  ABRIL:'ABR', MAIO:'MAI', JUNHO:'JUN', JULHO:'JUL',
+  AGOSTO:'AGO', SETEMBRO:'SET', OUTUBRO:'OUT', NOVEMBRO:'NOV', DEZEMBRO:'DEZ',
+};
+
+function normMes(m: string) {
+  const u = m.toUpperCase();
+  return MES_SHORT[u] ?? u;
+}
 
 function fmtCurrency(v: number) {
   if (v >= 1_000_000) return `R$${(v / 1_000_000).toFixed(1)}M`;
@@ -45,10 +58,11 @@ const FONTS = { legend: 18, tick: 15, tooltip: 16 };
 export default function TvMonthlySlide({ monthlyTrend }: { monthlyTrend: MonthlyData[] }) {
   const sorted = [...monthlyTrend].sort((a, b) => {
     if (a.ano !== b.ano) return a.ano - b.ano;
-    return (MES_ORDER[a.mes] ?? 0) - (MES_ORDER[b.mes] ?? 0);
+    const ua = a.mes.toUpperCase(), ub = b.mes.toUpperCase();
+    return (MES_ORDER[ua] ?? 99) - (MES_ORDER[ub] ?? 99);
   });
   const data = sorted.slice(-6);
-  const labels = data.map(d => d.mes);
+  const labels = data.map(d => normMes(d.mes));
 
   const chartData = {
     labels,

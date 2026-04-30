@@ -13,6 +13,7 @@ export default async function SituacaoConfigPage() {
       <AppHeader
         userName={session.user.name || ""}
         userRole={session.user.role}
+        userPhoto={session.user.image}
         activePage="situacao-config"
       />
       <main className="max-w-5xl mx-auto px-4 py-6">
