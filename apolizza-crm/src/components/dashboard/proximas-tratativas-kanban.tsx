@@ -46,11 +46,11 @@ const PRIORITY_DOT: Record<string, string> = {
   baixa: "bg-slate-300",
 };
 
-function TrativaCard({ item }: { item: Tratativa }) {
+function TrativaCard({ item, from }: { item: Tratativa; from: string }) {
   const { label, urgent, overdue } = formatDate(item.proximaTratativa);
   return (
     <Link
-      href={`/cotacoes/${item.id}?from=dashboard`}
+      href={`/cotacoes/${item.id}?from=${from}`}
       className="block bg-white rounded-xl border border-slate-100 p-3 hover:border-[#03a4ed]/40 hover:shadow-sm transition-all group"
     >
       <div className="flex items-start gap-2">
@@ -81,7 +81,7 @@ function TrativaCard({ item }: { item: Tratativa }) {
   );
 }
 
-function KanbanColumn({ title, cor, items, count }: { title: string; cor?: string; items: Tratativa[]; count: number }) {
+function KanbanColumn({ title, cor, items, count, from }: { title: string; cor?: string; items: Tratativa[]; count: number; from: string }) {
   return (
     <div className="flex-shrink-0 w-72">
       <div className="flex items-center gap-2 mb-3 px-1">
@@ -93,14 +93,14 @@ function KanbanColumn({ title, cor, items, count }: { title: string; cor?: strin
         {items.length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-6">Nenhuma tratativa</p>
         ) : (
-          items.map((item) => <TrativaCard key={item.id} item={item} />)
+          items.map((item) => <TrativaCard key={item.id} item={item} from={from} />)
         )}
       </div>
     </div>
   );
 }
 
-export function ProximasTrativasKanban() {
+export function ProximasTrativasKanban({ from = "dashboard" }: { from?: string }) {
   const [items, setItems] = useState<Tratativa[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,7 +217,7 @@ export function ProximasTrativasKanban() {
         <div className="p-5 overflow-x-auto">
           <div className="flex gap-4 min-w-max">
             {columns.map((col) => (
-              <KanbanColumn key={col.key} title={col.title} cor={col.cor} items={col.items} count={col.items.length} />
+              <KanbanColumn key={col.key} title={col.title} cor={col.cor} items={col.items} count={col.items.length} from={from} />
             ))}
           </div>
         </div>

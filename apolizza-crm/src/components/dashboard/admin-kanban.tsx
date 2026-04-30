@@ -210,7 +210,7 @@ function CotacaoCard({ cotacao }: { cotacao: CotacaoKanban }) {
 
   return (
     <Link
-      href={`/cotacoes/${cotacao.id}`}
+      href={`/cotacoes/${cotacao.id}?from=dashboard`}
       className={`block p-2.5 rounded-lg border text-xs transition-all hover:shadow-sm ${
         isFechado ? "bg-emerald-50 border-emerald-200" :
         isPerda ? "bg-red-50 border-red-200" :

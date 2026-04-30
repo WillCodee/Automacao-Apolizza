@@ -460,7 +460,7 @@ export function InicioContent({
       </div>
 
       {/* Próximas Tratativas */}
-      {userRole === "cotador" ? <ProximasTratativas from="inicio" /> : <ProximasTrativasKanban />}
+      {userRole === "cotador" ? <ProximasTratativas from="inicio" /> : <ProximasTrativasKanban from="inicio" />}
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
