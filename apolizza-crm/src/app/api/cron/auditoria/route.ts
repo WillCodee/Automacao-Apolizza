@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     const rows = await dbQuery<TaskRow>(sql`
       SELECT t.id, t.titulo, t.cotador_id, u.name as cotador_name
       FROM tarefas t JOIN users u ON t.cotador_id = u.id
-      WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
+      WHERE t.status NOT IN ('Concluída','Cancelada')
         AND DATE(t.data_vencimento) = CURDATE()
       ORDER BY t.created_at ASC LIMIT 30
     `);
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     const rows = await dbQuery<PendenteRow>(sql`
       SELECT t.titulo, u.name as cotador_name, CAST(t.data_vencimento AS CHAR) as data_vencimento
       FROM tarefas t JOIN users u ON t.cotador_id = u.id
-      WHERE t.tarefa_status NOT IN ('Concluída','Cancelada')
+      WHERE t.status NOT IN ('Concluída','Cancelada')
         AND t.data_vencimento IS NOT NULL
         AND t.data_vencimento < now()
       ORDER BY t.data_vencimento ASC LIMIT 30

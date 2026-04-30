@@ -297,9 +297,10 @@ const OPCOES: { key: ConsultaKey; label: string; station: StationKey; desc: stri
 interface AuditoriaContentProps {
   userName: string;
   userRole: string;
+  userPhoto?: string | null;
 }
 
-export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) {
+export function AuditoriaContent({ userName, userRole, userPhoto }: AuditoriaContentProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
 
@@ -560,6 +561,7 @@ export function AuditoriaContent({ userName, userRole }: AuditoriaContentProps) 
       <AppHeader
         userName={userName}
         userRole={userRole as "admin" | "cotador" | "proprietario"}
+        userPhoto={userPhoto}
         activePage="auditoria"
       />
 

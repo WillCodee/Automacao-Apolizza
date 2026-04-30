@@ -14,5 +14,5 @@ export default async function AuditoriaPage() {
     redirect("/dashboard");
   }
 
-  return <AuditoriaContent userName={session.user.name || ""} userRole={session.user.role} />;
+  return <AuditoriaContent userName={session.user.name || ""} userRole={session.user.role} userPhoto={session.user.image} />;
 }
