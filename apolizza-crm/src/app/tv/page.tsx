@@ -57,7 +57,7 @@ interface TVData {
   }[];
   metaMensal: number | null;
   semanas: { semana: number; novas: number; fechadas: number; perdas: number; ganho: number; ganhoAcumulado: number }[];
-  ccliente: { total: number; valorPotencial: number; emConversao: number; valorConversao: number };
+  ccliente: { total: number; emConversao: number; tratativasHoje: number; semTratativa: number };
 }
 
 function fmt(v: number) {
@@ -314,7 +314,7 @@ function TvPage() {
             {slideIndex === 1 && <TvMetaSlide metaMensal={data.metaMensal} semanas={data.semanas} />}
             {slideIndex === 2 && <TvMonthlySlide monthlyTrend={data.monthlyTrend} />}
             {slideIndex === 3 && <TvKpisSlide kpis={data.kpis} />}
-            {slideIndex === 4 && <TvCclienteSlide ccliente={data.ccliente ?? { total: 0, valorPotencial: 0, emConversao: 0, valorConversao: 0 }} />}
+            {slideIndex === 4 && <TvCclienteSlide ccliente={data.ccliente ?? { total: 0, emConversao: 0, tratativasHoje: 0, semTratativa: 0 }} />}
           </div>
         </div>
 

@@ -160,16 +160,18 @@ export async function GET(req: NextRequest) {
         LIMIT 1
       `),
 
-      // CCliente status
+      // CCliente status — filtro por mês corrente, baseado em proxima_tratativa
+      // (campo a_receber e premio_sem_iof ficam zerados em CCLIENTE — não usar)
       dbQuery<Record<string, unknown>>(sql`
         SELECT
           COUNT(*)+0 as total,
-          COALESCE(SUM(CAST(a_receber AS DECIMAL(12,2))), 0) as valorPotencial,
-          COUNT(CASE WHEN updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END)+0 as emConversao,
-          COALESCE(SUM(CASE WHEN updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-            THEN CAST(a_receber AS DECIMAL(12,2)) ELSE 0 END), 0) as valorConversao
+          SUM(CASE WHEN proxima_tratativa BETWEEN DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END)+0 as emConversao,
+          SUM(CASE WHEN proxima_tratativa = CURDATE() THEN 1 ELSE 0 END)+0 as tratativasHoje,
+          SUM(CASE WHEN proxima_tratativa IS NULL THEN 1 ELSE 0 END)+0 as semTratativa
         FROM cotacoes
         WHERE deleted_at IS NULL AND LOWER(situacao) LIKE '%cliente%'
+          AND ano_referencia = ${ano}
+          AND (UPPER(mes_referencia) = ${mes} OR UPPER(mes_referencia) = ${mesFull})
       `),
     ]);
 
@@ -186,7 +188,7 @@ export async function GET(req: NextRequest) {
     const metaRow = metaEmpresaRows[0] as Record<string, unknown> | undefined;
     const metaMensal = metaRow?.metaValor ? Number(metaRow.metaValor) : null;
 
-    const CCLIENTE_FIELDS = ["total", "valorPotencial", "emConversao", "valorConversao"];
+    const CCLIENTE_FIELDS = ["total", "emConversao", "tratativasHoje", "semTratativa"];
     const cclienteRaw = (cclienteRows[0] ?? {}) as Record<string, unknown>;
     const ccliente = normalizeRow(cclienteRaw, CCLIENTE_FIELDS);
 
